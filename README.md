@@ -45,6 +45,11 @@ Internet access is needed for Google Fonts and three.js (loaded from CDN).
 6. Commit + push; Vercel redeploys.
 Never put the secret / service_role key in the frontend.
 
+## Robot controls
+- Tap (or press Enter on) the robot: shows the speaker, Guide me and Minimize buttons. They hide again after 8 s, on a second tap, or when you tap elsewhere.
+- Press and hold the robot (about 0.2 s), or hold Space / T: talk to it.
+- During the guided tour, the arrow at the end of the control bar collapses Back / Pause / Next / Skip tour / CC (and the subtitle strip) into a single small arrow.
+
 ## Notes
 - With `js/config.js` empty the app runs in demo mode: accounts and data live in memory and reset on reload.
 - App state (presentations, sessions, notifications, goals) is saved as one JSON row per user in `user_data`

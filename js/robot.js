@@ -119,8 +119,17 @@ function analyze(text,spoken,secs){
   const fl=(text.toLowerCase().match(/\b(um+|uh+|er|like|you know|basically|actually)\b/g)||[]);
   ask(text,spoken?words+' words'+(wpm?', about '+wpm+' words per minute':'')+(fl.length?', filler words: '+[...new Set(fl)].join(', '):', no filler words'):'');
 }
-cv.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(x){}press('mouse')});
-addEventListener('pointerup',()=>release('mouse'));addEventListener('pointercancel',()=>release('mouse'));
+/* Tap the robot = show/hide its options (speaker, Guide me, Minimize). Press and hold = talk. */
+const HOLD=220,TAP={down:false,fired:false,t:0},bar=bot.querySelector('.bbar');
+const menu=on=>{bot.classList.toggle('menu',on);clearTimeout(menu.t);if(on)menu.t=setTimeout(()=>menu(false),8000)};
+const menuOn=()=>bot.classList.contains('menu');
+cv.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(x){}
+  TAP.down=true;TAP.fired=false;clearTimeout(TAP.t);TAP.t=setTimeout(()=>{TAP.fired=true;menu(false);press('mouse')},HOLD)});
+addEventListener('pointerup',()=>{if(TAP.down){TAP.down=false;clearTimeout(TAP.t);if(!TAP.fired)menu(!menuOn())}release('mouse')});
+addEventListener('pointercancel',()=>{TAP.down=false;clearTimeout(TAP.t);release('mouse')});
+addEventListener('pointerdown',e=>{if(menuOn()&&!bot.contains(e.target))menu(false)},true);
+cv.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();menu(!menuOn())}});
+if(bar)bar.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;menu(b.id==='bmute')});
 const isKey=e=>e.key===' '||(e.key||'').toLowerCase()==='t';
 addEventListener('keydown',e=>{if(!shown||e.repeat||e.ctrlKey||e.metaKey||e.altKey||!isKey(e))return;
   if(e.target.closest&&e.target.closest('input,textarea,select,button,a,[contenteditable="true"]'))return;e.preventDefault();press('key')});

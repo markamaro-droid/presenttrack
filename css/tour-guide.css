@@ -46,3 +46,18 @@
 #bot .tbt{display:flex!important;gap:6px;flex-wrap:nowrap}#bot .tbt button{padding:7px 12px;font-size:12px}#bot .tbt .wide{grid-column:auto}
 #bot .tsegs{position:absolute;left:14px;right:14px;bottom:4px;margin:0!important}#bot .tsegs i{height:3px!important}
 @media (max-width:700px){#bot .tour{position:fixed!important;left:12px!important;right:12px!important;bottom:12px!important;width:auto!important;max-width:none!important;flex-wrap:wrap;justify-content:space-between}body.touring #bot{bottom:84px!important}}
+
+/* ---- robot: tour controls collapse into an arrow; speaker / Guide me / Minimize appear only after tapping the robot ---- */
+.tcolb{flex:none;width:30px;height:30px;border:0;border-radius:50%;display:grid;place-items:center;padding:0;cursor:pointer;
+  background:var(--cs,var(--panel));color:var(--ink);box-shadow:var(--clay-sm,0 3px 8px rgba(10,40,90,.2))}
+.tcolb svg{transition:transform .2s}
+.tcolb:hover{filter:brightness(.97)}.tcolb:active{box-shadow:var(--clay-in,none)}
+.tcolb:focus-visible{outline:3px solid color-mix(in srgb,var(--brand) 55%,transparent);outline-offset:2px}
+#bot.tcol .tour>:not(.tcolb){display:none!important}
+#bot.tcol .tour{padding:5px!important;gap:0!important;border-radius:999px!important;width:auto!important;min-width:0!important}
+#bot.tcol .tcolb svg{transform:rotate(180deg)}
+body.tourcol .tcap{display:none!important}
+@media (max-width:700px){#bot.tcol .tour{left:auto!important;right:12px!important;width:auto!important;flex-wrap:nowrap}}
+
+#bot .bbar{opacity:0;visibility:hidden;pointer-events:none;transform:translateY(6px);transition:opacity .16s,transform .16s,visibility 0s .16s}
+#bot.menu .bbar{opacity:1;visibility:visible;pointer-events:auto;transform:none;transition:opacity .16s,transform .16s,visibility 0s}
