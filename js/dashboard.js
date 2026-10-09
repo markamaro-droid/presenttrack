@@ -26,13 +26,21 @@ function initData(mode){
 initData('default');
 const DB={};   /* in-memory account database, keyed by email */
 podium.account=(email,registered)=>{
+  if(window.PTCloud&&PTCloud.enabled){
+    const row=PTCloud.row;
+    if(registered||!row){initData('empty');PTCloud.onboarded=false}
+    else{
+      if(row.data&&row.data.pres){const d=row.data;S.pres=d.pres;S.ses=d.ses;S.notes=d.notes;S.goals=d.goals;S.nid=d.nid}else initData(row.onboarded?'default':'empty');
+      S.flash=null;S.warnOff=false;S.loading=false;S.booted=false;S.isNew=!row.onboarded;S.guide=!row.onboarded;S.toured=!!row.onboarded;PTCloud.onboarded=!!row.onboarded}
+    PTCloud.ready=true;return}
   const k=email.toLowerCase(),rec=DB[k];
   if(registered){DB[k]={onboarded:false,data:null};initData('empty');return}
   if(rec){
     if(rec.data){S.pres=rec.data.pres;S.ses=rec.data.ses;S.notes=rec.data.notes;S.goals=rec.data.goals;S.nid=rec.data.nid}else initData(rec.onboarded?'default':'empty');
     S.flash=null;S.warnOff=false;S.loading=false;S.booted=false;S.isNew=!rec.onboarded;S.guide=!rec.onboarded;S.toured=!!rec.onboarded;return}
   initData('default');DB[k]={onboarded:true,data:null}};
-podium.save=()=>{const k=(S.u.email||'').toLowerCase();if(DB[k])DB[k].data={pres:S.pres,ses:S.ses,notes:S.notes,goals:S.goals,nid:S.nid}};
+podium.snapshot=()=>({pres:S.pres,ses:S.ses,notes:S.notes,goals:S.goals,nid:S.nid});
+podium.save=()=>{if(window.PTCloud&&PTCloud.enabled){PTCloud.save(podium.snapshot());return}const k=(S.u.email||'').toLowerCase();if(DB[k])DB[k].data={pres:S.pres,ses:S.ses,notes:S.notes,goals:S.goals,nid:S.nid}};
 const fsize=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB';
 const ftype=n=>{const e=(n.split('.').pop()||'').toLowerCase();return e==='pdf'?{l:'PDF',c:'pdf'}:e.startsWith('doc')?{l:'Word',c:'word'}:{l:'PowerPoint',c:'ppt'}};
 const cap=()=>S.pres[0]?S.ses.filter(x=>x.deck===S.pres[0].short):[];
@@ -104,7 +112,7 @@ function startTour(){
   if(innerWidth<900)$('side').classList.add('open');
   clearInterval(T.timer);T.timer=setInterval(tourTick,200);document.body.classList.add('touring');$('bot').classList.add('tourmode');T.cc=null;T.ccShown=false;syncGuide();tourShow(0)}
 function endTour(spoken){
-  if(!T.on)return;T.on=false;spotOff();clearInterval(T.timer);S.toured=true;S.isNew=false;{const k=(S.u.email||'').toLowerCase();if(DB[k])DB[k].onboarded=true}tourEl().hidden=true;$('tcap').hidden=true;$('bot').classList.remove('tourhl','tourmode');document.body.classList.remove('touring');
+  if(!T.on)return;T.on=false;spotOff();clearInterval(T.timer);S.toured=true;S.isNew=false;{const k=(S.u.email||'').toLowerCase();if(DB[k])DB[k].onboarded=true;if(window.PTCloud)PTCloud.onboarded=true}tourEl().hidden=true;$('tcap').hidden=true;$('bot').classList.remove('tourhl','tourmode');document.body.classList.remove('touring');
   try{podium.hushNow&&podium.hushNow()}catch(e){}nav();$('side').classList.remove('open')}
 podium.tourStop=()=>{T.on=false;spotOff();clearInterval(T.timer);tourEl().hidden=true;$('tcap').hidden=true;document.body.classList.remove('touring');$('bot').classList.remove('tourhl','tourmode');syncGuide()};podium.tourPause=()=>tourPlay(false);podium.startTour=startTour;podium.tourOn=()=>T.on;
 /* ---------- robot guide: navigate by voice/text and explain each page ---------- */
@@ -373,7 +381,7 @@ const shell=()=>document.querySelector('.shell'),land=()=>$('land');
 function showLand(){clearTimeout(window.__auto);document.documentElement.classList.remove('clay');$('app').hidden=true;shell().hidden=true;renderLand();land().hidden=false;try{podium.robotShow&&podium.robotShow(true,'land')}catch(e){console.warn(e)}land().classList.remove('in');void land().offsetWidth;land().classList.add('in');scrollTo(0,0);
   if(podium.isNew&&podium.isNew())window.__auto=setTimeout(()=>{if(!land().hidden)toApp('dash',[innerWidth/2,innerHeight*.45])},4600)}
 function toApp(v,p){clearTimeout(window.__auto);transition(p,()=>{land().hidden=true;$('app').hidden=false;document.documentElement.classList.add('clay');go(v);try{podium.robotShow&&podium.robotShow(true,'app');podium.setMin&&podium.setMin(innerWidth<900)}catch(e){console.warn(e)}})}
-function signOut(p){clearTimeout(window.__auto);clearInterval(tm);transition(p,()=>{try{podium.save&&podium.save();podium.tourStop&&podium.tourStop()}catch(e){}try{podium.robotShow&&podium.robotShow(false)}catch(e){}document.documentElement.classList.remove('clay');$('app').hidden=true;land().hidden=true;shell().hidden=false;lf.reset();rf.reset();setTab('login');S.u.pic=''})}
+function signOut(p){clearTimeout(window.__auto);clearInterval(tm);transition(p,()=>{try{podium.save&&podium.save();window.PTCloud&&PTCloud.enabled&&PTCloud.signOut();podium.tourStop&&podium.tourStop()}catch(e){}try{podium.robotShow&&podium.robotShow(false)}catch(e){}document.documentElement.classList.remove('clay');$('app').hidden=true;land().hidden=true;shell().hidden=false;lf.reset();rf.reset();setTab('login');S.u.pic=''})}
 function renderLand(){
   const a=avg(S.ses.map(x=>x.score)),f=S.u.name.split(' ')[0],ico=p=>'<span style="color:var(--brand);display:flex">'+ic(p)+'</span>';
   const cards=[['Timer with a target','M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z','Pick 3, 5 or 10 minutes and watch the ring fill as you speak.'],['Pace and filler words','M3 17l6-6 4 4 8-8M15 7h6v6','See your speed live and tap each filler word you catch.'],['Score and next steps','M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7','Every session ends with a score and three clear tips.']];
