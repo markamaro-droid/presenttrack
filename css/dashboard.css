@@ -85,26 +85,63 @@
 .sld .sim{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.sld .sim img{max-width:100%;max-height:260px;border-radius:8px}
 .sld .em{color:#5a6b85}.sld.doc{aspect-ratio:auto;min-height:260px;max-height:62vh;line-height:1.6}.sld.doc img{max-width:100%}
 .dur{display:flex;gap:8px;align-items:center}.dur input{flex:1;min-width:0}
-#pq{margin:8px 0 0}#pmh{margin:6px 0 0}
+#pq{margin:0}#pmh{margin:0}
 html.clay input[aria-invalid=true]{box-shadow:var(--clay-in),0 0 0 2px var(--err)}
-.vctl{margin-top:12px;display:flex;flex-direction:column;align-items:center;gap:10px}
-.vbt{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
-.vtm{display:flex;align-items:baseline;gap:10px;padding:8px 18px;border-radius:18px;background:var(--cs);box-shadow:var(--clay-in)}
-.vtm b{font:700 clamp(26px,4vw,40px) Sora,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+/* ---- practice setup panel: ring on the left, balanced form on the right ---- */
+.psetup{display:grid;grid-template-columns:auto minmax(0,1fr);gap:24px 44px;align-items:center}
+.psetup .rg{width:190px;height:190px;justify-self:center}
+.pform{display:grid;gap:22px;min-width:0}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:18px 24px}
+.pf{display:grid;gap:8px;min-width:0;align-content:start}
+.pf>label{margin:0}
+.plb{font-size:14px;font-weight:600}
+.pf .chips{margin:0}
+.pacts{gap:10px;padding-top:2px}.pacts .bt{min-width:116px}
+@media (max-width:720px){.psetup{grid-template-columns:minmax(0,1fr);gap:20px}.psetup .rg{width:170px;height:170px}.pacts .bt{flex:1 1 0;min-width:0}}
+
+/* ---- viewer controls: timer + buttons share one row, one height ---- */
+#vw{--vh:46px}
+.vctl{margin-top:12px;display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 12px;position:relative}
+.vbt{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;justify-content:center}
+#vw .vbt .bt{box-sizing:border-box;height:var(--vh);padding:0 18px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:14px;line-height:1;white-space:nowrap}
+#vw .vbt .bt.vic{width:var(--vh);padding:0}
+.vtm{display:flex;align-items:center;gap:10px;box-sizing:border-box;height:var(--vh);padding:0 18px;border-radius:18px;background:var(--cs);box-shadow:var(--clay-in)}
+.vtm b{font:700 28px/1 Sora,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .vtm small{font-size:12px;color:var(--muted);white-space:nowrap}.vtm.over b{color:var(--err)}.vtm.paused b{opacity:.55}
+/* tooltips (also shown on keyboard focus) */
+#vw [data-tip]{position:relative}
+#vw [data-tip]::after{content:attr(data-tip);position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);padding:5px 10px;border-radius:8px;background:var(--ink);color:var(--cb2);font:600 12px/1.2 "DM Sans",sans-serif;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .12s;z-index:60}
+#vw [data-tip]:hover::after,#vw [data-tip]:focus-visible::after{opacity:1}
+/* disabled arrows: dim the icon, not the whole button, so the tooltip stays readable */
+#vw .vbt .bt.vic:disabled{opacity:1;background:var(--cs);color:var(--ink);box-shadow:var(--clay-sm);border:0}
+#vw .vbt .bt.vic:disabled svg{opacity:.35}
 .vnote{margin:0;font-size:13px;color:var(--err);text-align:right}.vnote:empty{display:none}
 .bt:disabled{opacity:.45;cursor:not-allowed;transform:none!important}
-/* full-screen presentation mode: timer + controls fixed in the upper-right */
-#vw.fs{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto minmax(0,1fr);gap:12px 16px;align-content:stretch;
-  padding:max(16px,env(safe-area-inset-top)) 20px 16px;border-radius:0;overflow:hidden;background:var(--cb2);width:100%;height:100%;box-sizing:border-box}
-#vw.fs{box-shadow:none}
-#vw.fs .vwh{grid-area:1/1;align-self:start;margin:0;justify-content:flex-start;gap:14px}#vw.fs .vwh .sh{flex:none}
-#vw.fs .vctl{grid-area:1/2;margin:0;align-items:flex-end;max-width:min(460px,64vw)}
+/* full-screen presentation mode: slides use the whole screen; a slim top bar holds the slide counter (left) and timer + controls (right) */
+#vw.fs{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto minmax(0,1fr);gap:0;align-content:stretch;padding:0;border-radius:0;overflow:hidden;background:var(--cb2);width:100%;height:100%;box-sizing:border-box;box-shadow:none}
+#vw.fs .vwh{grid-area:1/1;align-self:center;margin:0;justify-content:flex-start;gap:14px;padding:max(10px,env(safe-area-inset-top)) 0 10px max(20px,env(safe-area-inset-left))}
+#vw.fs .vwh .sh{flex:none}
+#vw.fs .vctl{grid-area:1/2;margin:0;justify-content:flex-end;padding:max(10px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 10px 0}
 #vw.fs .vbt{justify-content:flex-end}
-#vw.fs .vst{grid-area:2/1/3/3;min-height:0;margin:0;overflow:auto}
+#vw.fs .vnote{position:absolute;top:100%;right:max(16px,env(safe-area-inset-right));margin:0;padding:6px 12px;border-radius:10px;background:var(--cs);box-shadow:var(--clay-sm);white-space:nowrap;z-index:60}
+#vw.fs .vst{grid-area:2/1/3/3;min-height:0;margin:0;overflow:auto;padding:0 8px max(8px,env(safe-area-inset-bottom));border-radius:0;box-shadow:none;container-type:size}
 #vw.fs .tip{display:none}
-#vw.fs .sld{inline-size:min(100%,calc((100vh - 210px)*1.7778));inline-size:min(100%,calc((100dvh - 210px)*1.7778))}
-#vw.fs .sld.doc{inline-size:min(100%,900px);max-height:100%}
+#vw.fs .vst canvas{border-radius:4px}
+#vw.fs .sld{inline-size:min(100%,calc((100vh - 90px)*1.7778));inline-size:min(100%,calc((100dvh - 90px)*1.7778));container-type:inline-size}
+#vw.fs .sld.doc{inline-size:100%;block-size:100%;max-height:none;aspect-ratio:auto;display:flex;flex-direction:column;padding:4% 6%;font-size:clamp(18px,1.6vw,36px);container-type:normal}
+#vw.fs .sld.doc>:first-child{margin-top:auto}#vw.fs .sld.doc>:last-child{margin-bottom:auto}
+@supports (container-type:size){
+  #vw.fs .sld{inline-size:min(100cqw,calc(100cqh*1.7778))}
+  #vw.fs .sld h4{font-size:clamp(20px,3.4cqw,84px);margin-bottom:.45em}
+  #vw.fs .sld ul{font-size:clamp(14px,2.1cqw,44px);gap:.45em;padding-left:1.3em}
+  #vw.fs .sld .sim img{max-height:40vh}
+  #vw.fs .sld.doc{font-size:clamp(18px,1.7cqw,40px)}
+}
 #vw.fsx{position:fixed;inset:0;z-index:40;margin:0!important}
 body.vfsx{overflow:hidden}
-@media (max-width:560px){#vw.fs{padding:max(12px,env(safe-area-inset-top)) 12px 12px}#vw.fs .vwh .sh{display:none}#vw.fs .vctl{max-width:78vw}#vw.fs .vbt{gap:6px}#vw.fs .bt.sm{padding:6px 10px;font-size:12px}}
+@media (max-width:900px){#vw.fs .vwh .sh{display:none}#vw.fs .vwh{padding-left:max(16px,env(safe-area-inset-left))}}
+@media (max-width:700px){#vw{--vh:40px}#vw .vbt .bt{padding:0 12px;font-size:13px}.vtm{padding:0 12px;border-radius:16px}.vtm b{font-size:22px}.vtm small{display:none}#vw.fs .vctl{gap:8px}#vw.fs .vbt{gap:6px}}
+@media (max-width:520px){#vw.fs{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr)}
+  #vw.fs .vwh{grid-area:1/1;padding:max(10px,env(safe-area-inset-top)) 16px 0}
+  #vw.fs .vctl{grid-area:2/1;justify-content:flex-start;padding:8px max(16px,env(safe-area-inset-right)) 10px max(16px,env(safe-area-inset-left))}
+  #vw.fs .vst{grid-area:3/1}}
