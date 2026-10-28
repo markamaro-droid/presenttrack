@@ -63,7 +63,7 @@ function tourSteps(){const n=S.u.name.split(' ')[0]||'there';return [
  {nav:null,v:'dash',t:'Welcome to PresentTrack',x:'Hello '+n+'! Welcome to PresentTrack. I am your robot guide. In about two minutes I will show you every part of the system. Sit back and watch, or press skip anytime.'},
  {nav:'dash',v:'dash',t:'Dashboard',x:GUIDE.dash,c:[['next presentation','.nx','Your next presentation'],['how ready you are','.g-next>section:nth-child(2)','How ready you are'],['performance numbers','.g-perf','Your performance numbers'],['progress chart','.g-prog>section:first-child','Progress chart'],['coaching tip','.coach','My coaching tip'],['recent practice','[data-sec="recent-practice"]','Recent practice'],['quick actions','[data-sec="quick-actions"]','Quick actions']]},
  {nav:'decks',v:'decks',t:'My Presentations',x:GUIDE.decks+' This is where you start.',c:[['Type your own title','#ut','Type your title here'],['drop in a PDF','#dz','Drop your file here'],['press Add Presentation','#ua','Then press this'],['practice, rename','[data-sec="upload-a-presentation"]+.g2,.g2','Your presentations appear here']]},
- {nav:'prac',v:'prac',t:'Practice',x:GUIDE.prac,c:[['Pick a presentation','#pd','Pick a presentation'],['target time','#pm','Set your target time'],['press Start','#pgo','Press Start'],['Tap each filler word','#fcs','Tap fillers here'],['press Finish','#pfin','Finish for your score']]},
+ {nav:'prac',v:'prac',t:'Practice',x:GUIDE.prac,c:[['Pick a presentation','#pd','Pick a presentation'],['target time','#pdur','Set your target time'],['press Start','#pgo','Press Start'],['Tap each filler word','#fcs','Tap fillers here'],['press Finish','#pfin','Finish for your score']]},
  {nav:'rep',v:'rep',t:'Reports',x:GUIDE.rep,c:[['every practice session','[data-sec="session-reports"]','Every practice session'],['View Report','.rp .bt','View Report']]},
  {nav:'perf',v:'perf',t:'Performance',x:GUIDE.perf,c:[['speaking pace','[data-sec="performance-overview"]','Your performance']]},
  {nav:'prog',v:'prog',t:'Progress',x:GUIDE.prog,c:[['Progress shows','[data-sec="your-performance-progress"]','Your progress chart'],['Use the buttons','.chips','Switch the metric here'],['goals beside it','[data-sec="goals"]','Your goals']]},
@@ -245,13 +245,13 @@ const goalsHTML=()=>S.goals.length?S.goals.map(g=>`<div class="gl2"><div class="
 
 /* practice module (setup + live practice) */
 function practiceHTML(a,weak){
-  const p=find(a),mins=p?Math.round(p.target/60):5;
-  return page(weak?'Weak-Point Practice':'Practice',weak?'Focus: slow down during your introduction. Target 130 to 150 WPM.':'Set up your run-through, then speak out loud and tap each filler word you catch.',`<div class="pn rise" style="--i:1"><div class="pr"><div class="rg"><svg viewBox="0 0 120 120"><circle class="dt" cx="60" cy="60" r="54"/><circle class="dp" id="pg" cx="60" cy="60" r="54"/></svg><div class="tt"><b id="pc">0:00</b><span id="pl">of ${mins}:00</span></div></div>
+  const p=find(a),mins=Math.max(1,Math.min(240,Math.round((p?p.target:300)/60)));
+  return page(weak?'Weak-Point Practice':'Practice',weak?'Replay the part you want to improve, then finish to see your new score.':'Set up your run-through, then speak out loud and tap each filler word you catch.',`<div class="pn rise" style="--i:1"><div class="pr"><div class="rg"><svg viewBox="0 0 120 120"><circle class="dt" cx="60" cy="60" r="54"/><circle class="dp" id="pg" cx="60" cy="60" r="54"/></svg><div class="tt"><b id="pc">0:00</b><span id="pl">of ${mins}:00</span></div></div>
  <div class="fr" style="flex:1;min-width:240px"><div><label for="pd">Presentation</label><select id="pd">${S.pres.map(x=>`<option value="${x.id}"${p&&x.id===p.id?' selected':''}>${esc(x.t)}</option>`).join('')||'<option value="0">Quick practice</option>'}</select></div>
- <div><label for="pm">Target duration</label><select id="pm">${[3,5,10,15].map(m=>`<option value="${m*60}"${m===mins?' selected':''}>${m} minutes</option>`).join('')}</select></div>
- <div><label for="pf">Focus</label><select id="pf"><option value="full"${weak?'':' selected'}>Full run-through</option><option value="intro"${weak?' selected':''}>Introduction pace</option></select></div>
+ <div><label for="pdur">Target duration (minutes)</label><div class="dur"><input type="text" id="pdur" inputmode="numeric" maxlength="3" autocomplete="off" value="${mins}" aria-describedby="pmh"><span class="pill2">min</span></div>
+ <div class="chips" id="pq" role="group" aria-label="Quick durations">${[3,5,10,15,20].map(m=>`<button class="chip2" data-m="${m}" type="button" aria-pressed="${m===mins}">${m} min</button>`).join('')}</div><p class="hint" id="pmh">Any whole number from 1 to 240.</p></div>
  <div class="acts"><button class="bt" id="pgo" type="button">Start</button><button class="bt gh" id="pfin" type="button">Finish</button><button class="bt gh" id="prs" type="button">Reset</button></div></div></div>
- <p class="sub" style="margin:16px 0 0" id="pp">Pace: – WPM (simulated)</p><div class="fcs" id="fcs">${['um','like','you know','so'].map(f=>`<button class="fc" data-f="${f}" type="button">${f} <b>0</b></button>`).join('')}<button class="fc" data-f="__pause" type="button">long pause <b>0</b></button></div><div id="pres"></div></div><section class="pn rise" id="vw" style="--i:2"><div class="vwh"><h3 class="sh">YOUR SLIDES</h3><span id="vc"></span></div><div class="vst" id="vst" aria-live="polite"></div><div class="acts" style="margin-top:12px;justify-content:center"><button class="bt gh" id="vb" type="button">← Back</button><button class="bt" id="vn" type="button">Next →</button><button class="bt gh" id="vfs" type="button">Full screen</button></div><p class="basis" style="margin:10px 0 0;text-align:center">Tip: use the ← → keys or swipe to change slides.</p></section>`)}
+ <div class="fcs" id="fcs" style="margin-top:16px">${['um','like','you know','so'].map(f=>`<button class="fc" data-f="${f}" type="button">${f} <b>0</b></button>`).join('')}<button class="fc" data-f="__pause" type="button">long pause <b>0</b></button></div><div id="pres"></div></div><section class="pn rise" id="vw" style="--i:2"><div class="vwh"><h3 class="sh">YOUR SLIDES</h3><span id="vc"></span></div><div class="vst" id="vst" aria-live="polite"></div><div class="vctl" id="vctl"><div class="vtm" id="vtmw" hidden aria-label="Elapsed time"><b id="vtm">0:00</b><small id="vtl"></small></div><div class="vbt"><button class="bt gh sm" id="vb" type="button">← Back</button><button class="bt sm" id="vn" type="button">Next →</button><button class="bt gh sm" id="vfs" type="button">Full screen</button><button class="bt gh sm" id="vpr" type="button" hidden>Pause</button><button class="bt sm vfin" id="vfin" type="button" hidden>Finish</button></div><p class="vnote" id="vnote" role="status"></p></div><p class="basis tip" style="margin:10px 0 0;text-align:center">Tip: use the ← → keys or swipe to change slides.</p></section>`)}
 /* ---- slide viewer: shows the uploaded file during practice (PDF, PPTX, DOCX). Files stay in memory only. ---- */
 const FILES={},LIB={pdf:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',zip:'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',doc:'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js'};
 const lib=k=>LIB[k+'p']||(LIB[k+'p']=new Promise((ok,no)=>{const s=document.createElement('script');s.src=LIB[k];s.onload=ok;s.onerror=()=>{LIB[k+'p']=0;no(new Error('Could not load the viewer. Check your internet connection.'))};document.head.appendChild(s)}));
@@ -277,20 +277,40 @@ async function docxDeck(file){await lib('doc');const r=await mammoth.convertToHt
   const pages=[];let cur=[],len=0;[...box.children].forEach(el=>{const L=el.textContent.length;if(cur.length&&(len+L>900||/^H[12]$/.test(el.tagName))){pages.push(cur);cur=[];len=0}cur.push(el);len+=L});if(cur.length)pages.push(cur);
   if(!pages.length)throw new Error('This document has no readable text.');
   return{n:pages.length,async show(i){const d=document.createElement('div');d.className='sld doc';pages[i].forEach(e=>d.appendChild(e.cloneNode(true)));return d}}}
-let VD=null,VI=0,VT=0,VS=0;
-const vbtn=()=>{const n=VD?VD.n:0;if($('vb'))$('vb').disabled=!n||VI<=0;if($('vn'))$('vn').disabled=!n||VI>=n-1;if($('vfs'))$('vfs').disabled=!n};
-async function vshow(){const d=VD,host=$('vst');if(!d||!host)return;const my=++VS;VI=Math.max(0,Math.min(d.n-1,VI));$('vc').textContent='Slide '+(VI+1)+' / '+d.n;vbtn();
-  const mh=Math.max(260,innerHeight*(document.fullscreenElement?.78:.6));
+let VD=null,VI=0,VT=0,VS=0,PR=null;
+const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement;
+const inFS=()=>{const v=$('vw');return !!v&&v.classList.contains('fs')};
+const vnote=m=>{const n=$('vnote');if(!n)return;n.textContent=m;clearTimeout(n._t);n._t=setTimeout(()=>{n.textContent=''},2800)};
+/* one place that decides which presentation buttons are visible/enabled */
+function vui(){const vw=$('vw');if(!vw)return;const fs=inFS(),n=VD?VD.n:0,last=n>0&&VI>=n-1;
+  $('vb').disabled=!n||VI<=0;$('vn').disabled=!n||last;$('vfs').disabled=!n;$('vfs').textContent=fs?'Exit full screen':'Full screen';
+  $('vtmw').hidden=!fs;$('vpr').hidden=!fs;$('vfin').hidden=!(fs&&last);
+  if(PR){PR.sync();PR.draw()}}
+function fsChanged(){vui();if(inFS()&&PR)PR.autostart();vui();clearTimeout(window.__vr);window.__vr=setTimeout(vshow,80)}
+/* fallback for browsers without the Fullscreen API (e.g. iPhone Safari): fill the window instead */
+function fsFallback(on){const vw=$('vw');if(!vw)return;vw.classList.toggle('fs',on);vw.classList.toggle('fsx',on);document.body.classList.toggle('vfsx',on);fsChanged()}
+function setFS(on){const vw=$('vw');if(!vw)return;
+  if(on){const rq=vw.requestFullscreen||vw.webkitRequestFullscreen;if(!rq)return fsFallback(true);
+    try{const r=rq.call(vw);if(r&&r.catch)r.catch(()=>fsFallback(true))}catch(e){fsFallback(true)}}
+  else if(vw.classList.contains('fsx'))fsFallback(false);
+  else if(fsEl())(document.exitFullscreen||document.webkitExitFullscreen).call(document)}
+async function vshow(){const d=VD,host=$('vst');if(!d||!host)return;const my=++VS;VI=Math.max(0,Math.min(d.n-1,VI));$('vc').textContent='Slide '+(VI+1)+' / '+d.n;vui();
+  const mh=inFS()?Math.max(200,host.clientHeight-24):Math.max(260,innerHeight*.6);
   try{const el=await d.show(VI,host,mh);if(my===VS)host.replaceChildren(el)}catch(e){if(my===VS)host.textContent='Could not draw this slide.'}}
 const vgo=k=>{if(VD){VI+=k;vshow()}};
-async function viewer(){const host=$('vst');if(!host)return;const my=++VT;VD=null;VI=0;VS++;
-  const msg=t=>{host.replaceChildren();const e=document.createElement('p');e.className='em';e.textContent=t;host.appendChild(e);$('vc').textContent='';vbtn()};
-  $('vb').onclick=()=>vgo(-1);$('vn').onclick=()=>vgo(1);$('vfs').onclick=()=>{document.fullscreenElement?document.exitFullscreen():$('vw').requestFullscreen&&$('vw').requestFullscreen()};
-  $('pd').onchange=viewer;let sx=null;host.ontouchstart=e=>{sx=e.touches[0].clientX};host.ontouchend=e=>{if(sx===null)return;const dx=e.changedTouches[0].clientX-sx;sx=null;if(Math.abs(dx)>50)vgo(dx<0?1:-1)};
+async function viewer(){const host=$('vst');if(!host)return;const my=++VT;VD=null;VI=0;VS++;document.body.classList.remove('vfsx');
+  const msg=t=>{host.replaceChildren();const e=document.createElement('p');e.className='em';e.textContent=t;host.appendChild(e);$('vc').textContent='';vui()};
+  $('vb').onclick=()=>vgo(-1);$('vn').onclick=()=>vgo(1);$('vfs').onclick=()=>setFS(!inFS());
+  $('vpr').onclick=()=>PR&&PR.toggle();$('vfin').onclick=()=>PR&&PR.finish();
+  let sx=null;host.ontouchstart=e=>{sx=e.touches[0].clientX};host.ontouchend=e=>{if(sx===null)return;const dx=e.changedTouches[0].clientX-sx;sx=null;if(Math.abs(dx)>50)vgo(dx<0?1:-1)};
   if(!window.__vk){window.__vk=1;
-    document.addEventListener('keydown',e=>{if(!$('vst')||!VD||e.ctrlKey||e.metaKey||e.altKey||/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName))return;
+    document.addEventListener('keydown',e=>{const vw=$('vw');if(!vw)return;
+      if(e.key==='Escape'&&vw.classList.contains('fsx')){fsFallback(false);return}
+      if(!VD||e.ctrlKey||e.metaKey||e.altKey||/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName))return;
       if(e.key==='ArrowRight'||e.key==='PageDown'){vgo(1);e.preventDefault()}else if(e.key==='ArrowLeft'||e.key==='PageUp'){vgo(-1);e.preventDefault()}});
-    document.addEventListener('fullscreenchange',vshow);addEventListener('resize',()=>{clearTimeout(window.__vr);window.__vr=setTimeout(vshow,200)})}
+    const onFS=()=>{const vw=$('vw');if(!vw)return;if(!vw.classList.contains('fsx'))vw.classList.toggle('fs',fsEl()===vw);fsChanged()};
+    document.addEventListener('fullscreenchange',onFS);document.addEventListener('webkitfullscreenchange',onFS);
+    addEventListener('resize',()=>{clearTimeout(window.__vr);window.__vr=setTimeout(vshow,200)})}
   const p=S.pres.find(x=>x.id==$('pd').value),f=p&&FILES[p.id];
   if(!f)return msg(p&&p.file?'The file for this presentation isn\u2019t loaded in this session. Upload it again in My Presentations to see it here.':'No file attached to this presentation yet.');
   if(!/\.(pdf|pptx|docx)$/i.test(f.name))return msg('Preview works for PDF, PPTX and DOCX files. Older .ppt and .doc files can\u2019t be shown here.');
@@ -313,22 +333,41 @@ rec:()=>{let file=null;const f=$('f'),dz=$('dz'),pk=x=>{file=x;$('fn').textConte
 goals:()=>{$('ga').onclick=()=>{const t=$('gn').value.trim();if(!t){toast('Describe your goal first');return}S.goals.push({t,p:0});toast('Goal added');go('goals')}},
 set:()=>{$('rv').onchange=e=>podium.setVoice&&podium.setVoice(e.target.checked);$('cp').onclick=()=>$('pic').click();$('st').onclick=()=>$('theme').click();
   $('ss').onclick=()=>{const n=$('sn').value.trim(),e=$('se').value.trim();if(n.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)){toast('Enter a valid name and email');return}S.u.name=n;S.u.email=e;podium.name=n.split(' ')[0];renderShell();toast('Settings saved')}},
-prac:()=>{let el=0,run=false,pace=140,pt=140,pS=0,pN=0,c={};const tg=()=>+$('pm').value,fillN=()=>Object.keys(c).filter(k=>k!=='__pause').reduce((s,k)=>s+c[k],0);
-  const draw=()=>{const f=Math.min(el/tg(),1);$('pc').textContent=fmt(el);$('pl').textContent=el>tg()?'+'+fmt(el-tg())+' over':'of '+fmt(tg());$('pg').style.strokeDashoffset=339.3*(1-f);$('pg').style.stroke=el>tg()?'var(--err)':'var(--brand)';
-    const intro=$('pf').value==='intro'&&el<120;$('pp').textContent=pN?'Pace: '+Math.round(pace)+' WPM (simulated)'+(intro?(pace>150?' · Slow down for your introduction':' · Good introduction pace'):''):'Pace: – WPM (simulated)'};
-  const stop=()=>{run=false;clearInterval(tm);$('pgo').textContent=el?'Resume':'Start'};
-  $('pgo').onclick=()=>{if(run){stop();return}run=true;$('pgo').textContent='Pause';$('pres').innerHTML='';clearInterval(tm);
-    tm=setInterval(()=>{el+=.2;if(Math.random()<.08)pt=($('pf').value==='intro'&&el<120)?135+Math.random()*50:110+Math.random()*75;pace+=(pt-pace)*.15;pS+=pace;pN++;draw()},200)};
-  $('prs').onclick=()=>{stop();el=0;pace=140;pS=pN=0;c={};$$('.fc b').forEach(b=>b.textContent=0);$('pres').innerHTML='';$('pgo').textContent='Start';draw()};
-  $('pm').onchange=draw;viewer();
+prac:()=>{let el=0,run=false,last=0,c={};const REFWPM=145;   /* pace is no longer measured; sessions keep a neutral value so Reports and score still work */
+  const parse=v=>{const s=String(v).trim();if(!/^\d{1,3}$/.test(s))return null;const n=+s;return n>=1&&n<=240?n:null};
+  let T0=(parse($('pdur').value)||5)*60;const tg=()=>T0,pick=()=>S.pres.find(x=>x.id==$('pd').value);
+  const fillN=()=>Object.keys(c).filter(k=>k!=='__pause').reduce((s,k)=>s+c[k],0);
+  const draw=()=>{const over=el>tg(),f=Math.min(el/tg(),1);
+    if($('pc')){$('pc').textContent=fmt(el);$('pl').textContent=over?'+'+fmt(el-tg())+' over':'of '+fmt(tg());$('pg').style.strokeDashoffset=339.3*(1-f);$('pg').style.stroke=over?'var(--err)':'var(--brand)'}
+    const t=$('vtm');if(t){t.textContent=fmt(el);$('vtmw').classList.toggle('over',over);$('vtmw').classList.toggle('paused',!run);
+      $('vtl').textContent=(!run&&el?'Paused \u00b7 ':'')+(over?'+'+fmt(el-tg())+' over':'of '+fmt(tg()))}};
+  const syncRun=()=>{if($('pgo'))$('pgo').textContent=run?'Pause':el?'Resume':'Start';if($('vpr'))$('vpr').textContent=run?'Pause':'Resume'};
+  const tick=()=>{if(!$('pc')){clearInterval(tm);run=false;return}const n=performance.now();el+=(n-last)/1000;last=n;draw()};
+  const stop=()=>{if(run)el+=(performance.now()-last)/1000;run=false;clearInterval(tm);syncRun();draw()};
+  const start=()=>{if(run)return;run=true;last=performance.now();$('pres').innerHTML='';clearInterval(tm);tm=setInterval(tick,200);syncRun();draw()};
+  const toggle=()=>run?stop():start();
+  /* target duration: any whole number of minutes (1-240), saved on the presentation */
+  const marks=()=>$$('#pq .chip2').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.m*60===T0)));
+  const hint=bad=>{$('pdur').setAttribute('aria-invalid',bad?'true':'false');$('pmh').textContent=bad?'Enter a whole number from 1 to 240.':'Any whole number from 1 to 240.';$('pmh').style.color=bad?'var(--err)':''};
+  const setDur=m=>{T0=m*60;const p=pick();if(p)p.target=T0;marks();draw()};
+  $('pdur').oninput=()=>{const n=parse($('pdur').value);hint(n===null);if(n!==null)setDur(n)};
+  $('pdur').onblur=()=>{if(parse($('pdur').value)===null){$('pdur').value=T0/60;hint(false)}};
+  $$('#pq .chip2').forEach(b=>b.onclick=()=>{$('pdur').value=b.dataset.m;$('pdur').oninput()});
+  $('pd').onchange=()=>{const p=pick();if(p&&!run&&!el){const m=Math.max(1,Math.min(240,Math.round(p.target/60)));$('pdur').value=m;hint(false);T0=m*60;marks();draw()}viewer()};
+  $('pgo').onclick=toggle;
+  $('prs').onclick=()=>{stop();el=0;c={};$$('.fc b').forEach(b=>b.textContent=0);$('pres').innerHTML='';syncRun();draw()};
   $$('.fc').forEach(b=>b.onclick=()=>{const f=b.dataset.f;c[f]=(c[f]||0)+1;b.lastChild.textContent=c[f]});
-  $('pfin').onclick=()=>{if(el<5){toast('Practice for at least 5 seconds first');return}stop();
-    const p=S.pres.find(x=>x.id==$('pd').value),deck=p?p.short:'Quick practice',dur=Math.round(el),T=tg(),w=Math.round(pS/Math.max(pN,1)),fi=fillN(),pa=c.__pause||0;
-    const x={id:S.nid++,deck,d:today(),dur,wpm:w,fill:fi,pau:pa,score:scoreOf(dur,T,fi,w,pa),tg:T};S.ses.push(x);if(p)p.ready=Math.min(100,p.ready+2);
+  const finish=()=>{if(el<5){const m='Practice for at least 5 seconds first';toast(m);vnote(m);return}stop();if(inFS())setFS(false);
+    const p=pick(),deck=p?p.short:'Quick practice',dur=Math.round(el),T=tg(),fi=fillN(),pa=c.__pause||0;
+    const x={id:S.nid++,deck,d:today(),dur,wpm:REFWPM,fill:fi,pau:pa,score:scoreOf(dur,T,fi,REFWPM,pa),tg:T};S.ses.push(x);if(p)p.ready=Math.min(100,p.ready+2);
     notify('✅','Practice completed',deck+': score '+x.score+'%.');S.flash='Practice session completed successfully!';nav();renderTop();robot('success','Nice work! Your results are ready.',5000);
-    $('pres').innerHTML=`<div class="pn" style="margin-top:14px"><h3 class="sh">SCORE: ${x.score}%</h3><ul class="tp">${tips(x).map(t=>`<li>${t}</li>`).join('')}</ul><div class="acts"><button class="bt" data-go="dash" type="button">BACK TO DASHBOARD</button><button class="bt gh" data-go="rdet" data-a="${x.id}" type="button">VIEW REPORT</button></div></div>`};draw()}
+    $('pres').innerHTML=`<div class="pn" style="margin-top:14px"><h3 class="sh">SCORE: ${x.score}%</h3><ul class="tp">${tips(x).map(t=>`<li>${t}</li>`).join('')}</ul><div class="acts"><button class="bt" data-go="dash" type="button">BACK TO DASHBOARD</button><button class="bt gh" data-go="rdet" data-a="${x.id}" type="button">VIEW REPORT</button></div></div>`;
+    setTimeout(()=>{const r=$('pres');r&&r.scrollIntoView({behavior:'smooth',block:'center'})},150)};
+  $('pfin').onclick=finish;
+  PR={sync:syncRun,draw,toggle,finish,autostart:()=>{if(!run&&!el)start()}};
+  viewer();marks();syncRun();draw()}
 };
-B.create=B.up=B.decks;
+B.create=B.up=B.decks;B.weak=B.prac;
 const today=()=>new Date().toLocaleDateString('en',{month:'long',day:'numeric'});
 function notify(i,t,s){S.notes.unshift({ic:i,t,s,r:0});renderTop();nav()}
 function flash(msg,kind,robotMsg){S.flash=msg;robot('success',robotMsg||'Nice work! Your results are ready.',5000)}
