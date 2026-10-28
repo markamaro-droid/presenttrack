@@ -84,5 +84,27 @@
 .sld h4{margin:0 0 10px;font:700 clamp(18px,3vw,30px) Sora,sans-serif}.sld ul{margin:0;padding-left:22px;display:grid;gap:6px;font-size:clamp(14px,1.8vw,20px)}
 .sld .sim{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.sld .sim img{max-width:100%;max-height:260px;border-radius:8px}
 .sld .em{color:#5a6b85}.sld.doc{aspect-ratio:auto;min-height:260px;max-height:62vh;line-height:1.6}.sld.doc img{max-width:100%}
-#vw:fullscreen{background:var(--cb2);padding:20px;display:flex;flex-direction:column;justify-content:center;gap:12px;overflow:auto}
-#vw:fullscreen .vst{flex:1}#vw:fullscreen .sld.doc{max-height:78vh}
+.dur{display:flex;gap:8px;align-items:center}.dur input{flex:1;min-width:0}
+#pq{margin:8px 0 0}#pmh{margin:6px 0 0}
+html.clay input[aria-invalid=true]{box-shadow:var(--clay-in),0 0 0 2px var(--err)}
+.vctl{margin-top:12px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.vbt{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.vtm{display:flex;align-items:baseline;gap:10px;padding:8px 18px;border-radius:18px;background:var(--cs);box-shadow:var(--clay-in)}
+.vtm b{font:700 clamp(26px,4vw,40px) Sora,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.vtm small{font-size:12px;color:var(--muted);white-space:nowrap}.vtm.over b{color:var(--err)}.vtm.paused b{opacity:.55}
+.vnote{margin:0;font-size:13px;color:var(--err);text-align:right}.vnote:empty{display:none}
+.bt:disabled{opacity:.45;cursor:not-allowed;transform:none!important}
+/* full-screen presentation mode: timer + controls fixed in the upper-right */
+#vw.fs{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto minmax(0,1fr);gap:12px 16px;align-content:stretch;
+  padding:max(16px,env(safe-area-inset-top)) 20px 16px;border-radius:0;overflow:hidden;background:var(--cb2);width:100%;height:100%;box-sizing:border-box}
+#vw.fs{box-shadow:none}
+#vw.fs .vwh{grid-area:1/1;align-self:start;margin:0;justify-content:flex-start;gap:14px}#vw.fs .vwh .sh{flex:none}
+#vw.fs .vctl{grid-area:1/2;margin:0;align-items:flex-end;max-width:min(460px,64vw)}
+#vw.fs .vbt{justify-content:flex-end}
+#vw.fs .vst{grid-area:2/1/3/3;min-height:0;margin:0;overflow:auto}
+#vw.fs .tip{display:none}
+#vw.fs .sld{inline-size:min(100%,calc((100vh - 210px)*1.7778));inline-size:min(100%,calc((100dvh - 210px)*1.7778))}
+#vw.fs .sld.doc{inline-size:min(100%,900px);max-height:100%}
+#vw.fsx{position:fixed;inset:0;z-index:40;margin:0!important}
+body.vfsx{overflow:hidden}
+@media (max-width:560px){#vw.fs{padding:max(12px,env(safe-area-inset-top)) 12px 12px}#vw.fs .vwh .sh{display:none}#vw.fs .vctl{max-width:78vw}#vw.fs .vbt{gap:6px}#vw.fs .bt.sm{padding:6px 10px;font-size:12px}}
