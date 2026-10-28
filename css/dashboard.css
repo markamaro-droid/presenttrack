@@ -74,3 +74,15 @@
 @media (max-width:640px){.g-next{grid-template-columns:1fr}.g-perf{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:10px}.g-perf .mc{min-width:210px;scroll-snap-align:start}
   .rp{grid-template-columns:1fr 1fr}.rp.rh{display:none}.rp span::before{content:attr(data-l);display:block;font-size:11px;color:var(--muted)}.kv dd{font-size:14px}.kv div{padding:10px 8px}.qg{grid-template-columns:repeat(2,minmax(0,1fr))}.bn .bt{display:none}.top .tl span,.srch input{font-size:13px}.top .tl{display:none}}
 
+
+/* ===== slide viewer (Practice page) ===== */
+.vwh{display:flex;align-items:center;gap:12px;margin-bottom:12px}.vwh .sh{margin:0!important;flex:1}
+#vc{font:600 14px "DM Sans",sans-serif;color:var(--muted);font-variant-numeric:tabular-nums}
+.vst{border-radius:20px;background:var(--cb1);box-shadow:var(--clay-in);display:grid;place-items:center;min-height:260px;overflow:hidden;padding:10px;touch-action:pan-y}
+.vst canvas{max-width:100%;border-radius:8px;background:#fff;box-shadow:var(--clay-sm)}
+.sld{width:100%;aspect-ratio:16/9;background:#fff;color:#14213d;border-radius:10px;padding:4%;overflow:auto;box-sizing:border-box;box-shadow:var(--clay-sm)}
+.sld h4{margin:0 0 10px;font:700 clamp(18px,3vw,30px) Sora,sans-serif}.sld ul{margin:0;padding-left:22px;display:grid;gap:6px;font-size:clamp(14px,1.8vw,20px)}
+.sld .sim{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.sld .sim img{max-width:100%;max-height:260px;border-radius:8px}
+.sld .em{color:#5a6b85}.sld.doc{aspect-ratio:auto;min-height:260px;max-height:62vh;line-height:1.6}.sld.doc img{max-width:100%}
+#vw:fullscreen{background:var(--cb2);padding:20px;display:flex;flex-direction:column;justify-content:center;gap:12px;overflow:auto}
+#vw:fullscreen .vst{flex:1}#vw:fullscreen .sld.doc{max-height:78vh}
