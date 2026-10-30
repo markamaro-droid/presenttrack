@@ -2,6 +2,7 @@
    Talks to the Supabase Edge Functions through PTCloud. The OpenAI key never reaches the browser. */
 (()=>{
 const X=podium.ext;if(!X)return;
+if(!(window.PT_FEATURES&&PT_FEATURES.assessment===true))return;   /* feature is OFF unless config.js sets PT_FEATURES.assessment=true */
 const {S,V,B,go,render,toast,esc,page,sec,nodata,fmt,flash,robot,notify,today,confirmDlg}=X;
 const $=id=>document.getElementById(id);
 const cloud=()=>!!(window.PTCloud&&PTCloud.enabled);
