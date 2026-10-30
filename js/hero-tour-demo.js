@@ -58,3 +58,4 @@ segs.forEach((g,i)=>g.onclick=()=>{t=i*D+.001;render()});
 requestAnimationFrame(frame);
 })();
 
+ 
