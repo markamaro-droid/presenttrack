@@ -52,6 +52,19 @@ P.call=async(name,body)=>{
   try{const {data,error}=await sb.functions.invoke(name,{body});return error?await fnErr(error):{data}}
   catch(e){return{error:'Network error. Please try again.',retryable:true}}
 };
+/* Browser-speech evaluation: only the server can mark it done (database function complete_browser_evaluation).
+   Until this succeeds, user_data.initial_assessment_completed stays false and uploads are refused server-side. */
+P.completeEvaluation=async results=>{
+  if(!P.user)return{error:'Please sign in again.'};
+  try{
+    const {error}=await sb.rpc('complete_browser_evaluation',{p_results:results});
+    if(error){const m=String(error.message||'');
+      if(/invalid_evaluation/.test(m))return{error:'The server could not accept these results. Please record your talk again.',invalid:true};
+      if(error.code==='PGRST202'||/could not find the function/i.test(m))return{error:'The evaluation service is not set up yet. The site owner needs to run the 20261030_evaluation_gate.sql migration.',retryable:false};
+      return{error:'We could not save your evaluation to your account. Please try again.',retryable:true}}
+    P.assessmentDone=true;return{}}
+  catch(e){return{error:'Network error. Please check your connection and try again.',retryable:true}}
+};
 P.assessment=(action)=>P.call('assessment-ensure',{action});
 P.submitAssessment=(blob,name,durationSec)=>{const f=new FormData();f.append('audio',blob,name);f.append('duration_sec',String(Math.round(durationSec)));return P.call('assessment-submit',f)};
 
