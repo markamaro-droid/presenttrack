@@ -226,7 +226,7 @@ const find=id=>S.pres.find(x=>x.id==id)||S.pres[0];
 const sesById=id=>S.ses.find(x=>x.id==id)||S.ses.at(-1);
 
 /* ---------- My Presentations: cards, delete, previews, practice gate ---------- */
-const gated=()=>!!(window.PTCloud&&PTCloud.enabled&&S.assessRequired);
+const gated=()=>!!(window.PT_FEATURES&&PT_FEATURES.assessment===true&&window.PTCloud&&PTCloud.enabled&&S.assessRequired);
 const fdate=iso=>{const d=new Date(iso);return isNaN(d)?'':d.toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'})};
 const gatePage=t=>page(t,'One quick step comes first.',`<section class="pn rise gate" style="--i:1"><h3 class="sh">INITIAL PRESENTATION ASSESSMENT REQUIRED</h3><p class="sub" style="margin:0 0 14px">Before you practice your own presentations, complete the short baseline assessment in My Presentations. It takes about 3 minutes and shows us where you are starting from.</p><div class="acts"><button class="bt" data-go="assess" type="button">GO TO THE ASSESSMENT</button><button class="bt gh" data-go="decks" type="button">My Presentations</button></div></section>`);
 function thumbOf(p){
@@ -539,4 +539,3 @@ const hm=document.querySelector('.sl');hm.tabIndex=0;hm.setAttribute('role','but
 hm.onclick=()=>transition(ctr(hm),showLand);hm.onkeydown=e=>{if(e.key==='Enter')hm.click()};
 podium.ext={S,V,B,go,render,toast,esc,page,sec,nodata,fmt,ring,flash,robot,notify,pptxDeck,FILES,today,nav,renderTop,confirmDlg,gated,find,ic,I};
 })();
- 
