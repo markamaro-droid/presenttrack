@@ -19,3 +19,4 @@ create policy "update own data" on public.user_data for update to authenticated
   using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 create policy "delete own data" on public.user_data for delete to authenticated
   using ((select auth.uid()) = user_id);
+ 
