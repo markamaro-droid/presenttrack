@@ -32,6 +32,7 @@ podium.account=(email,registered)=>{
     if(registered||!row){initData('empty');PTCloud.onboarded=false}
     else{
       if(row.data&&row.data.pres){const d=row.data;S.pres=d.pres;S.ses=d.ses;S.notes=d.notes;S.goals=d.goals;S.nid=d.nid;S.ev=d.ev||null}else initData(row.onboarded?'default':'empty');
+      if(row.data&&row.data.ev&&!S.ev)S.ev=row.data.ev;
       S.flash=null;S.warnOff=false;S.loading=false;S.booted=false;S.isNew=!row.onboarded;S.guide=!row.onboarded;S.toured=!!row.onboarded;PTCloud.onboarded=!!row.onboarded}
     S.assessRequired=!PTCloud.assessmentDone;S.evalRequired=!PTCloud.assessmentDone;PTCloud.ready=true;return}
   const k=email.toLowerCase(),rec=DB[k];
@@ -226,7 +227,7 @@ const find=id=>S.pres.find(x=>x.id==id)||S.pres[0];
 const sesById=id=>S.ses.find(x=>x.id==id)||S.ses.at(-1);
 
 /* ---------- My Presentations: cards, delete, previews, practice gate ---------- */
-const pendingEval=()=>!!(S.evalRequired&&!(S.ev&&S.ev.done));
+const pendingEval=()=>window.PTCloud&&PTCloud.enabled?!PTCloud.assessmentDone:!!(S.evalRequired&&!(S.ev&&S.ev.done));   /* cloud: ONLY the server flag (user_data.initial_assessment_completed) unlocks. S.ev is user-editable, so it is ignored. Either flow sets PTCloud.assessmentDone after the server accepts it. */
 const gated=()=>pendingEval();
 const fdate=iso=>{const d=new Date(iso);return isNaN(d)?'':d.toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'})};
 const gatePage=t=>page(t,'One quick step comes first.',`<section class="pn rise gate" style="--i:1"><h3 class="sh">EVALUATION REQUIRED</h3><p class="sub" style="margin:0 0 14px">Before you upload and practice your own presentations, take the short speaking evaluation. It takes about 3 minutes and shows us how fast you speak, how many filler words you use and how long your pauses are.</p><div class="acts"><button class="bt" data-go="eval" type="button">START EVALUATION</button><button class="bt gh" data-go="decks" type="button">My Presentations</button></div></section>`);
@@ -273,7 +274,7 @@ async function makePreview(file){
   }catch(e){}
   return{}}
 const V={
-dash:()=>S.loading?skeleton():(podium.assessBanner?podium.assessBanner():'')+dashHTML(),
+dash:()=>S.loading?skeleton():(podium.assessBanner?podium.assessBanner():'')+(podium.baselineBanner?podium.baselineBanner():'')+dashHTML(),
 decks:()=>page('My Presentations','Upload a PDF, Word or PowerPoint file and type your own title.',(pendingEval()?sec('EVALUATION FIRST',1,`<div class="fr" style="max-width:600px;margin:0 auto;text-align:center"><p class="sub" style="margin:0">Before you upload a presentation, take the short speaking evaluation (about 3 minutes). It measures your speaking speed, filler words and long pauses, so we know how to analyze your presentations.</p><div class="acts" style="justify-content:center"><button class="bt" data-go="eval" type="button">START EVALUATION</button></div></div>`):sec('UPLOAD A PRESENTATION',1,`<div class="fr" style="max-width:600px;margin:0 auto"><div><label for="ut" style="text-align:center">Presentation title</label><input type="text" id="ut" style="text-align:center" placeholder="Type your own title" maxlength="80" autocomplete="off"></div><label class="drop" id="dz" for="f"><b>Drop your file here or select one</b><span id="fn">PDF, DOCX or PowerPoint (PPT, PPTX)</span></label><input type="file" id="f" accept=".pdf,.doc,.docx,.ppt,.pptx" hidden><div class="acts" style="justify-content:center"><button class="bt" id="ua" type="button">ADD PRESENTATION</button></div></div>`))+deckList()),
 pdet:a=>{const p=find(a);if(!p)return V.decks();const l=S.ses.filter(x=>x.deck===p.short);return page(esc(p.t),(p.file?esc(p.file.name)+' · '+fsize(p.file.size):'')+(p.left!=null?' · '+p.date+' · '+p.time+' · '+p.left+' days left':''),`<div class="g-next">${sec('OVERVIEW',1,`<dl class="kv"><div><dt>Target Duration</dt><dd>${Math.round(p.target/60)} minutes</dd></div><div><dt>Practice Sessions</dt><dd>${l.length} completed</dd></div><div><dt>Readiness</dt><dd>${p.ready}%</dd></div></dl><div class="acts"><button class="bt" data-go="prac" data-a="${p.id}" type="button">PRACTICE NOW</button><button class="bt gh" data-go="up" type="button">UPLOAD PPT</button></div>`)}${sec('READINESS',2,chkHTML(p)+`<div class="acts"><button class="bt gh" data-go="ready" data-a="${p.id}" type="button">VIEW CHECKLIST</button></div>`)}</div>`+sec('PRACTICE SESSIONS',3,recentRows(l.slice().reverse(),false)))},
 ready:a=>{const p=find(a);if(!p)return V.decks();return page('Presentation Readiness',esc(p.t),`<div class="g-next">${sec('OVERALL',1,`<div class="rd0">${ring(p.ready,150,'Ready')}<p class="sub" style="margin:0">${p.final?'You completed your final rehearsal. You are ready.':'Finish your final rehearsal to reach full readiness.'}</p></div>`)}${sec('CHECKLIST',2,chkHTML(p)+`<div class="acts"><button class="bt" data-go="prac" data-a="${p.id}" type="button">START FINAL REHEARSAL</button></div>`)}</div>`)},
@@ -371,7 +372,7 @@ const B={
 decks:()=>{if(!$('f')){const r=$('rtitle');if(r){r.focus();r.select();r.onkeydown=e=>{if(e.key==='Enter')$('rs2').click();if(e.key==='Escape'){S.ren=null;render()}}}return}let file=null;const f=$('f'),dz=$('dz'),ok=/\.(pdf|docx?|pptx?)$/i;
   const pk=x=>{if(!ok.test(x.name)){toast('Please choose a PDF, Word or PowerPoint file');return}file=x;$('fn').textContent=x.name+' · '+fsize(x.size);if(!$('ut').value.trim())$('ut').value=x.name.replace(/\.[^.]+$/,'')};
   f.onchange=()=>f.files[0]&&pk(f.files[0]);dz.ondragover=e=>{e.preventDefault();dz.classList.add('hv')};dz.ondragleave=()=>dz.classList.remove('hv');dz.ondrop=e=>{e.preventDefault();dz.classList.remove('hv');e.dataTransfer.files[0]&&pk(e.dataTransfer.files[0])};
-  $('ua').onclick=async()=>{let t=$('ut').value.trim();if(S.uploading)return;if(!file){toast('Choose a PDF, Word or PowerPoint file first');return}if(t.length<2){toast('Type a title for your presentation');return}
+  $('ua').onclick=async()=>{if(pendingEval()){toast('Take the short speaking evaluation first.');go('eval');return}let t=$('ut').value.trim();if(S.uploading)return;if(!file){toast('Choose a PDF, Word or PowerPoint file first');return}if(t.length<2){toast('Type a title for your presentation');return}
     if(S.pres.some(p=>p.short===t))t+=' (2)';
     const cloud=window.PTCloud&&PTCloud.enabled,nid=S.nid++,btn=$('ua');let path=null;
     if(cloud){S.uploading=true;btn.disabled=true;btn.textContent='UPLOADING…';
