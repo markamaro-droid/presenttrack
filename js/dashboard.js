@@ -3,8 +3,8 @@ window.podium={};
 (()=>{
 const ic=p=>`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${p}"/></svg>`;
 const I={dash:'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',decks:'M3 4h18v12H3zM8 20h8M12 16v4',prac:'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3',rep:'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7',perf:'M4 20V10M10 20V4M16 20v-7M22 20H2',prog:'M3 17l6-6 4 4 8-8M15 7h6v6',hist:'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',note:'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4',set:'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M14 4v4M8 10v4M16 16v4',help:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6M12 17h.01',out:'M9 4H5v16h4M16 8l4 4-4 4M20 12H9',up:'M12 16V4m0 0l-4 4m4-4l4 4M4 20h16',plus:'M12 5v14M5 12h14',vid:'M3 6h12v12H3zM15 10l6-3v10l-6-3',goal:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 12h.01',pace:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',fill:'M4 5h16v11H9l-5 4z',pause:'M8 5v14M16 5v14',star:'M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.8 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z',search:'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5'};
-const NAV=[['MAIN',[['dash','Dashboard'],['decks','My Presentations'],['prac','Practice'],['rep','Reports'],['perf','Performance'],['prog','Progress'],['hist','Practice History']]],['SYSTEM',[['note','Notifications'],['set','Settings']]]];
-const PARENT={pdet:'decks',create:'decks',up:'decks',ready:'decks',rec:'prac',weak:'prac',rdet:'rep',coach:'perf',goals:'prog'};
+const NAV=[['MAIN',[['dash','Dashboard'],['decks','My Presentations'],['rep','Reports'],['perf','Performance'],['prog','Progress'],['hist','Practice History']]],['SYSTEM',[['note','Notifications'],['set','Settings']]]];
+const PARENT={pdet:'decks',create:'decks',up:'decks',ready:'decks',prac:'decks',rec:'decks',weak:'decks',assess:'decks',assres:'decks',rdet:'rep',coach:'perf',goals:'prog'};
 const $$=q=>[...document.querySelectorAll(q)];
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt=x=>Math.floor(x/60)+':'+String(Math.floor(x%60)).padStart(2,'0');
@@ -26,13 +26,14 @@ function initData(mode){
 initData('default');
 const DB={};   /* in-memory account database, keyed by email */
 podium.account=(email,registered)=>{
+  S.assess=null;S.assessRequired=false;
   if(window.PTCloud&&PTCloud.enabled){
     const row=PTCloud.row;
     if(registered||!row){initData('empty');PTCloud.onboarded=false}
     else{
       if(row.data&&row.data.pres){const d=row.data;S.pres=d.pres;S.ses=d.ses;S.notes=d.notes;S.goals=d.goals;S.nid=d.nid}else initData(row.onboarded?'default':'empty');
       S.flash=null;S.warnOff=false;S.loading=false;S.booted=false;S.isNew=!row.onboarded;S.guide=!row.onboarded;S.toured=!!row.onboarded;PTCloud.onboarded=!!row.onboarded}
-    PTCloud.ready=true;return}
+    S.assessRequired=!PTCloud.assessmentDone;PTCloud.ready=true;return}
   const k=email.toLowerCase(),rec=DB[k];
   if(registered){DB[k]={onboarded:false,data:null};initData('empty');return}
   if(rec){
@@ -63,7 +64,7 @@ function tourSteps(){const n=S.u.name.split(' ')[0]||'there';return [
  {nav:null,v:'dash',t:'Welcome to PresentTrack',x:'Hello '+n+'! Welcome to PresentTrack. I am your robot guide. In about two minutes I will show you every part of the system. Sit back and watch, or press skip anytime.'},
  {nav:'dash',v:'dash',t:'Dashboard',x:GUIDE.dash,c:[['next presentation','.nx','Your next presentation'],['how ready you are','.g-next>section:nth-child(2)','How ready you are'],['performance numbers','.g-perf','Your performance numbers'],['progress chart','.g-prog>section:first-child','Progress chart'],['coaching tip','.coach','My coaching tip'],['recent practice','[data-sec="recent-practice"]','Recent practice'],['quick actions','[data-sec="quick-actions"]','Quick actions']]},
  {nav:'decks',v:'decks',t:'My Presentations',x:GUIDE.decks+' This is where you start.',c:[['Type your own title','#ut','Type your title here'],['drop in a PDF','#dz','Drop your file here'],['press Add Presentation','#ua','Then press this'],['practice, rename','[data-sec="upload-a-presentation"]+.g2,.g2','Your presentations appear here']]},
- {nav:'prac',v:'prac',t:'Practice',x:GUIDE.prac,c:[['Pick a presentation','#pd','Pick a presentation'],['target time','#pdur','Set your target time'],['press Start','#pgo','Press Start'],['press Finish','#pfin','Finish for your score']]},
+ {nav:'decks',v:'prac',t:'Practice',x:GUIDE.prac,c:[['Pick a presentation','#pd','Pick a presentation'],['target time','#pdur','Set your target time'],['press Start','#pgo','Press Start'],['press Finish','#pfin','Finish for your score']]},
  {nav:'rep',v:'rep',t:'Reports',x:GUIDE.rep,c:[['every practice session','[data-sec="session-reports"]','Every practice session'],['View Report','.rp .bt','View Report']]},
  {nav:'perf',v:'perf',t:'Performance',x:GUIDE.perf,c:[['speaking pace','[data-sec="performance-overview"]','Your performance']]},
  {nav:'prog',v:'prog',t:'Progress',x:GUIDE.prog,c:[['Progress shows','[data-sec="your-performance-progress"]','Your progress chart'],['Use the buttons','.chips','Switch the metric here'],['goals beside it','[data-sec="goals"]','Your goals']]},
@@ -71,7 +72,7 @@ function tourSteps(){const n=S.u.name.split(' ')[0]||'there';return [
  {nav:'note',v:'note',t:'Notifications',x:GUIDE.note,c:[['Notifications collects','[data-sec="all-notifications"]','Your notifications'],['mark them all','[data-act=markall]','Mark all as read']]},
  {nav:'set',v:'set',t:'Settings',x:GUIDE.set,c:[['change your name','[data-sec="profile"]','Your profile'],['switch light or dark theme','#st','Switch theme'],['turn my voice on or off','#rv','Robot voice']]},
  {nav:null,v:'set',bot:true,t:'Talk to me',x:'And that is me, down here. Press and hold my picture, or hold the space bar, and ask me a question. You can also type to me, or ask me to take you to any page.',c:[['down here','#bc','That is me'],['Press and hold my picture','#bc','Press and hold me']]},
- {nav:'decks',v:'decks',t:'You are all set',x:'You are all set, '+n+'! Your first step is to add a presentation in My Presentations. Whenever you want this tour again, just ask me to guide you again.',fin:true,c:[['add a presentation','#ut','Start here'],['guide you again','#bc','Ask me anytime']]}]}
+ {nav:'decks',v:'decks',t:'You are all set',x:'You are all set, '+n+'! '+(gated()?'Your first step is the Initial Presentation Assessment in My Presentations.':'Your first step is to add a presentation in My Presentations.')+' Whenever you want this tour again, just ask me to guide you again.',fin:true,c:[['add a presentation','#ut','Start here'],['guide you again','#bc','Ask me anytime']]}]}
 const tourEl=()=>$('tour');
 function syncGuide(){$('bguide').hidden=!!(S.isNew||T.on||$('app').hidden)}
 function tourUI(){const st=T.steps[T.i],last=!!st.fin;tourEl().hidden=false;
@@ -223,12 +224,59 @@ const quick=()=>`<div class="qg">${[['New Presentation','Create Presentation','c
 const page=(t,sub,body)=>`<h1 class="rise">${t}</h1><p class="sub rise">${sub||''}</p>${body}`;
 const find=id=>S.pres.find(x=>x.id==id)||S.pres[0];
 const sesById=id=>S.ses.find(x=>x.id==id)||S.ses.at(-1);
+
+/* ---------- My Presentations: cards, delete, previews, practice gate ---------- */
+const gated=()=>!!(window.PTCloud&&PTCloud.enabled&&S.assessRequired);
+const fdate=iso=>{const d=new Date(iso);return isNaN(d)?'':d.toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'})};
+const gatePage=t=>page(t,'One quick step comes first.',`<section class="pn rise gate" style="--i:1"><h3 class="sh">INITIAL PRESENTATION ASSESSMENT REQUIRED</h3><p class="sub" style="margin:0 0 14px">Before you practice your own presentations, complete the short baseline assessment in My Presentations. It takes about 3 minutes and shows us where you are starting from.</p><div class="acts"><button class="bt" data-go="assess" type="button">GO TO THE ASSESSMENT</button><button class="bt gh" data-go="decks" type="button">My Presentations</button></div></section>`);
+function thumbOf(p){
+  if(p.thumb)return `<img class="th" src="${p.thumb}" alt="Preview of ${esc(p.t)}">`;
+  if(p.preview&&(p.preview.title||(p.preview.lines||[]).length))return `<div class="th pv" aria-label="Preview of ${esc(p.t)}"><b>${esc(p.preview.title||p.t)}</b>${(p.preview.lines||[]).slice(0,3).map(l=>`<span>${esc(l)}</span>`).join('')}</div>`;
+  const t=p.file?ftype(p.file.name):{l:'Draft',c:'ppt'};return `<div class="th pv ph" aria-hidden="true"><b>${esc(t.l)}</b></div>`}
+function deckCard(p,i){
+  const t=p.file?ftype(p.file.name):{l:'Draft',c:'ppt'},busy=S.deleting==p.id,n=att(p);
+  const when=p.created?'Added '+fdate(p.created):(p.left!=null?p.date:'');
+  const stat=gated()?['Practice unlocks after the assessment','warn']:n?[n+(n===1?' practice session':' practice sessions'),'ok']:['Not practiced yet',''];
+  return `<section class="pn rise dcard" style="--i:${i+2}" data-pid="${p.id}">${thumbOf(p)}<div class="dk"><span class="ftp ${t.c}">${t.l}</span><div class="dkt">${S.ren===p.id?`<input type="text" id="rtitle" value="${esc(p.t)}" maxlength="80" aria-label="Presentation title"><div class="acts" style="margin-top:8px"><button class="bt sm" id="rs2" data-act="rsave" data-a="${p.id}" type="button">SAVE</button><button class="bt gh sm" data-act="rcancel" type="button">Cancel</button></div>`:`<b>${esc(p.t)}</b><small>${p.file?esc(p.file.name)+' · '+fsize(p.file.size):'No file yet'}</small>${when?`<small>${esc(when)}</small>`:''}`}</div></div>
+  <div class="rd0">${ring(p.ready,84,'Ready')}<div><p class="sub" style="margin:0 0 8px"><span class="st ${stat[1]}">${busy?'Deleting…':stat[0]}</span></p><div class="acts"><button class="bt sm" data-go="prac" data-a="${p.id}" type="button"${busy?' disabled':''}>PRACTICE</button><button class="bt gh sm" data-act="del" data-a="${p.id}" type="button"${busy?' disabled':''}>DELETE</button><button class="bt gh sm" data-go="pdet" data-a="${p.id}" type="button"${busy?' disabled':''}>DETAILS</button><button class="bt gh sm" data-act="ren" data-a="${p.id}" type="button"${busy?' disabled':''}>RENAME</button></div></div></div></section>`}
+function deckList(){
+  const a=podium.assessCard?podium.assessCard(2):'';
+  if(!S.pres.length&&!a)return sec('YOUR PRESENTATIONS',2,nodata('No presentation uploaded yet.','<p class="sub" style="margin:0">Add your first file above.</p>'));
+  return `<div class="g2">${a}${S.pres.map((p,i)=>deckCard(p,i+1)).join('')}</div>`}
+/* confirmation dialog: Cancel is focused first so Enter or a stray click never deletes by accident */
+function confirmDlg({title,text,yes='Delete'}){return new Promise(res=>{
+  const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="mc" role="alertdialog" aria-modal="true" aria-labelledby="cdt" aria-describedby="cdx"><h2 id="cdt"></h2><p id="cdx" style="color:var(--muted)"></p><div class="acts" style="justify-content:flex-end;margin-top:14px"><button class="bt gh" data-r="0" type="button">Cancel</button><button class="bt dnb" data-r="1" type="button"></button></div></div>`;
+  m.querySelector('#cdt').textContent=title;m.querySelector('#cdx').textContent=text;m.querySelector('[data-r="1"]').textContent=yes;
+  const prev=document.activeElement,done=v=>{document.removeEventListener('keydown',k,true);m.remove();try{prev&&prev.focus&&prev.focus()}catch(e){}res(v)};
+  const k=e=>{if(e.key==='Escape'){e.stopPropagation();done(false)}else if(e.key==='Tab'){const b=[...m.querySelectorAll('button')],i=b.indexOf(document.activeElement);e.preventDefault();b[(i+(e.shiftKey?-1:1)+b.length)%b.length].focus()}};
+  m.onclick=e=>{const b=e.target.closest('[data-r]');if(b)done(b.dataset.r==='1');else if(e.target===m)done(false)};
+  document.addEventListener('keydown',k,true);$('app').appendChild(m);m.querySelector('[data-r="0"]').focus()})}
+async function delPres(id){
+  const p=S.pres.find(q=>q.id==id);if(!p||S.deleting)return;
+  if(!await confirmDlg({title:'Delete presentation?',text:'Are you sure you want to delete this presentation? This action cannot be undone.',yes:'Delete'}))return;
+  const cloud=window.PTCloud&&PTCloud.enabled;S.deleting=p.id;render();
+  const fail=m=>{S.deleting=null;render();toast(m)};
+  if(cloud&&p.path){const r=await PTCloud.remove([p.path]);if(r.error)return fail('Could not delete the file. Nothing was removed. Please try again.')}
+  const i=S.pres.indexOf(p);if(i>=0)S.pres.splice(i,1);
+  if(cloud){const r=await PTCloud.saveNow(podium.snapshot());if(r.error){S.pres.splice(i,0,p);return fail('Could not delete this presentation. Please try again.')}}
+  else podium.save();
+  delete FILES[p.id];S.deleting=null;if(S.ren===p.id)S.ren=null;render();flash('Presentation deleted.','success');toast('Presentation deleted');
+}
+/* small preview saved with the presentation: a JPEG for PDFs, the first slide's text for PPTX / DOCX */
+async function makePreview(file){
+  try{
+    if(/\.pdf$/i.test(file.name)){const d=await pdfDeck(file),h=document.createElement('div');h.style.cssText='position:absolute;left:-9999px;top:0;width:360px';document.body.appendChild(h);
+      try{const c=await d.show(0,h,220),o=document.createElement('canvas'),w=320;o.width=w;o.height=Math.round(w*c.height/c.width);o.getContext('2d').drawImage(c,0,0,o.width,o.height);return{thumb:o.toDataURL('image/jpeg',.6)}}finally{h.remove()}}
+    if(/\.pptx$/i.test(file.name)){const d=await pptxDeck(file),e=await d.show(0);return{preview:{title:(e.querySelector('h4')||{}).textContent||'',lines:[...e.querySelectorAll('li')].slice(0,3).map(x=>x.textContent.slice(0,80))}}}
+    if(/\.docx$/i.test(file.name)){const d=await docxDeck(file),e=await d.show(0),L=e.textContent.trim().split(/\n+/).filter(Boolean);return{preview:{title:(L[0]||'').slice(0,80),lines:[]}}}
+  }catch(e){}
+  return{}}
 const V={
-dash:()=>S.loading?skeleton():dashHTML(),
-decks:()=>page('My Presentations','Upload a PDF, Word or PowerPoint file and type your own title.',sec('UPLOAD A PRESENTATION',1,`<div class="fr" style="max-width:600px"><div><label for="ut">Presentation title</label><input type="text" id="ut" placeholder="Type your own title" maxlength="80" autocomplete="off"></div><label class="drop" id="dz" for="f"><b>Drop your file here or select one</b><span id="fn">PDF, DOCX or PowerPoint (PPT, PPTX)</span></label><input type="file" id="f" accept=".pdf,.doc,.docx,.ppt,.pptx" hidden><div class="acts"><button class="bt" id="ua" type="button">ADD PRESENTATION</button></div></div>`)+(S.pres.length?`<div class="g2">${S.pres.map((p,i)=>{const t=p.file?ftype(p.file.name):{l:'Draft',c:'ppt'};return `<section class="pn rise" style="--i:${i+2}"><div class="dk"><span class="ftp ${t.c}">${t.l}</span><div class="dkt">${S.ren===p.id?`<input type="text" id="rtitle" value="${esc(p.t)}" maxlength="80" aria-label="Presentation title"><div class="acts" style="margin-top:8px"><button class="bt sm" id="rs2" data-act="rsave" data-a="${p.id}" type="button">SAVE</button><button class="bt gh sm" data-act="rcancel" type="button">Cancel</button></div>`:`<b>${esc(p.t)}</b><small>${p.file?esc(p.file.name)+' · '+fsize(p.file.size):'No file yet'}</small>`}</div></div><div class="rd0">${ring(p.ready,84,'Ready')}<div><p class="sub" style="margin:0 0 8px">${att(p)} practice sessions</p><div class="acts"><button class="bt sm" data-go="prac" data-a="${p.id}" type="button">PRACTICE</button><button class="bt gh sm" data-go="pdet" data-a="${p.id}" type="button">DETAILS</button><button class="bt gh sm" data-act="ren" data-a="${p.id}" type="button">RENAME</button></div></div></div></section>`}).join('')}</div>`:sec('YOUR PRESENTATIONS',2,nodata('No presentation uploaded yet.','<p class="sub" style="margin:0">Add your first file above.</p>')))),
+dash:()=>S.loading?skeleton():(podium.assessBanner?podium.assessBanner():'')+dashHTML(),
+decks:()=>page('My Presentations','Upload a PDF, Word or PowerPoint file and type your own title.',sec('UPLOAD A PRESENTATION',1,`<div class="fr" style="max-width:600px"><div><label for="ut">Presentation title</label><input type="text" id="ut" placeholder="Type your own title" maxlength="80" autocomplete="off"></div><label class="drop" id="dz" for="f"><b>Drop your file here or select one</b><span id="fn">PDF, DOCX or PowerPoint (PPT, PPTX)</span></label><input type="file" id="f" accept=".pdf,.doc,.docx,.ppt,.pptx" hidden><div class="acts"><button class="bt" id="ua" type="button">ADD PRESENTATION</button></div></div>`)+deckList()),
 pdet:a=>{const p=find(a);if(!p)return V.decks();const l=S.ses.filter(x=>x.deck===p.short);return page(esc(p.t),(p.file?esc(p.file.name)+' · '+fsize(p.file.size):'')+(p.left!=null?' · '+p.date+' · '+p.time+' · '+p.left+' days left':''),`<div class="g-next">${sec('OVERVIEW',1,`<dl class="kv"><div><dt>Target Duration</dt><dd>${Math.round(p.target/60)} minutes</dd></div><div><dt>Practice Sessions</dt><dd>${l.length} completed</dd></div><div><dt>Readiness</dt><dd>${p.ready}%</dd></div></dl><div class="acts"><button class="bt" data-go="prac" data-a="${p.id}" type="button">PRACTICE NOW</button><button class="bt gh" data-go="up" type="button">UPLOAD PPT</button></div>`)}${sec('READINESS',2,chkHTML(p)+`<div class="acts"><button class="bt gh" data-go="ready" data-a="${p.id}" type="button">VIEW CHECKLIST</button></div>`)}</div>`+sec('PRACTICE SESSIONS',3,recentRows(l.slice().reverse(),false)))},
 ready:a=>{const p=find(a);if(!p)return V.decks();return page('Presentation Readiness',esc(p.t),`<div class="g-next">${sec('OVERALL',1,`<div class="rd0">${ring(p.ready,150,'Ready')}<p class="sub" style="margin:0">${p.final?'You completed your final rehearsal. You are ready.':'Finish your final rehearsal to reach full readiness.'}</p></div>`)}${sec('CHECKLIST',2,chkHTML(p)+`<div class="acts"><button class="bt" data-go="prac" data-a="${p.id}" type="button">START FINAL REHEARSAL</button></div>`)}</div>`)},
-rec:()=>page('Upload Recording','Get a full analysis of a rehearsal you recorded.',sec('ANALYZE RECORDING',1,`<div class="fr" style="max-width:560px"><div><label for="rs">Presentation</label><select id="rs">${S.pres.map(p=>`<option value="${p.id}">${esc(p.t)}</option>`).join('')||'<option value="">Create a presentation first</option>'}</select></div><label class="drop" id="dz" for="f"><b>Drop a video or audio file here, or select one</b><span id="fn">MP4, MOV, MP3 or WAV</span></label><input type="file" id="f" accept="video/*,audio/*" hidden><div class="bar2" id="rb" hidden><i style="width:0%"></i></div><p class="sub" id="rt" style="margin:0"></p><button class="bt" id="ra" type="button">ANALYZE RECORDING</button></div>`)),
+rec:()=>gated()?gatePage('Upload Recording'):page('Upload Recording','Get a full analysis of a rehearsal you recorded.',sec('ANALYZE RECORDING',1,`<div class="fr" style="max-width:560px"><div><label for="rs">Presentation</label><select id="rs">${S.pres.map(p=>`<option value="${p.id}">${esc(p.t)}</option>`).join('')||'<option value="">Create a presentation first</option>'}</select></div><label class="drop" id="dz" for="f"><b>Drop a video or audio file here, or select one</b><span id="fn">MP4, MOV, MP3 or WAV</span></label><input type="file" id="f" accept="video/*,audio/*" hidden><div class="bar2" id="rb" hidden><i style="width:0%"></i></div><p class="sub" id="rt" style="margin:0"></p><button class="bt" id="ra" type="button">ANALYZE RECORDING</button></div>`)),
 prac:a=>practiceHTML(a,false),weak:a=>practiceHTML(a,true),
 rep:()=>page('Reports','Open any session for a full breakdown.',sec('SESSION REPORTS',1,recentRows(S.ses.slice().reverse(),false))),
 rdet:a=>{const x=sesById(a);if(!x)return V.rep();return page('Report: '+esc(x.deck),x.d+' · '+fmt(x.dur)+' of '+fmt(x.tg),`<div class="g-perf">${[['Speaking Pace',x.wpm+' WPM'],['Filler Words',x.fill],['Long Pauses',x.pau],['Performance Score',x.score+'%']].map(([n,v])=>`<article class="mc"><h4>${n}</h4><p class="mv">${v}</p></article>`).join('')}</div>`+sec('AI FEEDBACK',2,`<ul class="tp">${tips(x).map(t=>`<li>${t}</li>`).join('')}</ul><div class="acts"><button class="bt" data-go="prac" type="button">PRACTICE AGAIN</button><button class="bt gh" data-go="rep" type="button">Back to reports</button></div>`))},
@@ -245,6 +293,7 @@ const goalsHTML=()=>S.goals.length?S.goals.map(g=>`<div class="gl2"><div class="
 
 /* practice module (setup + live practice) */
 function practiceHTML(a,weak){
+  if(gated())return gatePage(weak?'Weak-Point Practice':'Practice');
   const p=find(a),mins=Math.max(1,Math.min(240,Math.round((p?p.target:300)/60)));
   return page(weak?'Weak-Point Practice':'Practice',weak?'Replay the part you want to improve, then finish to see your new score.':'Set up your run-through, choose a target time, then press Start and speak out loud.',`<div class="pn rise" style="--i:1"><div class="pr psetup"><div class="rg"><svg viewBox="0 0 120 120"><circle class="dt" cx="60" cy="60" r="54"/><circle class="dp" id="pg" cx="60" cy="60" r="54"/></svg><div class="tt"><b id="pc">0:00</b><span id="pl">of ${mins}:00</span></div></div>
  <div class="pform"><div class="pgrid"><div class="pf"><label for="pd">Presentation</label><select id="pd">${S.pres.map(x=>`<option value="${x.id}"${p&&x.id===p.id?' selected':''}>${esc(x.t)}</option>`).join('')||'<option value="0">Quick practice</option>'}</select></div>
@@ -311,7 +360,8 @@ async function viewer(){const host=$('vst');if(!host)return;const my=++VT;VD=nul
     const onFS=()=>{const vw=$('vw');if(!vw)return;if(!vw.classList.contains('fsx'))vw.classList.toggle('fs',fsEl()===vw);fsChanged()};
     document.addEventListener('fullscreenchange',onFS);document.addEventListener('webkitfullscreenchange',onFS);
     addEventListener('resize',()=>{clearTimeout(window.__vr);window.__vr=setTimeout(vshow,200)})}
-  const p=S.pres.find(x=>x.id==$('pd').value),f=p&&FILES[p.id];
+  const p=S.pres.find(x=>x.id==$('pd').value);let f=p&&FILES[p.id];
+  if(!f&&p&&p.path&&window.PTCloud&&PTCloud.enabled){msg('Loading '+p.file.name+'\u2026');const r=await PTCloud.download(p.path);if(my!==VT)return;if(r.error)return msg('Could not load this file. '+r.error);f=FILES[p.id]=new File([r.blob],p.file.name)}
   if(!f)return msg(p&&p.file?'The file for this presentation isn\u2019t loaded in this session. Upload it again in My Presentations to see it here.':'No file attached to this presentation yet.');
   if(!/\.(pdf|pptx|docx)$/i.test(f.name))return msg('Preview works for PDF, PPTX and DOCX files. Older .ppt and .doc files can\u2019t be shown here.');
   msg('Loading '+f.name+'\u2026');
@@ -320,12 +370,18 @@ const B={
 decks:()=>{let file=null;const f=$('f'),dz=$('dz'),ok=/\.(pdf|docx?|pptx?)$/i;
   const pk=x=>{if(!ok.test(x.name)){toast('Please choose a PDF, Word or PowerPoint file');return}file=x;$('fn').textContent=x.name+' · '+fsize(x.size);if(!$('ut').value.trim())$('ut').value=x.name.replace(/\.[^.]+$/,'')};
   f.onchange=()=>f.files[0]&&pk(f.files[0]);dz.ondragover=e=>{e.preventDefault();dz.classList.add('hv')};dz.ondragleave=()=>dz.classList.remove('hv');dz.ondrop=e=>{e.preventDefault();dz.classList.remove('hv');e.dataTransfer.files[0]&&pk(e.dataTransfer.files[0])};
-  $('ua').onclick=()=>{let t=$('ut').value.trim();if(!file){toast('Choose a PDF, Word or PowerPoint file first');return}if(t.length<2){toast('Type a title for your presentation');return}
+  $('ua').onclick=async()=>{let t=$('ut').value.trim();if(S.uploading)return;if(!file){toast('Choose a PDF, Word or PowerPoint file first');return}if(t.length<2){toast('Type a title for your presentation');return}
     if(S.pres.some(p=>p.short===t))t+=' (2)';
-    const nid=S.nid++;FILES[nid]=file;S.pres.push({id:nid,t,short:t,file:{name:file.name,size:file.size},date:'Not scheduled',time:'',target:600,ready:20,ppt:true,rq:false,sp:true,final:false,left:null});
+    const cloud=window.PTCloud&&PTCloud.enabled,nid=S.nid++,btn=$('ua');let path=null;
+    if(cloud){S.uploading=true;btn.disabled=true;btn.textContent='UPLOADING…';
+      path=PTCloud.user.id+'/uploads/'+nid+'-'+file.name.replace(/[^\w.\-]+/g,'_');
+      const r=await PTCloud.upload(path,file);S.uploading=false;
+      if(r.error){toast('Upload failed. '+r.error);if($('ua')===btn){btn.disabled=false;btn.textContent='ADD PRESENTATION'}return}}
+    FILES[nid]=file;const pv=await makePreview(file);
+    S.pres.push(Object.assign({id:nid,t,short:t,file:{name:file.name,size:file.size},path,created:new Date().toISOString(),date:'Not scheduled',time:'',target:600,ready:20,ppt:true,rq:false,sp:true,final:false,left:null},pv));
     notify('📄','Presentation added','"'+t+'" was uploaded.');flash('Presentation uploaded successfully!','success','Your file is in. Nice work!');toast('Presentation uploaded');go('decks')};
   const r=$('rtitle');if(r){r.focus();r.select();r.onkeydown=e=>{if(e.key==='Enter')$('rs2').click();if(e.key==='Escape'){S.ren=null;render()}}}},
-rec:()=>{let file=null;const f=$('f'),dz=$('dz'),pk=x=>{file=x;$('fn').textContent=x.name+' · '+(x.size/1048576).toFixed(1)+' MB'};
+rec:()=>{if(!$('ra'))return;let file=null;const f=$('f'),dz=$('dz'),pk=x=>{file=x;$('fn').textContent=x.name+' · '+(x.size/1048576).toFixed(1)+' MB'};
   f.onchange=()=>f.files[0]&&pk(f.files[0]);dz.ondragover=e=>{e.preventDefault();dz.classList.add('hv')};dz.ondragleave=()=>dz.classList.remove('hv');dz.ondrop=e=>{e.preventDefault();dz.classList.remove('hv');e.dataTransfer.files[0]&&pk(e.dataTransfer.files[0])};
   $('ra').onclick=()=>{const p=find($('rs').value);if(!p){toast('Create a presentation first');return}if(!file){toast('Choose a recording first');return}
     $('ra').disabled=true;$('rb').hidden=false;robot('thinking','Analyzing your recording…',4000);let k=0;const i=setInterval(()=>{k+=8;$('rb').firstChild.style.width=Math.min(k,100)+'%';$('rt').textContent=k<35?'Transcribing…':k<70?'Measuring pace and pauses…':'Writing your report…';
@@ -333,7 +389,7 @@ rec:()=>{let file=null;const f=$('f'),dz=$('dz'),pk=x=>{file=x;$('fn').textConte
 goals:()=>{$('ga').onclick=()=>{const t=$('gn').value.trim();if(!t){toast('Describe your goal first');return}S.goals.push({t,p:0});toast('Goal added');go('goals')}},
 set:()=>{$('rv').onchange=e=>podium.setVoice&&podium.setVoice(e.target.checked);$('cp').onclick=()=>$('pic').click();$('st').onclick=()=>$('theme').click();
   $('ss').onclick=()=>{const n=$('sn').value.trim(),e=$('se').value.trim();if(n.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)){toast('Enter a valid name and email');return}S.u.name=n;S.u.email=e;podium.name=n.split(' ')[0];renderShell();toast('Settings saved')}},
-prac:()=>{let el=0,run=false,last=0,c={};const REFWPM=145;   /* pace is no longer measured; sessions keep a neutral value so Reports and score still work */
+prac:()=>{if(!$('pdur'))return;let el=0,run=false,last=0,c={};const REFWPM=145;   /* pace is no longer measured; sessions keep a neutral value so Reports and score still work */
   const parse=v=>{const s=String(v).trim();if(!/^\d{1,3}$/.test(s))return null;const n=+s;return n>=1&&n<=240?n:null};
   let T0=(parse($('pdur').value)||5)*60;const tg=()=>T0,pick=()=>S.pres.find(x=>x.id==$('pd').value);
   const fillN=()=>Object.keys(c).filter(k=>k!=='__pause').reduce((s,k)=>s+c[k],0);
@@ -385,6 +441,7 @@ function renderTop(){
 }
 const renderShell=()=>{nav();renderTop()};
 function go(v,arg){
+  try{podium.leave&&podium.leave()}catch(e){}
   clearInterval(tm);S.view=v;S.arg=arg;
   if(v==='dash'&&!S.booted&&!S.loading){S.loading=true;S.booted=true;setTimeout(()=>{S.loading=false;if(S.view==='dash'){render()}renderTop();greetRobot()},1000);robot('thinking','Getting your dashboard ready…',1000)}
   render();closePops();$('side').classList.remove('open');$('mainc').scrollTop=0;
@@ -416,6 +473,7 @@ $('app').addEventListener('click',e=>{
   else if(a==='metric'){S.metric=x;$('cwrap').outerHTML=chartBox(x);animateIn()}
   else if(a==='markall'){S.notes.forEach(n=>n.r=1);render()}
   else if(a==='tn'){const n=S.notes[+x];n.r=n.r?0:1;render()}
+  else if(a==='del')delPres(x);
   else if(a==='ren'){S.ren=+x;render()}
   else if(a==='rcancel'){S.ren=null;render()}
   else if(a==='rsave'){const t=$('rtitle').value.trim(),p=S.pres.find(q=>q.id==x);if(t.length<2){toast('Type a title first');return}if(p){S.ses.forEach(q=>{if(q.deck===p.short)q.deck=t});p.t=p.short=t}S.ren=null;render();toast('Title updated')}
@@ -474,9 +532,11 @@ function renderLand(){
   <footer class="lfoot"><span>PresentTrack · Practice out loud, present with confidence</span><span>© 2026 PresentTrack</span></footer><div class="lf">${cards.map((c,i)=>`<div class="pn" data-r style="--i:${6+i}"><h3>${ico(c[1])}${c[0]}</h3><p>${c[2]}</p></div>`).join('')}</div>`;
   $('lgo').onclick=e=>toApp('dash',ctr(e.currentTarget));$('lpr').onclick=e=>{const p=ctr(e.currentTarget);podium.emit&&podium.emit('start');setTimeout(()=>toApp('prac',p),podium.emit?1000:0)};$('llo').onclick=e=>signOut(ctr(e.currentTarget));
 }
-podium.enter=(name,email)=>{S.u.name=name.replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());S.u.email=email;podium.name=S.u.name.split(' ')[0];podium.account(email,!!podium.newUser);
+podium.enter=(name,email)=>{S.u.name=name.replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());S.u.email=email;podium.name=S.u.name.split(' ')[0];podium.account(email,!!podium.newUser);try{podium.assessInit&&podium.assessInit()}catch(e){console.warn(e)}
   transition(ctr(document.querySelector('#authView form:not([hidden]) .btn')),showLand)};
 $('lo').onclick=e=>signOut(ctr(e.currentTarget));
 const hm=document.querySelector('.sl');hm.tabIndex=0;hm.setAttribute('role','button');hm.title='Back to welcome page';hm.style.cursor='pointer';
 hm.onclick=()=>transition(ctr(hm),showLand);hm.onkeydown=e=>{if(e.key==='Enter')hm.click()};
+podium.ext={S,V,B,go,render,toast,esc,page,sec,nodata,fmt,ring,flash,robot,notify,pptxDeck,FILES,today,nav,renderTop,confirmDlg,gated,find,ic,I};
 })();
+ 
