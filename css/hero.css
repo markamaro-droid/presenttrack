@@ -18,3 +18,4 @@
 @keyframes drop{from{opacity:0;transform:translateY(-24px) scale(.96)}}
 .stats{display:flex;gap:32px;font-size:14px;color:#DAD2FF}
 .stats strong{display:block;font-family:Sora,sans-serif;font-size:22px;color:#fff}
+ 
