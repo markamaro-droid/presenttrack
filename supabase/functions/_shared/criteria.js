@@ -46,6 +46,17 @@ export const CRITERIA = deepFreeze({
     noSpeechSegmentShare: 0.5, // share of such segments that makes the recording unusable
     lowConfidence: 0.5,        // mean exp(avg_logprob) below this => low
   },
+  // Baseline for EXISTING accounts, built from their saved practice sessions (see baseline.js).
+  // Duration is left out on purpose: past sessions each had their own target time.
+  // Three dimensions (pace, fillers, pauses) = 6 points; cutoffs mirror the 7/8 and 4/8 rules above.
+  baseline: {
+    recentSessions: 10,  // use the most recent N sessions
+    minSessions: 1,      // fewer than this => no baseline
+    minSessionSec: 30,   // ignore sessions shorter than this
+    proficientMin: 5,    // of 6, and no dimension at 0
+    developingMin: 3,
+    trendMinSessions: 4, // need at least this many to describe a trend
+  },
   // Scoring (each dimension 0..2) and classification cutoffs
   scoring: {
     points: { good: 2, ok: 1, poor: 0 },
