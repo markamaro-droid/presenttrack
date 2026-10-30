@@ -6,4 +6,6 @@ window.PT_SUPABASE = {
   url: "https://wzmsyordhvfxinlpfbhc.supabase.co",      // e.g. "https://abcdxyzcompany.supabase.co"
   anonKey: "sb_publishable_zatxgPcJHfL_kGVfd4hyNw_sYNoy_yU"   // e.g. "sb_publishable_..." (or the legacy "anon" JWT key)
 };
- 
+
+/* Initial Presentation Assessment. Keep false until the Supabase migration is run AND the two Edge Functions are deployed. */
+window.PT_FEATURES = { assessment: false };
