@@ -8,4 +8,4 @@ window.PT_SUPABASE = {
 };
 
 /* Initial Presentation Assessment. Keep false until the Supabase migration is run AND the two Edge Functions are deployed. */
-window.PT_FEATURES = { assessment: false };
+window.PT_FEATURES = { assessment: true };
