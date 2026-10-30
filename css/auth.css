@@ -35,7 +35,7 @@ a{color:var(--brand);font-weight:600;text-decoration:none}a:hover{text-decoratio
 .switch{text-align:center;color:var(--muted);font-size:14px;margin:22px 0 0}
 .switch button{border:0;background:none;color:var(--brand);font:600 14px "DM Sans",sans-serif;cursor:pointer;padding:0}
 .ok{text-align:center}.ok .tick{width:64px;height:64px;border-radius:50%;background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok);display:grid;place-items:center;margin:0 auto 18px;font-size:30px}
-[hidden]{display:none!important}
+[hidden]{display:none!important} 
 @media (max-width:860px){
   .shell{grid-template-columns:1fr;padding:12px}
   .hero{padding:24px;order:2}.stack,.stats{display:none}.hero h2{font-size:26px}.hero>div:last-child{margin-top:0}
