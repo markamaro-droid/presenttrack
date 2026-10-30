@@ -145,3 +145,4 @@ body.vfsx{overflow:hidden}
   #vw.fs .vwh{grid-area:1/1;padding:max(10px,env(safe-area-inset-top)) 16px 0}
   #vw.fs .vctl{grid-area:2/1;justify-content:flex-start;padding:8px max(16px,env(safe-area-inset-right)) 10px max(16px,env(safe-area-inset-left))}
   #vw.fs .vst{grid-area:3/1}}
+ 
