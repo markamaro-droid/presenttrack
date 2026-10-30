@@ -61,3 +61,4 @@ body.tourcol .tcap{display:none!important}
 
 #bot .bbar{opacity:0;visibility:hidden;pointer-events:none;transform:translateY(6px);transition:opacity .16s,transform .16s,visibility 0s .16s}
 #bot.menu .bbar{opacity:1;visibility:visible;pointer-events:auto;transform:none;transition:opacity .16s,transform .16s,visibility 0s}
+ 
