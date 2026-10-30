@@ -10,7 +10,7 @@ const $=id=>document.getElementById(id);
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 const mm=s=>fmt(Math.max(0,s||0));
 const MIN=20,MAX=300;
-PARENT.eval='decks';PARENT.evres='decks';
+PARENT.eval='decks';PARENT.evres='decks';PARENT.base='perf';
 const TOPICS=[
  {t:'Tell us about your favorite hobby and why you enjoy it.',c:['What the hobby is','How you got started','Why you would recommend it']},
  {t:'Describe a place in your city that you would recommend to a visitor.',c:['Where it is and what it looks like','What people can do there','Why it is special to you']},
@@ -19,15 +19,15 @@ const TOPICS=[
 const E={st:'idle',topic:TOPICS[Math.floor(Math.random()*TOPICS.length)],segs:{},ses:0,want:false,rec:null,iv:0,t0:0,total:0,fatal:null,retake:false};
 
 /* shared analysis code (same files the Supabase functions use) */
-let CORE=null;
-const core=()=>CORE||(CORE=Promise.all([import('../supabase/functions/_shared/metrics.js'),import('../supabase/functions/_shared/quality.js'),import('../supabase/functions/_shared/classify.js'),import('../supabase/functions/_shared/feedback.js'),import('../supabase/functions/_shared/criteria.js')])
-  .then(([m,q,c,f,k])=>({computeMetrics:m.computeMetrics,assessQuality:q.assessQuality,classify:c.classify,ruleBasedFeedback:f.ruleBasedFeedback,CRITERIA:k.CRITERIA}))
+let CORE=null,CV=null;   /* CV = the loaded modules, once available (lets the dashboard card render without waiting) */
+const core=()=>CORE||(CORE=Promise.all([import('../supabase/functions/_shared/metrics.js'),import('../supabase/functions/_shared/quality.js'),import('../supabase/functions/_shared/classify.js'),import('../supabase/functions/_shared/feedback.js'),import('../supabase/functions/_shared/criteria.js'),import('../supabase/functions/_shared/baseline.js')])
+  .then(([m,q,c,f,k,b])=>(CV={computeMetrics:m.computeMetrics,assessQuality:q.assessQuality,classify:c.classify,ruleBasedFeedback:f.ruleBasedFeedback,CRITERIA:k.CRITERIA,baselineFromSessions:b.baselineFromSessions}))
   .catch(e=>{CORE=null;throw e}));
 
 /* ---------- evaluation page ---------- */
 V.eval=()=>{
   if(S.ev&&S.ev.done&&!E.retake)return V.evres();
-  if(!S.evalRequired&&!E.retake)return page('Start Evaluation','',sec('NOT NEEDED',1,nodata('Your account does not need the evaluation. You can upload your presentations right away.','<button class="bt" data-go="up" type="button">UPLOAD PPT</button>')));
+  if(!S.evalRequired&&!E.retake)return page('Start Evaluation','',sec('NOT NEEDED',1,nodata('Your account does not need the evaluation. You can upload your presentations right away.','<button class="bt" data-go="up" type="button">UPLOAD PPT</button>'+(legacy()?'<button class="bt gh" data-go="base" type="button">VIEW MY BASELINE</button>':''))));
   const tp=E.topic;
   return page('Start Evaluation','A short talk so we can measure how you speak today.',
    sec('HOW IT WORKS',1,`<ul class="tp"><li>You will talk for about <b>2 to 3 minutes</b> on the topic below, out loud, in your own words. Do not read from a script.</li><li>We measure your <b>speaking speed (words per minute)</b>, the <b>filler words</b> you use (um, uh, like, you know, ano) and your <b>long pauses</b> (2 seconds or more).</li><li>Your <b>presentation time</b> is compared with the 2 to 3 minute target.</li><li>This is a <b>baseline</b>, not a final judgment of your ability. Eye contact, gestures and body language are not measured.</li><li>Use <b>Google Chrome or Microsoft Edge</b>, allow the microphone, and find a quiet place. Nothing is recorded or uploaded: only the words you say are analyzed in your browser.</li></ul>`)
@@ -42,7 +42,7 @@ function draw(){
   else if(E.st==='ask')b=`<div class="alo" role="status"><i></i>Waiting for microphone permission…</div>`;
   else if(E.st==='rec')b=`<div class="arec" style="width:100%"><div class="atm rec"><b id="etm">0:00</b><small>● Listening</small></div><p class="ai" id="elive" aria-live="polite" style="margin:0;width:100%;box-sizing:border-box;min-height:3.2em">Start talking…</p><p class="vnote" id="enote" role="status" style="text-align:left"></p><div class="acts"><button class="bt" data-act="efin" type="button">FINISH</button><button class="bt gh" data-act="ecancel" type="button">Cancel</button></div></div>`;
   else if(E.st==='busy')b=`<div class="alo" role="status"><i></i>Analyzing your speech…</div>`;
-  else if(E.st==='err')b=`<div class="arec"><p class="wr" role="alert">${esc(E.msg||'Something went wrong.')}</p>${(E.warn||[]).length?`<ul class="tp">${E.warn.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}<div class="acts"><button class="bt" data-act="estart" type="button">TRY AGAIN</button></div></div>`;
+  else if(E.st==='err')b=`<div class="arec"><p class="wr" role="alert">${esc(E.msg||'Something went wrong.')}</p>${(E.warn||[]).length?`<ul class="tp">${E.warn.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}<div class="acts">${E.save?'<button class="bt" data-act="esave" type="button">TRY SAVING AGAIN</button>':''}<button class="bt${E.save?' gh':''}" data-act="estart" type="button">${E.save?'RECORD AGAIN':'TRY AGAIN'}</button></div></div>`;
   h.innerHTML=b;
 }
 const note=m=>{const n=$('enote');if(n)n.textContent=m};
@@ -55,7 +55,7 @@ async function start(){
   try{const s=await navigator.mediaDevices.getUserMedia({audio:true});s.getTracks().forEach(t=>t.stop())}
   catch(e){return setE({st:'err',msg:e&&e.name==='NotFoundError'?'No microphone was found. Connect one and try again.':'Microphone access was blocked. Allow it for this site in your browser settings, then try again.',warn:[]})}
   if(!$('erec'))return;
-  E.segs={};E.ses=0;E.fatal=null;E.want=true;E.t0=performance.now();clearInterval(E.iv);E.iv=setInterval(tick,250);
+  E.segs={};E.ses=0;E.fatal=null;E.save=false;E.pend=null;E.want=true;E.t0=performance.now();clearInterval(E.iv);E.iv=setInterval(tick,250);
   setE({st:'rec'});begin();
 }
 function begin(){
@@ -99,8 +99,21 @@ async function analyze(){
   if(quality.level==='unusable')return setE({st:'err',msg:'We could not hear enough speech to give meaningful results. Please try again in a quiet place, closer to your microphone, and talk for 2 to 3 minutes.',warn:quality.warnings||[]});
   const result=C.classify(metrics,quality,C.CRITERIA),feedback=C.ruleBasedFeedback(metrics,result);
   const results={version:1,source:'browser-speech-recognition',topic:E.topic.t,quality,metrics,durationAssessment:result.durationAssessment,dims:result.dims,totalPoints:result.totalPoints,maxPoints:result.maxPoints,score:result.score,classification:result.classification,explanation:result.explanation,feedback,transcript:segs.map(g=>g.text).join(' ').slice(0,6000),created_at:new Date().toISOString()};
-  S.ev={done:true,at:results.created_at,results};
-  const x={id:S.nid++,deck:'Initial Evaluation',d:today(),dur:Math.round(metrics.totalDurationSec),wpm:Math.round(metrics.wpm),fill:metrics.fillerCount,pau:metrics.pauseCount,score:result.score,tg:150,assess:true};
+  return commit(results);
+}
+/* Cloud accounts: the SERVER must accept the result first (it sets the flag that unlocks uploads).
+   If that fails nothing is unlocked and the user can retry saving without recording again. */
+async function commit(results){
+  const cloud=window.PTCloud&&PTCloud.enabled;
+  if(cloud){
+    setE({st:'busy'});
+    const c=await PTCloud.completeEvaluation(results);
+    if(c.error){E.pend=c.invalid?null:results;return setE({st:'err',msg:c.error,warn:[],save:!c.invalid&&c.retryable!==false})}
+  }
+  E.pend=null;E.save=false;
+  const metrics=results.metrics||{};
+  S.ev={done:true,at:results.created_at,results};S.evalRequired=false;S.assessRequired=false;
+  const x={id:S.nid++,deck:'Initial Evaluation',d:today(),dur:Math.round(metrics.totalDurationSec||0),wpm:Math.round(metrics.wpm||0),fill:metrics.fillerCount||0,pau:metrics.pauseCount||0,score:results.score,tg:150,assess:true};
   const i=S.ses.findIndex(q=>q.assess);if(i>=0)S.ses.splice(i,1);S.ses.push(x);
   E.retake=false;E.st='idle';
   let saved=true;
@@ -137,9 +150,51 @@ V.evres=()=>{
    +sec('HOW THIS WAS MEASURED',5,`<ul class="tp"><li>Speaking speed = spoken words ÷ speaking time in minutes. Pauses of 2 seconds or longer are <b>not</b> counted as speaking time; shorter pauses are.</li><li>Words and timing come from your browser's speech recognition, which can miss or add words and often skips "um" and "uh". Filler and pause counts are estimates, not definite mistakes.</li><li>Presentation time is the full length of your talk, compared with a 2 to 3 minute target.</li></ul><div class="acts"><button class="bt" data-go="up" type="button">UPLOAD PPT</button><button class="bt gh" data-go="hist" type="button">PRACTICE HISTORY</button></div>`));
 };
 
+/* ---------- baseline for EXISTING accounts ----------
+   Accounts that already have practice history skip the evaluation. Instead we analyze their saved sessions
+   (shared module baseline.js, thresholds in criteria.js) and show the same kind of baseline. Nothing is stored:
+   it is recomputed from S.ses whenever it is shown, so it stays current as they practice. */
+const hasHist=()=>!!(S.ses&&S.ses.some(q=>!q.assess));
+const legacy=()=>!S.evalRequired&&!(S.ev&&S.ev.done)&&hasHist();
+const blKey=()=>S.ses.length+':'+S.ses.reduce((a,q)=>a+(+q.dur||0)+(+q.wpm||0),0);
+function blNow(){   /* undefined = modules still loading, null = not enough usable sessions */
+  if(!CV)return undefined;
+  const k=blKey();if(E.blk!==k){E.bl=CV.baselineFromSessions(S.ses,CV.CRITERIA);E.blk=k}
+  return E.bl;
+}
+function blLoad(){
+  if(E.blLoading)return;E.blLoading=true;
+  core().then(()=>{E.blLoading=false;if(!$('app').hidden&&(S.view==='dash'||S.view==='base')){const y=$('mainc').scrollTop;X.render();$('mainc').scrollTop=y}})
+    .catch(()=>{E.blLoading=false;E.bl=null;E.blk=blKey()})
+}
+podium.baselineBanner=()=>{
+  if(!legacy())return '';
+  const b=blNow();if(b===undefined){blLoad();return ''}if(!b)return '';
+  const cl=CLASS[b.classification]||['Result',''],m=b.metrics;
+  return `<section class="pn rise cont" style="--i:0"><div><h3 class="sh">YOUR SPEAKING BASELINE · FROM YOUR PAST SESSIONS</h3><p class="sub" style="margin:0">We analyzed your last ${b.sessionsUsed} practice session${b.sessionsUsed===1?'':'s'}: about ${Math.round(m.wpm)} WPM, ${m.fillersPerMin} filler words and ${m.pausesPerMin} long pauses per minute. <b>${cl[0]}</b>.</p></div><button class="bt" data-go="base" type="button">VIEW BASELINE</button></section>`;
+};
+V.base=()=>{
+  if(S.ev&&S.ev.done)return V.evres();
+  const b=blNow();
+  if(b===undefined){blLoad();return page('Your speaking baseline','',sec('LOADING',1,'<div class="alo" role="status"><i></i>Analyzing your past sessions…</div>'))}
+  if(!b)return page('Your speaking baseline','',sec('NOT ENOUGH DATA',1,nodata('Your baseline is built from your saved practice sessions. Complete a practice session (30 seconds or longer) and it will appear here.','<button class="bt" data-go="prac" type="button">START PRACTICE</button>')));
+  const m=b.metrics,cl=CLASS[b.classification]||['Result',''],n=b.sessionsUsed;
+  const list=a=>(a&&a.length)?`<ul class="tp">${a.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:'<p class="em">Nothing to show here.</p>';
+  const card=(t,v,s)=>`<article class="mc"><h4>${t}</h4><p class="mv">${v}</p>${s?`<small>${s}</small>`:''}</article>`;
+  const dimRow=(k,t)=>{const x=b.dims[k];return `<div class="gl2"><div class="gh2"><span>${t}</span><b>${esc(x.label)}</b></div><div class="bar2"><i style="width:${x.points/2*100}%"></i></div><p class="basis" style="margin:4px 0 0">${esc(x.detail||'')}</p></div>`};
+  const tr=b.trend?`<p class="basis" style="margin:10px 0 0">Trend: ${b.trend.direction==='up'?'your newer sessions score about '+b.trend.change+' points higher than your older ones.':b.trend.direction==='down'?'your newer sessions score about '+Math.abs(b.trend.change)+' points lower than your older ones.':'your scores are steady across these sessions.'}</p>`:'';
+  return page('Your speaking baseline','Built from your last '+n+' saved practice session'+(n===1?'':'s')+'.',
+   sec('YOUR BASELINE',1,`<p class="sub" style="margin:0 0 8px"><span class="st ${cl[1]}">${cl[0]}</span> &nbsp; Score ${b.score}%</p><p class="sub" style="margin:0">This is a baseline from your practice history, not a final judgment of your ability. Eye contact, gestures and body language are not measured.</p>`)
+   +`<div class="g-perf five">${card('Speaking speed',Math.round(m.wpm)+' <small>WPM</small>',esc(b.dims.pace.label))}${card('Filler words',m.fillersPerMin+' <small>/ min</small>',m.fillerCount+' in total')}${card('Long pauses',m.pausesPerMin+' <small>/ min</small>',m.pauseCount+' in total')}${card('Average session',mm(m.totalDurationSec),'')}${card('Sessions analyzed',n,'Average score '+b.avgSessionScore+'%')}</div>`
+   +sec('HOW YOUR SCORE ADDS UP',2,dimRow('pace','Pace')+dimRow('fillers','Filler words')+dimRow('pauses','Pauses')+tr)
+   +`<div class="g2">${sec('STRENGTHS',3,list(b.strengths))}${sec('AREAS TO IMPROVE',4,list(b.improvements))}</div>`
+   +sec('HOW THIS WAS MEASURED',5,`<ul class="tp"><li>We use the numbers saved with each of your past sessions: speaking speed, filler words and long pauses. Your speed is weighted by how long each session was.</li><li>Filler words and pauses are shown per minute of practice so short and long sessions can be compared.</li><li>Session length is not scored, because each of your presentations had its own target time.</li><li>No audio is re-analyzed. Your baseline updates automatically as you practice.</li></ul><div class="acts"><button class="bt" data-go="prac" type="button">PRACTICE</button><button class="bt gh" data-go="rep" type="button">REPORTS</button></div>`));
+};
+
 $('app').addEventListener('click',e=>{
   const t=e.target.closest('[data-act]');if(!t)return;const a=t.dataset.act;
   if(a==='estart')start();
+  else if(a==='esave'){if(E.pend)commit(E.pend)}
   else if(a==='efin')finish(false);
   else if(a==='ecancel'){halt();setE({st:'idle'})}
   else if(a==='eretake'){E.retake=true;E.st='idle';go('eval')}
