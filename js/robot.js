@@ -191,3 +191,4 @@ podium.robotShow=(v,where)=>{shown=v;bot.hidden=!v||(where==='app'&&!!podium.min
     if(where!=='app')later(()=>{if(shown&&!V.on){const n=podium.name||'there',nw=podium.isNew&&podium.isNew(),m=nw?'Hello '+n+'! Welcome to PresentTrack. Let me show you around.':'Hello '+n+'! Welcome back. Hold me and ask me anything.';set('wave',nw?4400:3800,m,nw?m:'Hello '+n+'! Welcome back.')}},900)}
   else{hush();set('idle',0,'')}};
 })();
+ 
