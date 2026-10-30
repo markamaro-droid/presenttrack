@@ -67,7 +67,7 @@ function tourSteps(){const n=S.u.name.split(' ')[0]||'there';return [
  {nav:'decks',v:'prac',t:'Practice',x:GUIDE.prac,c:[['Pick a presentation','#pd','Pick a presentation'],['target time','#pdur','Set your target time'],['press Start','#pgo','Press Start'],['press Finish','#pfin','Finish for your score']]},
  {nav:'perf',v:'perf',t:'Performance',x:GUIDE.perf,c:[['speaking pace','[data-sec="performance-overview"]','Your performance']]},
  {nav:'prog',v:'prog',t:'Progress',x:GUIDE.prog,c:[['Progress shows','[data-sec="your-performance-progress"]','Your progress chart'],['Use the buttons','.chips','Switch the metric here'],['goals beside it','[data-sec="goals"]','Your goals']]},
- {nav:'hist',v:'hist',t:'Practice History',x:GUIDE.hist,c:[['Generate Report','#grb','Generate your report here'],['full list','[data-sec="all-practice"]','All your sessions']]},
+ {nav:'hist',v:'hist',t:'Practice History',x:GUIDE.hist,c:[['full list','[data-sec="all-practice"]','All your sessions']]},
  {nav:'note',v:'note',t:'Notifications',x:GUIDE.note,c:[['Notifications collects','[data-sec="all-notifications"]','Your notifications'],['mark them all','[data-act=markall]','Mark all as read']]},
  {nav:'set',v:'set',t:'Settings',x:GUIDE.set,c:[['change your name','[data-sec="profile"]','Your profile'],['switch light or dark theme','#st','Switch theme'],['turn my voice on or off','#rv','Robot voice']]},
  {nav:null,v:'set',bot:true,t:'Talk to me',x:'And that is me, down here. Press and hold my picture, or hold the space bar, and ask me a question. You can also type to me, or ask me to take you to any page.',c:[['down here','#bc','That is me'],['Press and hold my picture','#bc','Press and hold me']]},
@@ -122,7 +122,7 @@ const GUIDE={dash:'This is your dashboard. At the top you see your next presenta
  rep:'Reports lists every practice session. Press View Report on any row to see the numbers and my feedback.',
  perf:'Performance shows your speaking pace, filler words, long pauses and score, and compares your first and latest attempts.',
  prog:'Progress shows how each number changes attempt by attempt. Use the buttons above the chart to switch between pace, filler words, pauses, duration and score, and check your goals beside it.',
- hist:'Practice History is the full list of your sessions with date, duration, pace, fillers, pauses and score. Press Generate Report to open the report for your latest session, or View Report on any row.',
+ hist:'Practice History is the full list of your sessions with date, duration, pace, fillers, pauses and score. Press View Report on any row to open it and download it as a PDF.',
  note:'Notifications collects reminders, recommendations and progress updates. Mark one as read, or mark them all.',
  set:'Settings is where you change your name, email and picture, switch light or dark theme, and turn my voice on or off.',
  goals:'Goals lets you add targets, like keeping your pace between 130 and 160, and track your progress toward each one.',
@@ -279,10 +279,10 @@ ready:a=>{const p=find(a);if(!p)return V.decks();return page('Presentation Readi
 rec:()=>gated()?gatePage('Upload Recording'):page('Upload Recording','Get a full analysis of a rehearsal you recorded.',sec('ANALYZE RECORDING',1,`<div class="fr" style="max-width:560px"><div><label for="rs">Presentation</label><select id="rs">${S.pres.map(p=>`<option value="${p.id}">${esc(p.t)}</option>`).join('')||'<option value="">Create a presentation first</option>'}</select></div><label class="drop" id="dz" for="f"><b>Drop a video or audio file here, or select one</b><span id="fn">MP4, MOV, MP3 or WAV</span></label><input type="file" id="f" accept="video/*,audio/*" hidden><div class="bar2" id="rb" hidden><i style="width:0%"></i></div><p class="sub" id="rt" style="margin:0"></p><button class="bt" id="ra" type="button">ANALYZE RECORDING</button></div>`)),
 prac:a=>practiceHTML(a,false),weak:a=>practiceHTML(a,true),
 rep:()=>page('Reports','Open any session for a full breakdown.',sec('SESSION REPORTS',1,recentRows(S.ses.slice().reverse(),false))),
-rdet:a=>{const x=sesById(a);if(!x)return V.rep();return page('Report: '+esc(x.deck),x.d+' · '+fmt(x.dur)+' of '+fmt(x.tg),`<div class="g-perf">${[['Speaking Pace',x.wpm+' WPM'],['Filler Words',x.fill],['Long Pauses',x.pau],['Performance Score',x.score+'%']].map(([n,v])=>`<article class="mc"><h4>${n}</h4><p class="mv">${v}</p></article>`).join('')}</div>`+sec('AI FEEDBACK',2,`<ul class="tp">${tips(x).map(t=>`<li>${t}</li>`).join('')}</ul><div class="acts"><button class="bt" data-go="prac" type="button">PRACTICE AGAIN</button><button class="bt gh" data-go="rep" type="button">Back to reports</button></div>`))},
+rdet:a=>{const x=sesById(a);if(!x)return V.rep();return page('Report: '+esc(x.deck),x.d+' · '+fmt(x.dur)+' of '+fmt(x.tg),`<div class="g-perf">${[['Speaking Pace',x.wpm+' WPM'],['Filler Words',x.fill],['Long Pauses',x.pau],['Performance Score',x.score+'%']].map(([n,v])=>`<article class="mc"><h4>${n}</h4><p class="mv">${v}</p></article>`).join('')}</div>`+sec('AI FEEDBACK',2,`<ul class="tp">${tips(x).map(t=>`<li>${t}</li>`).join('')}</ul><div class="acts"><button class="bt" data-act="pdf" data-a="${x.id}" type="button">DOWNLOAD PDF</button><button class="bt gh" data-go="prac" type="button">PRACTICE AGAIN</button><button class="bt gh" data-go="hist" type="button">Back to history</button></div>`))},
 perf:()=>page('Performance','How your delivery compares with your first attempt.',sec('PERFORMANCE OVERVIEW',1,perfCards(),'flat')+(cap().length>1?sec('FIRST VS LATEST',2,`<div class="tw"><table><tr><th>Metric</th><th>First</th><th>Latest</th></tr>${[['Speaking pace','wpm',v=>v+' WPM'],['Filler words','fill',v=>v],['Long pauses','pau',v=>v],['Duration','dur',fmt],['Score','score',v=>v+'%']].map(([n,k,f])=>`<tr><td>${n}</td><td>${f(cap()[0][k])}</td><td><b>${f(cap().at(-1)[k])}</b></td></tr>`).join('')}</table></div><div class="acts" style="margin-top:12px"><button class="bt gh" data-go="coach" type="button">VIEW AI FEEDBACK</button></div>`):'')),
 prog:()=>{const k=S.metric||'wpm',a=cap();return page('Progress','Track every attempt toward your goals.',`<div class="g-prog">${sec('YOUR PERFORMANCE PROGRESS',1,a.length?chartBox(k):nodata('Complete your first practice session to see your performance results.'))}${sec('GOALS',2,goalsHTML()+'<div class="acts"><button class="bt gh" data-go="goals" type="button">MANAGE GOALS</button></div>')}</div>`+sec('ATTEMPTS',3,recentRows(a.slice().reverse(),false)))},
-hist:()=>page('Practice History','Every session you have saved.',`<div class="acts"><button class="bt" id="grb" data-act="genrep" type="button">GENERATE REPORT</button></div>`+panel(1,recentRows(S.ses.slice().reverse(),false),'all-practice')),
+hist:()=>page('Practice History','Every session you have saved.',panel(1,recentRows(S.ses.slice().reverse(),false),'all-practice')),
 note:()=>page('Notifications',unread()?unread()+' unread':"You're all caught up.",`<div class="acts" style="margin-bottom:12px"><button class="bt gh" data-act="markall" type="button">Mark all as read</button></div>`+panel(1,S.notes.length?`<div class="nl">${S.notes.map((x,i)=>`<div class="nt ${x.r?'rd':''}"><span class="ne">${x.ic}</span><div><b>${esc(x.t)}</b><small>${esc(x.s)}</small></div><button class="bt gh sm" data-act="tn" data-a="${i}" type="button">${x.r?'Mark unread':'Mark read'}</button></div>`).join('')}</div>`:nodata("You're all caught up."),'all-notifications')),
 coach:()=>page('AI Presentation Coach','Analysis of your last '+cap().length+' attempts.',cap().length?`<div class="g-prog">${coachC(cap())}${sec('WHERE YOUR PACE DRIFTS',2,`<div class="tw"><table><tr><th>Section</th><th>Pace</th><th>Target</th></tr><tr><td>Introduction (first 2 min)</td><td><b>171 WPM</b></td><td>130 to 150</td></tr><tr><td>Body</td><td>148 WPM</td><td>130 to 160</td></tr><tr><td>Conclusion</td><td>139 WPM</td><td>130 to 150</td></tr></table></div><ul class="tp"><li>Take a full breath before your first sentence.</li><li>Pause for one second after your opening statement.</li><li>Practice the first two minutes on their own.</li></ul>`)}</div>`:sec('AI COACH',1,nodata('Complete a practice session to receive personalized feedback.','<button class="bt" data-go="prac" type="button">START PRACTICE</button>'))),
 goals:()=>page('Goals','Set targets and watch your progress.',sec('YOUR GOALS',1,goalsHTML()+`<div class="fr" style="margin-top:14px;max-width:520px"><div><label for="gn">New goal</label><input type="text" id="gn" placeholder="Keep my introduction under 2 minutes"></div><div class="acts"><button class="bt" id="ga" type="button">ADD GOAL</button></div></div>`)),
@@ -302,7 +302,7 @@ function practiceHTML(a,weak){
  <div class="acts pacts"><button class="bt" id="pgo" type="button">Start</button><button class="bt gh" id="pfin" type="button">Finish</button><button class="bt gh" id="prs" type="button">Reset</button></div></div></div>
  <div id="pres"></div></div><section class="pn rise" id="vw" style="--i:2"><div class="vwh"><h3 class="sh">YOUR SLIDES</h3><span id="vc"></span></div><div class="vst" id="vst" aria-live="polite"></div><div class="vctl" id="vctl"><div class="vtm" id="vtmw" hidden aria-label="Elapsed time"><b id="vtm">0:00</b><small id="vtl"></small></div><div class="vbt" role="group" aria-label="Presentation controls"><button class="bt gh sm vic" id="vb" type="button" aria-label="Previous slide" data-tip="Previous slide"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><button class="bt sm vic" id="vn" type="button" aria-label="Next slide" data-tip="Next slide"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button><button class="bt gh sm" id="vfs" type="button">Full screen</button><button class="bt gh sm" id="vpr" type="button" hidden>Pause</button><button class="bt sm vfin" id="vfin" type="button" hidden>Finish</button></div><p class="vnote" id="vnote" role="status"></p></div><p class="basis tip" style="margin:10px 0 0;text-align:center">Tip: use the ← → keys or swipe to change slides.</p></section>`)}
 /* ---- slide viewer: shows the uploaded file during practice (PDF, PPTX, DOCX). Files stay in memory only. ---- */
-const FILES={},LIB={pdf:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',zip:'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',doc:'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js'};
+const FILES={},LIB={pdfgen:'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',pdf:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',zip:'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',doc:'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js'};
 const lib=k=>LIB[k+'p']||(LIB[k+'p']=new Promise((ok,no)=>{const s=document.createElement('script');s.src=LIB[k];s.onload=ok;s.onerror=()=>{LIB[k+'p']=0;no(new Error('Could not load the viewer. Check your internet connection.'))};document.head.appendChild(s)}));
 async function pdfDeck(file){await lib('pdf');pdfjsLib.GlobalWorkerOptions.workerSrc=LIB.pdf.replace('pdf.min.js','pdf.worker.min.js');
   const doc=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
@@ -423,6 +423,36 @@ prac:()=>{if(!$('pdur'))return;let el=0,run=false,last=0,c={};const REFWPM=145; 
   viewer();marks();syncRun();draw()}
 };
 B.create=B.up=B.decks;B.weak=B.prac;
+/* ---- report as a PDF (generated in the browser; nothing is uploaded) ---- */
+const pdfTxt=t=>String(t==null?'':t).replace(/[\u2018\u2019]/g,"'").replace(/[\u201C\u201D]/g,'"').replace(/[\u2013\u2014]/g,'-').replace(/[^\x20-\x7E\u00A0-\u00FF]/g,'');
+async function downloadPdf(id){
+  const x=sesById(id);if(!x){toast('Report not found');return}
+  const btn=document.querySelector('[data-act="pdf"]');if(btn){if(btn.disabled)return;btn.disabled=true;btn.textContent='PREPARING…'}
+  const done=()=>{const b=document.querySelector('[data-act="pdf"]');if(b){b.disabled=false;b.textContent='DOWNLOAD PDF'}};
+  try{
+    await lib('pdfgen');const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'}),W=210,M=20,CW=W-2*M;let y=0;
+    const sc=(x.score==null||isNaN(x.score))?'N/A':x.score+'%',ok=v=>v==null||(typeof v==='number'&&isNaN(v))?'N/A':v;
+    const need=h=>{if(y+h>285){doc.addPage();y=20}};
+    const text=(t,size,bold,color,gap)=>{doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(size);doc.setTextColor(...(color||[11,37,64]));
+      doc.splitTextToSize(pdfTxt(t),CW).forEach(l=>{need(size*.5);doc.text(l,M,y);y+=size*.5})
+      y+=gap==null?3:gap};
+    doc.setFillColor(21,112,208);doc.rect(0,0,W,26,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text('PresentTrack',M,16);
+    doc.setFont('helvetica','normal');doc.setFontSize(10);doc.text('Practice report',W-M,16,{align:'right'});y=40;
+    text('Report: '+x.deck,18,true,null,2);
+    text(pdfTxt(x.d||'')+'  |  Length '+fmt(x.dur)+' of '+fmt(x.tg)+' target  |  '+(S.u.name||''),10,false,[72,101,127],8);
+    doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(11,37,64);doc.text('Results',M,y);y+=6;
+    const rows=[['Speaking pace',ok(x.wpm)+' WPM'],['Filler words',ok(x.fill)],['Long pauses',ok(x.pau)],['Duration',fmt(x.dur)+' (target '+fmt(x.tg)+')'],['Performance score',sc]];
+    rows.forEach(([a,b],i)=>{if(i%2===0){doc.setFillColor(238,248,255);doc.rect(M,y-5,CW,8,'F')}doc.setFont('helvetica','normal');doc.setFontSize(11);doc.setTextColor(11,37,64);doc.text(a,M+3,y);doc.setFont('helvetica','bold');doc.text(pdfTxt(String(b)),M+CW-3,y,{align:'right'});y+=8});
+    y+=6;doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(11,37,64);doc.text('Feedback',M,y);y+=7;
+    tips(x).forEach(t=>{need(10);doc.setFillColor(21,112,208);doc.circle(M+1.5,y-1.2,.9,'F');doc.setFont('helvetica','normal');doc.setFontSize(11);doc.setTextColor(11,37,64);
+      doc.splitTextToSize(pdfTxt(t),CW-6).forEach(l=>{doc.text(l,M+6,y);y+=5.5});y+=2});
+    y+=4;text('This report is based on your practice timer and the filler words and pauses you logged. It is practice feedback, not a judgment of your overall speaking ability.',9,false,[72,101,127],0);
+    doc.setFontSize(8);doc.text('Generated by PresentTrack on '+new Date().toLocaleDateString('en',{year:'numeric',month:'long',day:'numeric'}),M,290);
+    const name='PresentTrack-Report-'+pdfTxt(x.deck).replace(/[^\w]+/g,'-').replace(/^-|-$/g,'').slice(0,40)+'-'+String(x.d||'').replace(/[^\w]+/g,'-')+'.pdf';
+    doc.save(name);toast('Report downloaded');
+  }catch(e){toast('Could not create the PDF. Check your connection and try again.')}
+  done();
+}
 const today=()=>new Date().toLocaleDateString('en',{month:'long',day:'numeric'});
 function notify(i,t,s){S.notes.unshift({ic:i,t,s,r:0});renderTop();nav()}
 function flash(msg,kind,robotMsg){S.flash=msg;robot('success',robotMsg||'Nice work! Your results are ready.',5000)}
@@ -473,7 +503,7 @@ $('app').addEventListener('click',e=>{
   else if(a==='metric'){S.metric=x;$('cwrap').outerHTML=chartBox(x);animateIn()}
   else if(a==='markall'){S.notes.forEach(n=>n.r=1);render()}
   else if(a==='tn'){const n=S.notes[+x];n.r=n.r?0:1;render()}
-  else if(a==='genrep'){const l=S.ses.at(-1);if(!l){toast('Complete a practice session first');return}go('rdet',l.id)}
+  else if(a==='pdf')downloadPdf(x);
   else if(a==='del')delPres(x);
   else if(a==='ren'){S.ren=+x;render()}
   else if(a==='rcancel'){S.ren=null;render()}
