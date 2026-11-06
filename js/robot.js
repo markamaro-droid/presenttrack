@@ -23,8 +23,8 @@ function pickVoice(){const vs=(SY.getVoices()||[]).filter(v=>/^en/i.test(v.lang)
 function clean(t){return String(t).replace(/[●“”]/g,'').replace(/…/g,'.').replace(/\bwpm\b/gi,'words per minute').replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu,'').replace(/\s+/g,' ').trim()}
 function hush(){try{SY&&SY.cancel()}catch(e){}speaking=false}
 let nar={started:false,ended:false,pos:0};
-function speak(text){nar={started:false,ended:false,pos:0};if(!SY||podium.voiceOn===false||V.on||document.hidden)return;const t=clean(text);if(!t)return;
-  try{SY.cancel();const u=new SpeechSynthesisUtterance(t),v=pickVoice();if(v){u.voice=v;u.lang=v.lang}else u.lang='en-US';u.rate=1.02;u.pitch=1.12;u.volume=1;const my=nar;u.onboundary=e=>{if(typeof e.charIndex==='number')my.pos=e.charIndex};u.onstart=()=>{speaking=true;my.started=true};u.onend=()=>{speaking=false;my.ended=true};u.onerror=()=>{speaking=false;my.failed=true};SY.speak(u)}catch(e){speaking=false}}
+function speak(text,done){nar={started:false,ended:false,pos:0};if(!SY||podium.voiceOn===false||V.on||document.hidden){done?.();return}const t=clean(text);if(!t){done?.();return}
+  try{SY.cancel();const u=new SpeechSynthesisUtterance(t),v=pickVoice();if(v){u.voice=v;u.lang=v.lang}else u.lang='en-US';u.rate=1.02;u.pitch=1.12;u.volume=1;const my=nar;u.onboundary=e=>{if(typeof e.charIndex==='number')my.pos=e.charIndex};u.onstart=()=>{speaking=true;my.started=true};u.onend=()=>{speaking=false;my.ended=true;done?.()};u.onerror=()=>{speaking=false;my.failed=true;done?.()};SY.resume();SY.speak(u)}catch(e){speaking=false;done?.()}}
 const mute=$('bmute');
 podium.setVoice=on=>{podium.voiceOn=on;window.PTVoice&&PTVoice.setSpeaker(on);mute.textContent=on?'🔊':'🔇';mute.setAttribute('aria-pressed',String(!on));mute.setAttribute('aria-label',on?'Mute Tracy\'s voice':'Unmute Tracy\'s voice');mute.title=on?'Mute Tracy\'s voice':'Unmute Tracy\'s voice';if(!on)hush()};
 mute.onclick=()=>podium.setVoice(podium.voiceOn===false);
@@ -32,6 +32,8 @@ mute.onclick=()=>podium.setVoice(podium.voiceOn===false);
 podium.narrate=(text,est)=>{if(window.PTVoice&&PTVoice.active)PTVoice.stop();set('talking',Math.min(60000,(est||8000)*2.5),'',text)};
 podium.narState=()=>({voice:!!SY&&podium.voiceOn!==false&&!V.on,started:nar.started,ended:nar.ended,failed:!!nar.failed,pos:nar.pos||0,speaking});
 podium.narPause=p=>{try{p?SY.pause():SY.resume()}catch(e){}};podium.hushNow=()=>{hush();set('idle',0,'')};
+podium.robotIntroduce=(text,done)=>{clearAll();stopVoice();set('talking',0,'');speak(text,done)};
+podium.robotPoint=()=>set('point',0,'');
 function set(n,dur,txt,spoken){st.n=n;st.t0=sec();st.until=dur?st.t0+dur:0;say(txt===undefined?(TXT[n]||''):txt);if(spoken)speak(spoken)}
 podium.emit=ev=>{const n=EV[ev];if(!n)return;stopVoice();clearAll();set(n,n==='wave'?2000:n==='celebrate'?2600:0)};
 
@@ -53,7 +55,7 @@ function addRot(n,ax,a){if(!n||Math.abs(a)<.002)return;
   n.parent.getWorldQuaternion(q1);q2.copy(root.quaternion).invert();q1.premultiply(q2);
   q3.setFromAxisAngle(ax,a).premultiply(q2.copy(q1).invert()).multiply(q1);n.quaternion.premultiply(q3)}
 function size(){const w=cv.clientWidth,h=cv.clientHeight;
-  if(w!==W||h!==H){W=w;H=h;R.setSize(w,h,false);cam.aspect=w/h;cam.position.z=(h/2)/Math.tan(Math.PI/12);cam.far=cam.position.z*4;cam.updateProjectionMatrix();RH=clamp(h*.5,100,135)}
+  if(w!==W||h!==H){W=w;H=h;R.setSize(w,h,false);cam.aspect=w/h;cam.position.z=(h/2)/Math.tan(Math.PI/12);cam.far=cam.position.z*4;cam.updateProjectionMatrix();RH=bot.classList.contains('welcome')?h*.82:clamp(h*.5,100,135)}
   root.scale.setScalar(RH)}
 function init(){
   R=new T.WebGLRenderer({canvas:cv,alpha:true,antialias:true});R.outputEncoding=T.sRGBEncoding;R.toneMapping=T.ACESFilmicToneMapping;R.toneMappingExposure=1.1;R.setPixelRatio(Math.min(devicePixelRatio||1,2));
@@ -88,10 +90,11 @@ function frame(){
   else if(s==='listening'){g.lean=.14;g.roll=.08+Math.sin(t*1.6)*.06}
   else if(s==='thinking'){g.pitch=.16;g.roll=-.14;g.ear=.4}
   else if(s==='talking'){g.mouth=1;g.pitch+=Math.sin(t*5)*.06}
+  else if(s==='point'){g.hR=-.3;g.hL=.15;g.pitch=.15;g.yaw=-.1;g.ex=0;g.ey=-.7}
   else if(s==='celebrate'){const f=Math.sin(t*14);g.hR=2.9+.25*f;g.hL=-(2.9-.25*f);g.mouth=.6}
   if(speaking)g.mouth=Math.max(g.mouth,1);
   const a=1-Math.exp(-dt*8);for(const k in g)C[k]+=(g[k]-C[k])*a;
-  root.rotation.set(C.pitch+C.lean,C.yaw,C.roll,'YXZ');root.position.set(0,-H*(bot.classList.contains('app')?.06:.18),0);
+  root.rotation.set(C.pitch+C.lean,C.yaw,C.roll,'YXZ');root.position.set(0,bot.classList.contains('welcome')?(matchMedia('(prefers-reduced-motion:reduce)').matches?0:Math.sin(t*1.8)*5):-H*(bot.classList.contains('app')?.06:.18),0);
   mix.update(dt);N.model.updateMatrixWorld(true);
   addRot(N.hR,Z,C.hR);addRot(N.hL,Z,C.hL);addRot(N.ears,Y,Math.sin(t*3)*.5*C.ear);
   if(C.mouth>.01){const m=1+C.mouth*.3*Math.abs(Math.sin(t*13));N.mouth.scale.set(N.mb.x*m,N.mb.y,N.mb.z*m);N.mouthOn=true}else if(N.mouthOn){N.mouth.scale.copy(N.mb);N.mouthOn=false}   // absolute from base: never compounds
@@ -102,7 +105,7 @@ podium.robotSay=(kind,text,dur)=>{if(!shown||bot.hidden||V.on||V.busy)return;con
 podium.robotShow=(v,where)=>{shown=v;bot.hidden=!v||(where==='app'&&!!podium.min);if(!v){voice.stop()}{const mi=document.getElementById('bmini');if(mi&&(!v||where!=='app'))mi.hidden=true}clearAll();stopVoice();V.busy=voice.active;
   if(v){document.body.appendChild(bot);bot.classList.toggle('app',where==='app');W=H=0;
     if(!R){try{init()}catch(e){fail(e);return}}last=sec();t=0;set('idle',0,'');
-    if(where!=='app')later(()=>{if(shown&&!V.on&&!V.busy){const n=podium.name||'there',nw=podium.isNew&&podium.isNew(),m=nw?'Hello '+n+'! Welcome to PresentTrack. Let me show you around.':'Hello '+n+'! Welcome back. Open my voice controls to talk with Tracy.';set('wave',nw?4400:3800,m,nw?m:'Hello '+n+'! Welcome back.')}},900)}
+    if(where==='land')later(()=>{if(shown&&!V.on&&!V.busy){const n=podium.name||'there',nw=podium.isNew&&podium.isNew(),m=nw?'Hello '+n+'! Welcome to PresentTrack. Let me show you around.':'Hello '+n+'! Welcome back. Open my voice controls to talk with Tracy.';set('wave',nw?4400:3800,m,nw?m:'Hello '+n+'! Welcome back.')}},900)}
   else{hush();set('idle',0,'')}};
 })();
  
