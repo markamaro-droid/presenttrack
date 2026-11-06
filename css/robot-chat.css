@@ -1,0 +1,23 @@
+/* Additive companion panel. Robot size, position, canvas and animations remain unchanged. */
+#bot .bbar { flex-wrap:wrap; }
+#bot .bchat { border:0;border-radius:999px;padding:6px 10px;background:var(--brand);color:#fff;font:600 11px "DM Sans",sans-serif;cursor:pointer; }
+#bot .robot-chat { position:absolute;right:0;bottom:calc(100% + 10px);width:min(360px,calc(100vw - 36px));max-height:calc(100dvh - 270px);display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:20px;background:var(--cs,var(--panel));color:var(--ink);box-shadow:var(--clay-sh,0 8px 32px #18244730);user-select:text;z-index:6;font:14px/1.5 "DM Sans",sans-serif; }
+#bot .robot-chat[hidden] { display:none; }
+.robot-chat header { display:flex;align-items:center;gap:8px; }
+.robot-chat header strong { flex:1; }
+.robot-chat header button { border:0;border-radius:10px;padding:5px 8px;background:var(--panel);color:var(--ink);cursor:pointer;font:inherit; }
+.robot-chat-note { margin:0;color:var(--muted);font-size:12px; }
+.robot-chat-log { min-height:60px;overflow-y:auto;overscroll-behavior:contain;flex:1; }
+.robot-chat-message { margin:0 0 10px;padding:8px 10px;background:var(--panel);border-radius:12px;white-space:pre-wrap;overflow-wrap:anywhere; }
+.robot-chat-message.user { background:color-mix(in srgb,var(--brand) 12%,var(--panel)); }
+.robot-chat-status { margin:0;color:var(--muted);font-size:12px;overflow-wrap:anywhere; }
+.robot-chat-status:empty { display:none; }
+.robot-chat form { display:flex;gap:6px; }
+.robot-chat input { min-width:0;flex:1;width:0;padding:10px;border:1px solid var(--muted);border-radius:12px;background:var(--panel);color:var(--ink);font:16px "DM Sans",sans-serif; }
+.robot-chat form button { border:0;border-radius:12px;padding:10px;background:var(--brand);color:#fff;font:600 13px "DM Sans",sans-serif;cursor:pointer; }
+.robot-chat button:disabled,.robot-chat input:disabled { opacity:.6;cursor:wait; }
+.robot-chat :focus-visible,#bot .bchat:focus-visible { outline:3px solid var(--brand);outline-offset:2px; }
+@media(max-width:700px),(max-height:650px) {
+  #bot .robot-chat { position:fixed;left:12px;right:12px;top:max(12px,env(safe-area-inset-top));bottom:auto;width:auto;max-height:calc(100dvh - 240px); }
+}
+@media(max-height:450px) { #bot .robot-chat { max-height:calc(100dvh - 24px); } }

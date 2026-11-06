@@ -12,7 +12,7 @@ let R,scene,cam,root,mix,N={},ready=false,shown=false,W=0,H=0,RH=130,t=0,last=0,
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),sec=()=>performance.now()/1000,later=(f,ms)=>{const i=setTimeout(f,ms);tms.push(i);return i},clearAll=()=>{tms.forEach(clearTimeout);tms=[]};
 const Y=new T.Vector3(0,1,0),Z=new T.Vector3(0,0,1),q1=new T.Quaternion(),q2=new T.Quaternion(),q3=new T.Quaternion();
 addEventListener('pointermove',e=>{cur.x=e.clientX;cur.y=e.clientY},{passive:true});
-/* The robot has no chat bubble. It speaks. Only if its voice is off or unavailable does a slim caption strip show what it said. */
+/* Spoken replies also appear in the chat panel. Muted voice uses the existing caption strip. */
 const rcap=$('rcap'),rsub=$('rsub');let rct;
 function say(x){clearTimeout(rct);
   if(!x||bot.classList.contains('tourmode')||(window.speechSynthesis&&podium.voiceOn!==false)){rcap.hidden=true;return}
@@ -39,7 +39,7 @@ podium.emit=ev=>{const n=EV[ev];if(!n)return;stopVoice();clearAll();set(n,n==='w
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition,V={rec:null,on:false,src:'',down:0,t0:0,end:0,fin:'',int:'',sil:0,busy:false};
 const tail=s=>s.length>110?'…'+s.slice(-110):s;
 function stopVoice(){V.on=false;clearTimeout(V.sil);if(V.rec){V.rec.onresult=V.rec.onend=V.rec.onerror=null;try{V.rec.abort()}catch(e){}V.rec=null}}
-function typed(msg){set('idle',7,msg)}
+function typed(msg){openPanel();set('idle',7000,msg)}
 function press(src){
   if(V.busy||V.on)return;
   hush();try{podium.tourPause&&podium.tourPause()}catch(e){}abortAsk();clearAll();V.src=src;V.down=sec();V.t0=V.end=0;V.fin=V.int='';set('listening',0,'● Listening… let go when you are done');
@@ -65,59 +65,23 @@ function finish(){
   if(held<.35){set('idle',4,'Press and hold me while you talk, or hold the Space bar.');return}
   analyze(txt,true,secs);
 }
-/* ---- ask: analyze the spoken question and answer it ---- */
-const QA={hist:[],ctl:null,sample:undefined,notified:false};
-const RULES="If the user asks how to use a page or feature, explain it using pageGuide in the app data. You are the friendly robot coach inside PresentTrack, an app that helps people practice presentations (timer, speaking pace, filler words, scores, readiness). The user talks to you out loud and you answer out loud. Analyze what they asked and answer it directly and helpfully. Rules: plain spoken English, 1 to 3 short sentences (under 60 words), no markdown, no lists, no emojis. If they ask about their own practice, use ONLY the app data below and never invent numbers. If they ask about presenting or public speaking, give one or two practical tips. If the question is unrelated, answer briefly if it is harmless and offer to help with presentations. If they ask how they sounded, use the speech stats. The speech recognizer can mishear words, so infer the likely meaning.";
-podium.openChat=()=>{};
-function openPanel(){}
-function addLog(who,text){const d={_t:text||'',set textContent(v){this._t=v;if(who==='bot'&&v)say(v)},get textContent(){return this._t}};if(who==='bot'&&text)say(text);return d}
-function abortAsk(){try{QA.ctl&&QA.ctl.abort()}catch(e){}QA.ctl=null}
-async function getSample(){try{if(!window.claude||!claude.use)return null;return await claude.use('sample')}catch(e){return null}}
-function local(q){
-  const t=' '+q.toLowerCase().replace(/^\s*(um+|uh+)[,\s]+/,'')+' ',c=(podium.ctx&&podium.ctx())||{},n=(c.user||'there').split(' ')[0],L=c.latestSession,F=c.firstSession,has=(...w)=>w.some(x=>t.includes(x));
-  if(has(' hello ',' hi ',' hey ',' good morning',' good afternoon')&&q.length<30)return 'Hello '+n+'! Ask me about your pace, filler words, nerves or your practice results.';
-  if(has('next presentation','when is','countdown','deadline','how many days'))return c.next?'Your next presentation is '+c.next.title+', '+c.next.when+'.':'You have no presentation scheduled yet. Upload one in My Presentations.';
-  if(has('score','result','progress','improv','how am i','how did i','how did my','my practice','last practice','latest practice','my performance','my last'))return L?'Your latest score is '+L.score+' percent, at '+L.wordsPerMinute+' words per minute with '+L.fillerWords+' filler words and '+L.longPauses+' long pauses.'+(F?' Your first attempt scored '+F.score+' percent, so you are improving.':''):'You have no practice sessions yet. Hold the Practice page open and run your first one.';
-  if(has('filler',' um ',' uh ','like '))return 'To cut filler words, pause silently instead of saying um. Slow down slightly and finish each thought before you start the next.';
-  if(has('pace','fast','slow','speed','wpm','words per minute'))return 'A clear pace is about 130 to 160 words per minute. Practice your introduction slowly, and breathe at the end of each point.';
-  if(has('nervous','anxi','scared','fear','stage fright','confiden','panic'))return 'Nerves are normal. Breathe slowly before you begin, memorize your first sentence, and rehearse out loud a few more times.';
-  if(has('intro','opening','begin','start my'))return 'Open with a short hook, state your main point in one sentence, then slow down. The first two minutes set the tone for everything else.';
-  if(has('conclusion','ending','closing','finish'))return 'End by repeating your main point and one clear next step. Then pause and stop. Do not trail off.';
-  if(has('upload','pdf','powerpoint','docx','file','slides'))return 'Open My Presentations, drop in a PDF, Word or PowerPoint file, and type your own title.';
-  if(has('practice','rehears','how do i','how can i','tips'))return 'Run your talk out loud with a timer, tap each filler word you catch, then read the tips. Repeat until your pace and timing feel natural.';
-  if(has('thank'))return 'You are welcome, '+n+'! Good luck with your talk.';
-  return 'I can help with pacing, filler words, nerves, openings and your practice results. Try asking, how can I stop saying um?';
-}
-async function ask(q,stats){
-  q=String(q).trim();if(!q)return;abortAsk();
-  const cmd=podium.command&&podium.command(q);
-  if(cmd&&cmd.tour)return;
-  if(cmd){QA.hist.push({q,a:cmd.say});if(!cmd.quiet)set('talking',Math.min(20000,Math.max(3500,cmd.say.length*68)),cmd.say,cmd.say);return}
-  const row=addLog('bot','');
-  set('thinking',0,'Thinking…');
-  let s=QA.sample;if(s===undefined)s=QA.sample=await getSample();
-  let ans='';
-  if(s){
-    const ctl=QA.ctl=new AbortController();
-    const sys=RULES+'\n\nApp data (JSON): '+JSON.stringify((podium.ctx&&podium.ctx())||{})+(stats?'\nSpeech stats for the question the user just spoke: '+stats:'');
-    const turns=[{role:'user',content:sys},{role:'assistant',content:'Understood. I will answer briefly in plain spoken English.'},...QA.hist.slice(-4).flatMap(h=>[{role:'user',content:h.q},{role:'assistant',content:h.a}]),{role:'user',content:q}];
-    try{const r=await s(turns,{cache:false,modelTier:'quick',signal:ctl.signal,onText:({text})=>{row.textContent=text}});ans=(r.text||'').trim()}
-    catch(e){if(ctl.signal.aborted||(e&&e.code==='cancelled'))return;
-      if(e&&e.code==='not_granted'){QA.sample=null;QA.notified=true}
-      else if(e&&e.code==='rate_limited'){row.textContent='I am getting a lot of questions. Please ask again in a moment.';set('idle',0,'');return}
-      ans=local(q)}
-    finally{if(QA.ctl===ctl)QA.ctl=null}
-  }else ans=local(q);
-  if(!ans)ans=local(q);
-  QA.hist.push({q,a:ans});if(QA.hist.length>6)QA.hist.shift();
-  set('talking',Math.min(18000,Math.max(3000,ans.length*70)),ans,ans);
-}
-function analyze(text,spoken,secs){
+/* ---- one secure conversation for typed and spoken questions ---- */
+const chat=window.PTRobotChat;
+chat.setHooks({
+  busy:on=>{V.busy=on},
+  start:()=>{stopVoice();hush();clearAll();set('thinking',0,'Thinking…')},
+  reply:text=>set('talking',Math.min(18000,Math.max(3000,text.length*70)),text,text),
+  error:()=>set('idle',0,''),
+  reset:()=>{stopVoice();hush();set('idle',0,'')},
+  command:q=>podium.command&&podium.command(q)
+});
+podium.openChat=()=>chat.open();
+function openPanel(){chat.open()}
+function abortAsk(){chat.cancel()}
+function analyze(text){
   stopVoice();
-  if(!text){set('idle',5,'I did not catch that. Hold me and try again.');return}
-  const words=text.split(/\s+/).filter(Boolean).length,wpm=spoken&&words>=6&&secs>2?Math.round(words/secs*60):0;
-  const fl=(text.toLowerCase().match(/\b(um+|uh+|er|like|you know|basically|actually)\b/g)||[]);
-  ask(text,spoken?words+' words'+(wpm?', about '+wpm+' words per minute':'')+(fl.length?', filler words: '+[...new Set(fl)].join(', '):', no filler words'):'');
+  if(!text){set('idle',5000,'I did not catch that. Hold me and try again.');return}
+  chat.send(text);
 }
 /* Tap the robot = show/hide its options (speaker, Guide me, Minimize). Press and hold = talk. */
 const HOLD=220,TAP={down:false,fired:false,t:0},bar=bot.querySelector('.bbar');
@@ -185,7 +149,7 @@ function frame(){
   R.render(scene,cam);
 }
 podium.robotSay=(kind,text,dur)=>{if(!shown||bot.hidden||V.on||V.busy)return;const m={idle:'idle',greeting:'wave',encouraging:'talking',reminder:'listening',success:'celebrate',thinking:'thinking'}[kind]||'idle';clearAll();set(m,m==='idle'?0:(dur||4500),text,['greeting','reminder','encouraging','success'].includes(kind)?text:undefined)};
-podium.robotShow=(v,where)=>{shown=v;bot.hidden=!v||(where==='app'&&!!podium.min);if(!v){abortAsk();QA.hist=[]}{const mi=document.getElementById('bmini');if(mi&&(!v||where!=='app'))mi.hidden=true}clearAll();stopVoice();V.busy=false;
+podium.robotShow=(v,where)=>{shown=v;bot.hidden=!v||(where==='app'&&!!podium.min);if(!v){chat.reset()}{const mi=document.getElementById('bmini');if(mi&&(!v||where!=='app'))mi.hidden=true}clearAll();stopVoice();V.busy=chat.busy;
   if(v){document.body.appendChild(bot);bot.classList.toggle('app',where==='app');W=H=0;
     if(!R){try{init()}catch(e){fail(e);return}}last=sec();t=0;set('idle',0,'');
     if(where!=='app')later(()=>{if(shown&&!V.on){const n=podium.name||'there',nw=podium.isNew&&podium.isNew(),m=nw?'Hello '+n+'! Welcome to PresentTrack. Let me show you around.':'Hello '+n+'! Welcome back. Hold me and ask me anything.';set('wave',nw?4400:3800,m,nw?m:'Hello '+n+'! Welcome back.')}},900)}
