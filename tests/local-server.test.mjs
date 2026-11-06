@@ -17,7 +17,7 @@ test('local server serves existing modules and API without exposing server or se
     new Promise((_, reject) => { const timer = setTimeout(() => reject(new Error('Dev server startup timeout')), 10000); timer.unref(); })
   ]);
   const base = `http://127.0.0.1:${port}`;
-  for (const path of ['/', '/js/robot.js', '/js/voice-session.js', '/js/robot-voice.js', '/css/robot-voice.css', '/supabase/functions/_shared/metrics.js']) {
+  for (const path of ['/', '/js/robot.js', '/js/browser-voice-session.js', '/js/voice-session.js', '/js/robot-voice.js', '/css/robot-voice.css', '/supabase/functions/_shared/metrics.js']) {
     assert.equal((await fetch(base + path)).status, 200, path);
   }
   for (const path of ['/.env.local', '/.env.example', '/server/chat.mjs', '/api/chat.js', '/.git/config', '/supabase/functions/_shared/edge.ts']) {
@@ -29,4 +29,5 @@ test('local server serves existing modules and API without exposing server or se
   assert.equal(unavailable.status, 503);
   assert.equal(unavailable.headers.get('cache-control'), 'no-store');
   assert.equal((await fetch(base + '/api/voice', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).status, 401);
+  assert.equal((await fetch(base + '/api/coach', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"action":"start"}' })).status, 401);
 });

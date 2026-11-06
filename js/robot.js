@@ -40,7 +40,7 @@ const V={on:false,busy:false},voice=window.PTVoice;
 function stopVoice(){if(voice.active)voice.stop()}
 voice.setHooks({
   prepare:()=>{hush();clearAll();podium.tourPause&&podium.tourPause()},
-  state:x=>{V.on=x.active;V.busy=x.active;const n={listening:'listening',thinking:'thinking',speaking:'talking',connecting:'thinking',permission:'listening'}[x.state]||'idle';if(x.active)hush();set(n,0,'')}
+  state:x=>{V.on=x.active;V.busy=x.active;const n={listening:'listening',thinking:'thinking',speaking:'talking',connecting:'thinking',permission:'listening'}[x.state]||'idle';set(n,0,'')}
 });
 podium.openChat=()=>voice.open();
 podium.openVoice=()=>voice.open();

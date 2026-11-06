@@ -2,11 +2,11 @@
 export class ChatError extends Error {
   constructor(status, code, message, retryAfter) { super(message); Object.assign(this, { status, code, retryAfter }); }
 }
-export function createAccess({ env = process.env, fetchImpl = fetch } = {}) {
+export function createAccess({ env = process.env, fetchImpl = fetch, requiredKey = 'OPENAI_API_KEY' } = {}) {
   async function authenticate(authorization) {
     const match = /^Bearer ([^\s]+)$/i.exec(authorization || '');
     if (!match || match[1].length > 8192) throw new ChatError(401, 'unauthorized', 'Please sign in again to talk with Tracy.');
-    if (!env.OPENAI_API_KEY || !env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) throw new ChatError(503, 'setup_required', 'Tracy is not set up yet. Please contact the site owner.');
+    if (!env[requiredKey]?.trim() || !env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) throw new ChatError(503, 'setup_required', 'Tracy is not set up yet. Please contact the site owner.');
     const headers = { apikey: env.SUPABASE_ANON_KEY, Authorization: `Bearer ${match[1]}` };
     const response = await fetchImpl(`${env.SUPABASE_URL.replace(/\/$/, '')}/auth/v1/user`, { headers, signal: AbortSignal.timeout(8000) });
     if (!response.ok) {

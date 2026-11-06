@@ -5,7 +5,7 @@
   const mic = $('tracy-mic'), interrupt = $('tracy-interrupt'), status = $('tracy-status'), playback = $('tracy-play');
   const voice = $('tracy-voice-select'), captions = $('tracy-captions');
   let hooks = {}, requestedOwner = null, lastState = { state: 'idle', message: 'Microphone off — ready when you are', active: false, micMuted: false };
-  const session = new TracyVoiceSession({
+  const session = new TracyBrowserVoiceSession({
     audio: $('tracy-audio'),
     getSession: async () => {
       const cloud = window.PTCloud;
@@ -20,13 +20,13 @@
       lastState = state; status.textContent = state.message;
       bot.dataset.voiceState = state.active ? state.state : state.state === 'error' ? 'error' : 'idle';
       panel.dataset.state = state.state;
-      panel.dataset.mic = state.active && !state.micMuted && !['connecting', 'permission', 'playback'].includes(state.state) ? 'on' : 'off';
+      panel.dataset.mic = state.active && !state.micMuted && state.state === 'listening' ? 'on' : 'off';
       start.hidden = state.active; start.textContent = state.state === 'error' ? 'Retry conversation' : 'Start conversation';
       end.hidden = !state.active;
       mic.hidden = !state.active; mic.disabled = ['connecting', 'permission'].includes(state.state);
       mic.textContent = state.micMuted ? 'Unmute mic' : 'Mute mic'; mic.setAttribute('aria-pressed', String(state.micMuted));
-      $('tracy-mic-status').textContent = !state.active ? 'Microphone off' : state.micMuted ? 'Microphone muted' : ['connecting', 'permission', 'playback'].includes(state.state) ? 'Microphone paused' : 'Microphone on';
-      interrupt.hidden = !state.active; interrupt.disabled = !['thinking', 'speaking'].includes(state.state);
+      $('tracy-mic-status').textContent = !state.active ? 'Microphone off' : state.micMuted ? 'Microphone muted' : state.state === 'listening' ? 'Microphone on' : 'Microphone paused';
+      interrupt.hidden = !state.active; interrupt.disabled = !['thinking', 'speaking', 'playback'].includes(state.state);
       playback.hidden = state.state !== 'playback'; voice.disabled = state.active;
       hooks.state?.(state);
     },

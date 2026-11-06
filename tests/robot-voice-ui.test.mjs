@@ -23,7 +23,7 @@ function setup() {
     getSession: async () => ({ data: { session: { user: { id: 'a' }, access_token: 'token' } } }), onAuthStateChange: fn => { auth = fn; }
   } } }, podium: { ext: { S: { view: 'dash' } } }, addEventListener: (name, fn) => { events[name] = fn; } };
   const document = { hidden: false, getElementById: el, addEventListener: (name, fn) => { documentEvents[name] = fn; } };
-  vm.runInNewContext(source, { window, document, TracyVoiceSession: FakeSession, MutationObserver: class { constructor(fn) { mutation = fn; } observe() {} } });
+  vm.runInNewContext(source, { window, document, TracyBrowserVoiceSession: FakeSession, MutationObserver: class { constructor(fn) { mutation = fn; } observe() {} } });
   return { ui: window.PTVoice, el, window, document, events, documentEvents, auth: (...args) => auth(...args), mutation: () => mutation(), get session() { return session; } };
 }
 
