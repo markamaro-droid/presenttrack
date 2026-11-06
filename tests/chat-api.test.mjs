@@ -35,7 +35,9 @@ test('verified identity, atomic quota, and bounded multi-turn prompt precede pro
   assert.deepEqual(res.body, { reply: 'Try a silent pause.' });
   assert.equal(calls[0].url, 'https://test.supabase.co/auth/v1/user');
   assert.equal(calls[0].headers.Authorization, 'Bearer user-token');
-  assert.deepEqual(JSON.parse(calls[1].body), { p_user_id: 'verified-user' });
+  assert.deepEqual(JSON.parse(calls[1].body), { p_kind: 'chat' });
+  assert.equal(calls[1].headers.Authorization, 'Bearer user-token');
+  assert.equal(calls[1].headers.apikey, 'publishable');
   const upstream = JSON.parse(calls[2].body);
   assert.equal(upstream.messages[0].content, SYSTEM_PROMPT);
   assert.deepEqual(upstream.messages.slice(1, 3), history);

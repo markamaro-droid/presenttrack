@@ -17,7 +17,7 @@
 <link rel="stylesheet" href="css/dashboard.css">
 <link rel="stylesheet" href="css/tour-guide.css">
 <link rel="stylesheet" href="css/assessment.css">
-<link rel="stylesheet" href="css/robot-chat.css">
+<link rel="stylesheet" href="css/robot-voice.css">
 </head>
 <body>
 <canvas id="water" aria-hidden="true"></canvas>
@@ -136,13 +136,28 @@
 <div class="tcap" id="rcap" hidden role="status" aria-live="polite"><p id="rsub"></p></div>
 <div id="wipe" hidden aria-hidden="true"><i></i>PresentTrack</div>
 <button class="bmini" id="bmini" type="button" hidden aria-label="Show robot companion"><svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="7" width="22" height="18" rx="7" fill="#fff" stroke="#9fb4d6" stroke-width="1.5"/><rect x="9" y="12" width="14" height="8" rx="4" fill="#12162b"/><circle cx="13" cy="16" r="1.8" fill="#7fd0fa"/><circle cx="19" cy="16" r="1.8" fill="#7fd0fa"/></svg></button>
-<div id="bot" hidden><div class="tour" id="tour" hidden role="region" aria-label="Guided tour"></div><canvas id="bc" role="button" tabindex="0" aria-keyshortcuts="Space T" aria-label="PresentTrack assistant. Tap or press Enter for options and text chat. Press and hold to talk, or hold the Space bar or the T key." title="Tap for options and chat. Hold to talk."></canvas><div class="bbar"><button class="bmute" id="bmute" type="button" aria-label="Mute robot voice" aria-pressed="false" title="Mute robot voice">🔊</button><button class="bchat" id="bchat" type="button" aria-controls="robot-chat" aria-expanded="false">Chat</button><button class="bguide" id="bguide" type="button" hidden>Guide me</button><button class="bmin" id="bmin" type="button">Minimize</button></div>
-  <section class="robot-chat" id="robot-chat" hidden aria-label="Chat with PresentTrack AI">
-    <header><strong>PresentTrack AI</strong><button id="robot-chat-clear" type="button">New chat</button><button id="robot-chat-close" type="button" aria-label="Close chat">×</button></header>
-    <p class="robot-chat-note">Your presentation coach. Only messages you send are shared with AI. Recent context lasts until you leave or start a new chat.</p>
-    <div class="robot-chat-log" id="robot-chat-log" role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation"></div>
-    <p class="robot-chat-status" id="robot-chat-status" role="status" aria-live="polite"></p>
-    <form id="robot-chat-form"><input id="robot-chat-input" type="text" maxlength="2000" autocomplete="off" aria-label="Message PresentTrack AI" placeholder="Ask about your presentation…" required><button id="robot-chat-send" type="submit">Send</button></form>
+<div id="bot" hidden data-voice-state="idle">
+  <div class="tour" id="tour" hidden role="region" aria-label="Guided tour"></div>
+  <canvas id="bc" role="button" tabindex="0" aria-label="Tracy, your AI presentation coach. Open voice controls." title="Talk with Tracy"></canvas>
+  <div class="bbar"><button class="bmute" id="bmute" type="button" aria-label="Mute Tracy's voice" aria-pressed="false" title="Mute Tracy's voice">&#128266;</button><button class="bvoice" id="bvoice" type="button" aria-controls="tracy-voice" aria-expanded="false">Talk</button><button class="bguide" id="bguide" type="button" hidden>Guide me</button><button class="bmin" id="bmin" type="button">Minimize</button></div>
+  <section class="tracy-voice" id="tracy-voice" hidden aria-label="Talk with Tracy" data-state="idle">
+    <header><strong>Tracy</strong><button id="tracy-close" type="button" aria-label="End and close voice conversation">&#215;</button></header>
+    <p class="tracy-note">Your AI presentation coach, with a synthetic voice. Starting shares microphone audio with OpenAI until you mute or end. PresentTrack does not save recordings or captions.</p>
+    <p class="tracy-mic-status" id="tracy-mic-status">Microphone off</p>
+    <p id="tracy-status" role="status" aria-live="polite">Ready when you are</p>
+    <button id="tracy-start" type="button">Start conversation</button>
+    <button id="tracy-play" type="button" hidden>Enable audio</button>
+    <div class="tracy-controls">
+      <button id="tracy-mic" type="button" hidden aria-pressed="false">Mute mic</button>
+      <button id="tracy-interrupt" type="button" hidden>Interrupt</button>
+      <button id="tracy-end" type="button" hidden>End conversation</button>
+    </div>
+    <div class="tracy-preferences">
+      <label for="tracy-voice-select">Voice <select id="tracy-voice-select"><option value="marin">Marin</option><option value="cedar">Cedar</option><option value="coral">Coral</option></select></label>
+      <label><input id="tracy-captions" type="checkbox" checked> Captions</label>
+    </div>
+    <div class="tracy-captions" id="tracy-caption-lines" aria-label="Current spoken turn"><p id="tracy-user-caption"></p><p id="tracy-reply-caption"></p></div>
+    <audio id="tracy-audio" autoplay playsinline hidden></audio>
   </section>
 </div>
 <input type="file" id="pic" accept="image/*" hidden>
@@ -158,7 +173,8 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="assets/models/robot-glb.js"></script>
-<script src="js/robot-chat.js"></script>
+<script src="js/voice-session.js"></script>
+<script src="js/robot-voice.js"></script>
 <script src="js/robot.js"></script>
 </body>
 </html>

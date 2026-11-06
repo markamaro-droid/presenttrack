@@ -12,7 +12,7 @@ let R,scene,cam,root,mix,N={},ready=false,shown=false,W=0,H=0,RH=130,t=0,last=0,
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),sec=()=>performance.now()/1000,later=(f,ms)=>{const i=setTimeout(f,ms);tms.push(i);return i},clearAll=()=>{tms.forEach(clearTimeout);tms=[]};
 const Y=new T.Vector3(0,1,0),Z=new T.Vector3(0,0,1),q1=new T.Quaternion(),q2=new T.Quaternion(),q3=new T.Quaternion();
 addEventListener('pointermove',e=>{cur.x=e.clientX;cur.y=e.clientY},{passive:true});
-/* Spoken replies also appear in the chat panel. Muted voice uses the existing caption strip. */
+/* Guided-tour narration keeps its existing captions. Live Tracy audio has separate controls. */
 const rcap=$('rcap'),rsub=$('rsub');let rct;
 function say(x){clearTimeout(rct);
   if(!x||bot.classList.contains('tourmode')||(window.speechSynthesis&&podium.voiceOn!==false)){rcap.hidden=true;return}
@@ -26,79 +26,29 @@ let nar={started:false,ended:false,pos:0};
 function speak(text){nar={started:false,ended:false,pos:0};if(!SY||podium.voiceOn===false||V.on||document.hidden)return;const t=clean(text);if(!t)return;
   try{SY.cancel();const u=new SpeechSynthesisUtterance(t),v=pickVoice();if(v){u.voice=v;u.lang=v.lang}else u.lang='en-US';u.rate=1.02;u.pitch=1.12;u.volume=1;const my=nar;u.onboundary=e=>{if(typeof e.charIndex==='number')my.pos=e.charIndex};u.onstart=()=>{speaking=true;my.started=true};u.onend=()=>{speaking=false;my.ended=true};u.onerror=()=>{speaking=false;my.failed=true};SY.speak(u)}catch(e){speaking=false}}
 const mute=$('bmute');
-podium.setVoice=on=>{podium.voiceOn=on;mute.textContent=on?'🔊':'🔇';mute.setAttribute('aria-pressed',String(!on));mute.setAttribute('aria-label',on?'Mute robot voice':'Unmute robot voice');mute.title=on?'Mute robot voice':'Unmute robot voice';if(!on)hush()};
+podium.setVoice=on=>{podium.voiceOn=on;window.PTVoice&&PTVoice.setSpeaker(on);mute.textContent=on?'🔊':'🔇';mute.setAttribute('aria-pressed',String(!on));mute.setAttribute('aria-label',on?'Mute Tracy\'s voice':'Unmute Tracy\'s voice');mute.title=on?'Mute Tracy\'s voice':'Unmute Tracy\'s voice';if(!on)hush()};
 mute.onclick=()=>podium.setVoice(podium.voiceOn===false);
-if(!SY)mute.hidden=true;
-podium.narrate=(text,est)=>{set('talking',Math.min(60000,(est||8000)*2.5),'',text)};
+
+podium.narrate=(text,est)=>{if(window.PTVoice&&PTVoice.active)PTVoice.stop();set('talking',Math.min(60000,(est||8000)*2.5),'',text)};
 podium.narState=()=>({voice:!!SY&&podium.voiceOn!==false&&!V.on,started:nar.started,ended:nar.ended,failed:!!nar.failed,pos:nar.pos||0,speaking});
 podium.narPause=p=>{try{p?SY.pause():SY.resume()}catch(e){}};podium.hushNow=()=>{hush();set('idle',0,'')};
 function set(n,dur,txt,spoken){st.n=n;st.t0=sec();st.until=dur?st.t0+dur:0;say(txt===undefined?(TXT[n]||''):txt);if(spoken)speak(spoken)}
 podium.emit=ev=>{const n=EV[ev];if(!n)return;stopVoice();clearAll();set(n,n==='wave'?2000:n==='celebrate'?2600:0)};
 
-/* ---- voice: hold to talk (press and hold the robot, or hold Space / T) ---- */
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition,V={rec:null,on:false,src:'',down:0,t0:0,end:0,fin:'',int:'',sil:0,busy:false};
-const tail=s=>s.length>110?'…'+s.slice(-110):s;
-function stopVoice(){V.on=false;clearTimeout(V.sil);if(V.rec){V.rec.onresult=V.rec.onend=V.rec.onerror=null;try{V.rec.abort()}catch(e){}V.rec=null}}
-function typed(msg){openPanel();set('idle',7000,msg)}
-function press(src){
-  if(V.busy||V.on)return;
-  hush();try{podium.tourPause&&podium.tourPause()}catch(e){}abortAsk();clearAll();V.src=src;V.down=sec();V.t0=V.end=0;V.fin=V.int='';set('listening',0,'● Listening… let go when you are done');
-  if(!SR){typed('This browser cannot hear me. Type what you would say:');return}
-  let rec;try{rec=new SR()}catch(e){typed('I cannot use the microphone. Type what you would say:');return}
-  V.rec=rec;V.on=true;rec.lang='en-US';rec.continuous=true;rec.interimResults=true;
-  rec.onresult=e=>{let f='',i='';for(let k=0;k<e.results.length;k++){const r=e.results[k];if(r.isFinal)f+=r[0].transcript;else i+=r[0].transcript}
-    V.fin=f;V.int=i;if(!V.t0)V.t0=sec();say('● “'+tail((f+' '+i).trim())+'”')};
-  rec.onerror=e=>{if(e.error==='no-speech'||e.error==='aborted')return;stopVoice();
-    typed(e.error==='not-allowed'||e.error==='service-not-allowed'?'Microphone is blocked here. Type what you would say:':'I could not hear you. Type what you would say:')};
-  rec.onend=finish;
-  try{rec.start();V.sil=setTimeout(()=>release(),25000)}catch(e){stopVoice();typed('I cannot use the microphone. Type what you would say:')}
-}
-function release(src){
-  if(!V.on||(src&&src!==V.src))return;
-  clearTimeout(V.sil);V.end=sec();
-  try{V.rec.stop();V.sil=setTimeout(finish,1600)}catch(e){finish()}
-}
-function finish(){
-  if(!V.on)return;
-  const txt=(V.fin+' '+V.int).trim(),held=sec()-V.down,secs=V.t0?(V.end||sec())-V.t0:0;
-  stopVoice();
-  if(held<.35){set('idle',4,'Press and hold me while you talk, or hold the Space bar.');return}
-  analyze(txt,true,secs);
-}
-/* ---- one secure conversation for typed and spoken questions ---- */
-const chat=window.PTRobotChat;
-chat.setHooks({
-  busy:on=>{V.busy=on},
-  start:()=>{stopVoice();hush();clearAll();set('thinking',0,'Thinking…')},
-  reply:text=>set('talking',Math.min(18000,Math.max(3000,text.length*70)),text,text),
-  error:()=>set('idle',0,''),
-  reset:()=>{stopVoice();hush();set('idle',0,'')},
-  command:q=>podium.command&&podium.command(q)
+/* ---- Tracy: live voice controls, preserving the existing model and animations ---- */
+const V={on:false,busy:false},voice=window.PTVoice;
+function stopVoice(){if(voice.active)voice.stop()}
+voice.setHooks({
+  prepare:()=>{hush();clearAll();podium.tourPause&&podium.tourPause()},
+  state:x=>{V.on=x.active;V.busy=x.active;const n={listening:'listening',thinking:'thinking',speaking:'talking',connecting:'thinking',permission:'listening'}[x.state]||'idle';if(x.active)hush();set(n,0,'')}
 });
-podium.openChat=()=>chat.open();
-function openPanel(){chat.open()}
-function abortAsk(){chat.cancel()}
-function analyze(text){
-  stopVoice();
-  if(!text){set('idle',5000,'I did not catch that. Hold me and try again.');return}
-  chat.send(text);
-}
-/* Tap the robot = show/hide its options (speaker, Guide me, Minimize). Press and hold = talk. */
-const HOLD=220,TAP={down:false,fired:false,t:0},bar=bot.querySelector('.bbar');
-const menu=on=>{bot.classList.toggle('menu',on);clearTimeout(menu.t);if(on)menu.t=setTimeout(()=>menu(false),8000)};
-const menuOn=()=>bot.classList.contains('menu');
-cv.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(x){}
-  TAP.down=true;TAP.fired=false;clearTimeout(TAP.t);TAP.t=setTimeout(()=>{TAP.fired=true;menu(false);press('mouse')},HOLD)});
-addEventListener('pointerup',()=>{if(TAP.down){TAP.down=false;clearTimeout(TAP.t);if(!TAP.fired)menu(!menuOn())}release('mouse')});
-addEventListener('pointercancel',()=>{TAP.down=false;clearTimeout(TAP.t);release('mouse')});
-addEventListener('pointerdown',e=>{if(menuOn()&&!bot.contains(e.target))menu(false)},true);
-cv.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();menu(!menuOn())}});
-if(bar)bar.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;menu(b.id==='bmute')});
-const isKey=e=>e.key===' '||(e.key||'').toLowerCase()==='t';
-addEventListener('keydown',e=>{if(!shown||e.repeat||e.ctrlKey||e.metaKey||e.altKey||!isKey(e))return;
-  if(e.target.closest&&e.target.closest('input,textarea,select,button,a,[contenteditable="true"]'))return;e.preventDefault();press('key')});
-addEventListener('keyup',e=>{if(isKey(e))release('key')});
-addEventListener('blur',()=>release());
+podium.openChat=()=>voice.open();
+podium.openVoice=()=>voice.open();
+const bar=bot.querySelector('.bbar');
+const menu=on=>{bot.classList.toggle('menu',on);clearTimeout(menu.t);if(on)menu.t=setTimeout(()=>{if(!voice.active)menu(false)},8000)};
+cv.addEventListener('click',()=>{menu(true);voice.open();if(voice.state==='speaking')voice.interrupt()});
+cv.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();menu(true);voice.open()}});
+if(bar)bar.addEventListener('click',()=>menu(true));
 function addRot(n,ax,a){if(!n||Math.abs(a)<.002)return;
   n.parent.getWorldQuaternion(q1);q2.copy(root.quaternion).invert();q1.premultiply(q2);
   q3.setFromAxisAngle(ax,a).premultiply(q2.copy(q1).invert()).multiply(q1);n.quaternion.premultiply(q3)}
@@ -149,10 +99,10 @@ function frame(){
   R.render(scene,cam);
 }
 podium.robotSay=(kind,text,dur)=>{if(!shown||bot.hidden||V.on||V.busy)return;const m={idle:'idle',greeting:'wave',encouraging:'talking',reminder:'listening',success:'celebrate',thinking:'thinking'}[kind]||'idle';clearAll();set(m,m==='idle'?0:(dur||4500),text,['greeting','reminder','encouraging','success'].includes(kind)?text:undefined)};
-podium.robotShow=(v,where)=>{shown=v;bot.hidden=!v||(where==='app'&&!!podium.min);if(!v){chat.reset()}{const mi=document.getElementById('bmini');if(mi&&(!v||where!=='app'))mi.hidden=true}clearAll();stopVoice();V.busy=chat.busy;
+podium.robotShow=(v,where)=>{shown=v;bot.hidden=!v||(where==='app'&&!!podium.min);if(!v){voice.stop()}{const mi=document.getElementById('bmini');if(mi&&(!v||where!=='app'))mi.hidden=true}clearAll();stopVoice();V.busy=voice.active;
   if(v){document.body.appendChild(bot);bot.classList.toggle('app',where==='app');W=H=0;
     if(!R){try{init()}catch(e){fail(e);return}}last=sec();t=0;set('idle',0,'');
-    if(where!=='app')later(()=>{if(shown&&!V.on){const n=podium.name||'there',nw=podium.isNew&&podium.isNew(),m=nw?'Hello '+n+'! Welcome to PresentTrack. Let me show you around.':'Hello '+n+'! Welcome back. Hold me and ask me anything.';set('wave',nw?4400:3800,m,nw?m:'Hello '+n+'! Welcome back.')}},900)}
+    if(where!=='app')later(()=>{if(shown&&!V.on&&!V.busy){const n=podium.name||'there',nw=podium.isNew&&podium.isNew(),m=nw?'Hello '+n+'! Welcome to PresentTrack. Let me show you around.':'Hello '+n+'! Welcome back. Open my voice controls to talk with Tracy.';set('wave',nw?4400:3800,m,nw?m:'Hello '+n+'! Welcome back.')}},900)}
   else{hush();set('idle',0,'')}};
 })();
  

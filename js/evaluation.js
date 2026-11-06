@@ -50,6 +50,7 @@ const note=m=>{const n=$('enote');if(n)n.textContent=m};
 /* ---------- listening ---------- */
 async function start(){
   if(E.st==='ask'||E.st==='rec'||E.st==='busy')return;
+  window.PTVoice?.active&&PTVoice.stop();
   if(!SR||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return setE({st:'err',msg:'This browser cannot do speech recognition. Please open PresentTrack in Google Chrome or Microsoft Edge on a computer or Android phone.',warn:[]});
   setE({st:'ask'});
   try{const s=await navigator.mediaDevices.getUserMedia({audio:true});s.getTracks().forEach(t=>t.stop())}

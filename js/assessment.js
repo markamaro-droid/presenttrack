@@ -119,6 +119,7 @@ function stopMedia(){clearInterval(R.iv);cancelAnimationFrame(R.raf);try{R.ctx&&
 podium.leave=()=>{if(R.mr&&R.mr.state!=='inactive'){R.mr.ondataavailable=R.mr.onstop=null;try{R.mr.stop()}catch(e){}R.mr=null;R.chunks=[];stopMedia();A.rec={st:'idle'}}};
 const elapsed=()=>(performance.now()-R.t0)/1000;
 async function startRec(){
+  window.PTVoice?.active&&PTVoice.stop();
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder)return setRec({st:'err',msg:'This browser cannot record audio. Please use a recent Chrome, Edge, Firefox or Safari.'});
   setRec({st:'ask'});R.blob=null;
   try{R.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}})}

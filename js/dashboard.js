@@ -62,7 +62,7 @@ const tips=x=>[x.dur<x.tg*.9?'You finished '+fmt(x.tg-x.dur)+' early. Add an exa
 /* ---------- automatic video-style tour (new users, or on request) ---------- */
 const T={on:false,i:0,play:true,t0:0,pAt:0,est:8000,timer:null,steps:[]};
 function tourSteps(){const n=S.u.name.split(' ')[0]||'there';return [
- {nav:null,v:'dash',t:'Welcome to PresentTrack',x:'Hello '+n+'! Welcome to PresentTrack. I am your robot guide. In about two minutes I will show you every part of the system. Sit back and watch, or press skip anytime.'},
+ {nav:null,v:'dash',t:'Welcome to PresentTrack',x:'Hello '+n+'! Welcome to PresentTrack. I am Tracy, your presentation coach. In about two minutes I will show you every part of the system. Sit back and watch, or press skip anytime.'},
  {nav:'dash',v:'dash',t:'Dashboard',x:GUIDE.dash,c:[['next presentation','.nx','Your next presentation'],['how ready you are','.g-next>section:nth-child(2)','How ready you are'],['performance numbers','.g-perf','Your performance numbers'],['progress chart','.g-prog>section:first-child','Progress chart'],['coaching tip','.coach','My coaching tip'],['recent practice','[data-sec="recent-practice"]','Recent practice'],['quick actions','[data-sec="quick-actions"]','Quick actions']]},
  {nav:'decks',v:'decks',t:'My Presentations',x:GUIDE.decks+' This is where you start.',c:[['Type your own title','#ut','Type your title here'],['drop in a PDF','#dz','Drop your file here'],['press Add Presentation','#ua','Then press this'],['practice, rename','[data-sec="upload-a-presentation"]+.g2,.g2','Your presentations appear here']]},
  {nav:'decks',v:'prac',t:'Practice',x:GUIDE.prac,c:[['Pick a presentation','#pd','Pick a presentation'],['target time','#pdur','Set your target time'],['press Start','#pgo','Press Start'],['press Finish','#pfin','Finish for your score']]},
@@ -71,7 +71,7 @@ function tourSteps(){const n=S.u.name.split(' ')[0]||'there';return [
  {nav:'hist',v:'hist',t:'Practice History',x:GUIDE.hist,c:[['full list','[data-sec="all-practice"]','All your sessions']]},
  {nav:'note',v:'note',t:'Notifications',x:GUIDE.note,c:[['Notifications collects','[data-sec="all-notifications"]','Your notifications'],['mark them all','[data-act=markall]','Mark all as read']]},
  {nav:'set',v:'set',t:'Settings',x:GUIDE.set,c:[['change your name','[data-sec="profile"]','Your profile'],['switch light or dark theme','#st','Switch theme'],['turn my voice on or off','#rv','Robot voice']]},
- {nav:null,v:'set',bot:true,t:'Talk to me',x:'And that is me, down here. Press and hold my picture, or hold the space bar, and ask me a question. You can also type to me, or ask me to take you to any page.',c:[['down here','#bc','That is me'],['Press and hold my picture','#bc','Press and hold me']]},
+ {nav:null,v:'set',bot:true,t:'Talk with Tracy',x:'I am Tracy, your AI presentation coach, down here. Click my picture, choose Start conversation, and allow your microphone. Speak naturally, interrupt me when needed, or use End conversation to turn the microphone off.',c:[['down here','#bc','Tracy'],['Click my picture','#bc','Open voice controls']]},
  {nav:'decks',v:'decks',t:'You are all set',x:'You are all set, '+n+'! '+(gated()?'Your first step is the Start Evaluation button on your dashboard.':'Your first step is to add a presentation in My Presentations.')+' Whenever you want this tour again, just ask me to guide you again.',fin:true,c:[['add a presentation','#ut','Start here'],['guide you again','#bc','Ask me anytime']]}]}
 const tourEl=()=>$('tour');
 function syncGuide(){$('bguide').hidden=!!(S.isNew||T.on||$('app').hidden)}
@@ -109,6 +109,7 @@ function tourTick(){
 }
 function startTour(){
   if(T.on)return;if($('app').hidden)return;
+  window.PTVoice?.active&&PTVoice.stop();
   S.guide=true;T.on=true;T.steps=tourSteps();closePops();$('hm').hidden=true;setMin(false);
   if(innerWidth<900)$('side').classList.add('open');
   clearInterval(T.timer);T.timer=setInterval(tourTick,200);document.body.classList.add('touring');document.body.classList.remove('tourcol');$('bot').classList.remove('tcol');$('bot').classList.add('tourmode');T.cc=null;T.ccShown=false;syncGuide();tourShow(0)}
@@ -402,7 +403,7 @@ prac:()=>{if(!$('pdur'))return;let el=0,run=false,last=0,c={};const REFWPM=145; 
   const syncRun=()=>{if($('pgo'))$('pgo').textContent=run?'Pause':el?'Resume':'Start';if($('vpr'))$('vpr').textContent=run?'Pause':'Resume'};
   const tick=()=>{if(!$('pc')){clearInterval(tm);run=false;return}const n=performance.now();el+=(n-last)/1000;last=n;draw()};
   const stop=()=>{if(run)el+=(performance.now()-last)/1000;run=false;clearInterval(tm);syncRun();draw()};
-  const start=()=>{if(run)return;run=true;last=performance.now();$('pres').innerHTML='';clearInterval(tm);tm=setInterval(tick,200);syncRun();draw()};
+  const start=()=>{if(run)return;window.PTVoice?.active&&PTVoice.stop();run=true;last=performance.now();$('pres').innerHTML='';clearInterval(tm);tm=setInterval(tick,200);syncRun();draw()};
   const toggle=()=>run?stop():start();
   /* target duration: any whole number of minutes (1-240), saved on the presentation */
   const marks=()=>$$('#pq .chip2').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.m*60===T0)));
@@ -473,6 +474,7 @@ function renderTop(){
 }
 const renderShell=()=>{nav();renderTop()};
 function go(v,arg){
+  window.PTVoice?.active&&PTVoice.stop();
   try{podium.leave&&podium.leave()}catch(e){}
   clearInterval(tm);S.view=v;S.arg=arg;
   if(v==='dash'&&!S.booted&&!S.loading){S.loading=true;S.booted=true;setTimeout(()=>{S.loading=false;if(S.view==='dash'){render()}renderTop();greetRobot()},1000);robot('thinking','Getting your dashboard ready…',1000)}
