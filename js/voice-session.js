@@ -15,7 +15,8 @@
   class TracyVoiceSession {
     constructor(options) {
       this.options = options;
-      this.fetch = options.fetchImpl || fetch;
+      // Browser fetch requires Window as its receiver when called as a method.
+      this.fetch = options.fetchImpl || globalThis.fetch.bind(globalThis);
       this.media = options.mediaDevices || navigator.mediaDevices;
       this.Peer = options.Peer || globalThis.RTCPeerConnection;
       this.audio = options.audio;
@@ -42,8 +43,9 @@
     }
     async start(voice = 'marin') {
       if (this.active) return;
+      if (globalThis.navigator?.onLine === false) { this.stateChanged('error', 'Your browser is offline. Reconnect to the internet, then retry.'); return; }
       if (!this.media?.getUserMedia || !this.Peer) { this.stateChanged('error', 'Voice needs HTTPS or localhost and a browser with microphone and WebRTC support.'); return; }
-      const run = { abort: new AbortController(), voice, micMuted: false, ready: false, turns: 0, responseActive: false, playing: false };
+      const run = { abort: new AbortController(), voice, micMuted: false, ready: false, turns: 0, responseActive: false, playing: false, stage: 'auth' };
       run.cancelled = new Promise((_, reject) => { run.reject = reject; });
       run.cancelled.catch(() => {});
       this.run = run;
@@ -57,6 +59,7 @@
         if (!current()) return;
         if (!session?.access_token || !session.user?.id) throw new VoiceError(messages.unauthorized);
         run.authorization = 'Bearer ' + session.access_token; run.owner = session.user.id;
+        run.stage = 'microphone';
         this.stateChanged('permission', 'Allow microphone access to start talking');
         const capture = this.media.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
         // Permission prompts cannot be aborted. Stop late-granted tracks after cancellation.
@@ -67,6 +70,7 @@
         if (!tracks.length) throw new VoiceError('No microphone was found. Connect one and try again.');
         tracks.forEach(track => { track.enabled = false; track.onended = () => { if (current()) this.fail('Your microphone disconnected. Reconnect it and try again.'); }; });
         this.stateChanged('connecting', 'Microphone ready — connecting Tracy…');
+        run.stage = 'offer';
         const peer = run.peer = new this.Peer();
         peer.ontrack = event => {
           if (!current()) return;
@@ -102,6 +106,7 @@
         };
         const offer = await wait(peer.createOffer());
         await wait(peer.setLocalDescription(offer));
+        run.stage = 'request';
         const response = await wait(this.fetch('/api/voice', {
           method: 'POST', headers: { Authorization: run.authorization, 'Content-Type': 'application/json' },
           body: JSON.stringify({ sdp: offer.sdp, voice }), signal: run.abort.signal, cache: 'no-store'
@@ -115,11 +120,21 @@
         }
         if (typeof data.sdp !== 'string' || !data.sdp.startsWith('v=0')) throw new VoiceError('Tracy’s voice connection failed. Please try again.');
         run.ticket = data.ticket; run.durationSeconds = Math.max(30, Math.min(600, Number(data.durationSeconds) || 600));
+        run.stage = 'answer';
         await wait(peer.setRemoteDescription({ type: 'answer', sdp: data.sdp }));
       } catch (error) {
         if (!current()) return;
         const errors = { NotAllowedError: 'Microphone access was blocked. Allow it in your browser’s site settings, then retry.', NotFoundError: 'No microphone was found. Connect one and try again.', NotReadableError: 'The microphone is busy or unavailable. Close other recording apps and retry.' };
-        this.fail(errors[error.name] || (error instanceof VoiceError ? error.message : 'Could not connect to Tracy. Check your connection and try again.'));
+        const failures = {
+          auth: 'Tracy could not verify your sign-in. Sign in again and retry.',
+          microphone: 'Tracy could not open the microphone. Check your browser’s microphone settings.',
+          offer: 'Your browser could not start live audio. Update your browser or try another supported browser.',
+          request: 'Tracy could not reach this website’s voice endpoint. Reload the page and retry; if it continues, contact the site owner.',
+          answer: 'Tracy’s live audio connection could not be established. Try another browser or network.'
+        };
+        // A browser, authentication or SDP error is not evidence that the internet is down.
+        this.fail(errors[error.name] || (error instanceof VoiceError ? error.message :
+          globalThis.navigator?.onLine === false ? 'Your browser is offline. Reconnect to the internet, then retry.' : failures[run.stage]));
       }
     }
     handle(raw, run) {

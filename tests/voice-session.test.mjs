@@ -6,9 +6,24 @@ const source = await readFile(new URL('../js/voice-session.js', import.meta.url)
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
+test('default browser fetch retains its global receiver for start and hangup requests', async () => {
+  const context = { navigator: {}, requests: [] };
+  vm.createContext(context);
+  vm.runInContext(`globalThis.fetch = function(url) {
+    if (this !== globalThis) throw new TypeError('Illegal invocation');
+    requests.push(url);
+    return Promise.resolve('ok');
+  };`, context);
+  vm.runInContext(source, context);
+  const session = new context.TracyVoiceSession({ audio: {} });
+  assert.equal(await session.fetch('/api/voice'), 'ok');
+  assert.equal(await session.fetch('/api/voice', { method: 'POST' }), 'ok');
+  assert.equal(context.requests.length, 2);
+});
+
 function setup(options = {}) {
   const timers = new Map(); let timerId = 0;
-  const context = { AbortController, AbortSignal, fetch, navigator: {}, setTimeout: (fn, ms) => { timers.set(++timerId, { fn, ms }); return timerId; }, clearTimeout: id => timers.delete(id) };
+  const context = { AbortController, AbortSignal, fetch, navigator: { onLine: options.online ?? true }, setTimeout: (fn, ms) => { timers.set(++timerId, { fn, ms }); return timerId; }, clearTimeout: id => timers.delete(id) };
   vm.createContext(context); vm.runInContext(source, context);
   const track = { enabled: false, stopped: false, stop() { this.stopped = true; } };
   const stream = { getTracks: () => [track], getAudioTracks: () => [track] };
@@ -18,9 +33,9 @@ function setup(options = {}) {
     constructor() { peer = this; this.connectionState = 'new'; }
     addTrack(track, stream) { this.track = track; this.stream = stream; }
     createDataChannel() { return channel; }
-    async createOffer() { return { type: 'offer', sdp: 'v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\n' }; }
+    async createOffer() { if (options.offerError) throw new Error('private browser detail'); return { type: 'offer', sdp: 'v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\n' }; }
     async setLocalDescription(offer) { this.localDescription = offer; }
-    async setRemoteDescription(answer) { this.answer = answer; }
+    async setRemoteDescription(answer) { if (options.answerError) throw new Error('private SDP detail'); this.answer = answer; }
     close() { this.closed = true; this.connectionState = 'closed'; this.onconnectionstatechange?.(); }
   }
   const states = [], captions = [], calls = [];
@@ -170,4 +185,25 @@ test('captions tolerate malformed events and old transcription results', async (
   ui.event({ type: 'conversation.item.input_audio_transcription.completed', item_id: 'old', transcript: 'old secret' });
   assert.ok(!ui.captions.some(x => x.text === 'old secret'));
   ui.session.stop();
+});
+
+test('actual offline state is reported before starting capture or sending requests', async () => {
+  const ui = setup({ online: false });
+  await ui.session.start();
+  assert.match(ui.states.at(-1).message, /browser is offline/);
+  assert.equal(ui.mediaCalls, 0); assert.equal(ui.calls.length, 0);
+});
+
+test('auth, endpoint and SDP failures are distinguished instead of claiming the internet is down', async () => {
+  for (const [options, expected] of [
+    [{ auth: async () => { throw new Error('private auth details'); } }, /verify your sign-in/],
+    [{ offerError: true }, /browser could not start live audio/],
+    [{ fetcher: async () => { throw new TypeError('Failed to fetch'); } }, /website’s voice endpoint/],
+    [{ answerError: true }, /live audio connection could not be established/]
+  ]) {
+    const ui = setup(options); await ui.session.start();
+    assert.equal(ui.session.active, false); assert.match(ui.states.at(-1).message, expected);
+    assert.ok(!ui.states.at(-1).message.includes('private'));
+    if (ui.mediaCalls) assert.equal(ui.track.stopped, true);
+  }
 });

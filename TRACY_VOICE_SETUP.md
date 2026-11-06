@@ -103,6 +103,14 @@ Your local secret was retained without displaying it. The public Supabase key wa
 
 ## Verification
 
+For a deployed-site connection error, run:
+
+```powershell
+node tools/check-deployment.mjs https://presenttrack-nu.vercel.app
+```
+
+Both invalid/missing-token probes should return 401. A `setup_required` response means at least one of `OPENAI_API_KEY`, `SUPABASE_URL`, or `SUPABASE_ANON_KEY` is missing from that deployment. Copy those values privately from `.env.local` into the existing Vercel project's Production environment, then redeploy. Values added only to Preview or Development do not configure the production URL. A passing probe confirms authentication rejection, not a complete signed-in voice conversation.
+
 ```powershell
 npm test
 npm run test:assessment
