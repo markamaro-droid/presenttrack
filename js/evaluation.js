@@ -10,13 +10,9 @@ const $=id=>document.getElementById(id);
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 const mm=s=>fmt(Math.max(0,s||0));
 const MIN=20,MAX=300;
-PARENT.eval='decks';PARENT.evres='decks';PARENT.base='perf';
-const TOPICS=[
- {t:'Tell us about your favorite hobby and why you enjoy it.',c:['What the hobby is','How you got started','Why you would recommend it']},
- {t:'Describe a place in your city that you would recommend to a visitor.',c:['Where it is and what it looks like','What people can do there','Why it is special to you']},
- {t:'Explain why a daily walk is a good habit.',c:['How it helps your body and mood','A walk you remember','How a beginner can start']},
- {t:'Describe a typical day in your life and what you enjoy most about it.',c:['Morning to evening','The best part of your day','One thing you would change']}];
-const E={st:'idle',topic:TOPICS[Math.floor(Math.random()*TOPICS.length)],segs:{},ses:0,want:false,rec:null,iv:0,t0:0,total:0,fatal:null,retake:false};
+PARENT.evres='eval';PARENT.base='perf';
+const DECK=window.PT_EVALUATION_DECK;
+const E={st:'idle',slide:0,segs:{},ses:0,want:false,rec:null,iv:0,t0:0,total:0,fatal:null,retake:false};
 
 /* shared analysis code (same files the Supabase functions use) */
 let CORE=null,CV=null;   /* CV = the loaded modules, once available (lets the dashboard card render without waiting) */
@@ -27,18 +23,32 @@ const core=()=>CORE||(CORE=Promise.all([import('../supabase/functions/_shared/me
 /* ---------- evaluation page ---------- */
 V.eval=()=>{
   if(S.ev&&S.ev.done&&!E.retake)return V.evres();
-  if(!S.evalRequired&&!E.retake)return page('Start Evaluation','',sec('NOT NEEDED',1,nodata('Your account does not need the evaluation. You can upload your presentations right away.','<button class="bt" data-go="up" type="button">UPLOAD PPT</button>'+(legacy()?'<button class="bt gh" data-go="base" type="button">VIEW MY BASELINE</button>':''))));
-  const tp=E.topic;
-  return page('Start Evaluation','A short talk so we can measure how you speak today.',
-   sec('HOW IT WORKS',1,`<ul class="tp"><li>You will talk for about <b>2 to 3 minutes</b> on the topic below, out loud, in your own words. Do not read from a script.</li><li>We measure your <b>speaking speed (words per minute)</b>, the <b>filler words</b> you use (um, uh, like, you know, ano) and your <b>long pauses</b> (2 seconds or more).</li><li>Your <b>presentation time</b> is compared with the 2 to 3 minute target.</li><li>This is a <b>baseline</b>, not a final judgment of your ability. Eye contact, gestures and body language are not measured.</li><li>Use <b>Google Chrome or Microsoft Edge</b>, allow the microphone, and find a quiet place. Nothing is recorded or uploaded: only the words you say are analyzed in your browser.</li></ul>`)
-   +sec('YOUR TOPIC',2,`<h2 class="pt" style="font-size:20px">${esc(tp.t)}</h2><p class="sub" style="margin:0 0 6px">You could mention:</p><ul class="tp" style="margin-bottom:0">${tp.c.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`)
+  return page('Evaluation','Your pre-evaluation baseline ? Built-in presentation ? No upload required',
+   sec('HOW IT WORKS',1,`<ul class="tp"><li>You will talk for about <b>2 to 3 minutes</b> using the five slides below, out loud, in your own words. Do not read from a script.</li><li>We measure your <b>speaking speed (words per minute)</b>, the <b>filler words</b> you use (um, uh, like, you know, ano) and your <b>long pauses</b> (2 seconds or more).</li><li>Your <b>presentation time</b> is compared with the 2 to 3 minute target.</li><li>This is a <b>baseline</b>, not a final judgment of your ability. Eye contact, gestures and body language are not measured.</li><li>Use <b>Google Chrome or Microsoft Edge</b>, allow the microphone, and find a quiet place. PresentTrack does not record or upload audio. Your browser?s speech service may process microphone audio online. Your transcript and baseline results are saved to your account.</li></ul>`)
+   +sec('BUILT-IN PRESENTATION',2,`<p class="basis">This system-provided presentation does not use a free upload.</p><div id="eslide" class="vst" aria-live="polite"></div><div class="vctl"><button class="bt gh sm" id="eprev" type="button">Previous slide</button><span id="eslide-count" role="status"></span><button class="bt sm" id="enext" type="button">Next slide</button></div>`)
    +sec('RECORD YOUR TALK',3,'<div id="erec"></div>'));
 };
-B.eval=()=>draw();
+B.eval=()=>{
+  draw();showSlide();
+  if($('eprev'))$('eprev').onclick=()=>{E.slide--;showSlide()};
+  if($('enext'))$('enext').onclick=()=>{E.slide++;showSlide()};
+};
+function showSlide(){
+  const host=$('eslide');if(!host)return;
+  E.slide=Math.max(0,Math.min(E.slide,DECK.slides.length-1));
+  const slide=DECK.slides[E.slide];
+  host.innerHTML=`<div class="sld${E.slide===0?' stitle':''}"><h4>${esc(slide.title)}</h4><ul>${slide.bullets.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div>`;
+  $('eslide-count').textContent='Slide '+(E.slide+1)+' / '+DECK.slides.length;
+  $('eprev').disabled=E.slide===0;$('enext').disabled=E.slide===DECK.slides.length-1;
+}
+document.addEventListener('keydown',e=>{
+  if(S.view!=='eval'||!$('eslide')||e.ctrlKey||e.metaKey||e.altKey||/^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(e.target.tagName))return;
+  if(e.key==='ArrowRight'||e.key==='ArrowLeft'){E.slide+=e.key==='ArrowRight'?1:-1;showSlide();e.preventDefault()}
+});
 function setE(o){Object.assign(E,o);draw()}
 function draw(){
   const h=$('erec');if(!h)return;let b='';
-  if(E.st==='idle')b=`<div class="arec"><div class="atm"><b id="etm">0:00</b><small>Recommended: 2 to 3 minutes</small></div><p class="sub" style="margin:0">Press Start, then talk about the topic. Press Finish when you are done.</p><div class="acts"><button class="bt" data-act="estart" type="button">START</button></div></div>`;
+  if(E.st==='idle')b=`<div class="arec"><div class="atm"><b id="etm">0:00</b><small>Recommended: 2 to 3 minutes</small></div><p class="sub" style="margin:0">Press Start, then present the built-in slides in your own words. Press Finish when you are done.</p><div class="acts"><button class="bt" data-act="estart" type="button">START</button></div></div>`;
   else if(E.st==='ask')b=`<div class="alo" role="status"><i></i>Waiting for microphone permission…</div>`;
   else if(E.st==='rec')b=`<div class="arec" style="width:100%"><div class="atm rec"><b id="etm">0:00</b><small>● Listening</small></div><p class="ai" id="elive" aria-live="polite" style="margin:0;width:100%;box-sizing:border-box;min-height:3.2em">Start talking…</p><p class="vnote" id="enote" role="status" style="text-align:left"></p><div class="acts"><button class="bt" data-act="efin" type="button">FINISH</button><button class="bt gh" data-act="ecancel" type="button">Cancel</button></div></div>`;
   else if(E.st==='busy')b=`<div class="alo" role="status"><i></i>Analyzing your speech…</div>`;
@@ -99,7 +109,7 @@ async function analyze(){
   const metrics=C.computeMetrics({words,totalDurationSec:E.total}),quality=C.assessQuality(metrics,qs);
   if(quality.level==='unusable')return setE({st:'err',msg:'We could not hear enough speech to give meaningful results. Please try again in a quiet place, closer to your microphone, and talk for 2 to 3 minutes.',warn:quality.warnings||[]});
   const result=C.classify(metrics,quality,C.CRITERIA),feedback=C.ruleBasedFeedback(metrics,result);
-  const results={version:1,source:'browser-speech-recognition',topic:E.topic.t,quality,metrics,durationAssessment:result.durationAssessment,dims:result.dims,totalPoints:result.totalPoints,maxPoints:result.maxPoints,score:result.score,classification:result.classification,explanation:result.explanation,feedback,transcript:segs.map(g=>g.text).join(' ').slice(0,6000),created_at:new Date().toISOString()};
+  const results={version:1,source:'browser-speech-recognition',topic:DECK.title,deckId:DECK.id,deckVersion:DECK.version,quality,metrics,durationAssessment:result.durationAssessment,dims:result.dims,totalPoints:result.totalPoints,maxPoints:result.maxPoints,score:result.score,classification:result.classification,explanation:result.explanation,feedback,transcript:segs.map(g=>g.text).join(' ').slice(0,6000),created_at:new Date().toISOString()};
   return commit(results);
 }
 /* Cloud accounts: the SERVER must accept the result first (it sets the flag that unlocks uploads).
@@ -147,7 +157,7 @@ V.evres=()=>{
    +`<div class="g-perf five">${card('Speaking speed',Math.round(m.wpm||0)+' <small>WPM</small>',esc((r.dims&&r.dims.pace&&r.dims.pace.label)||''))}${card('Total words',m.words||0,'')}${card('Presentation time',mm(m.totalDurationSec),esc(dst))}${card('Filler words',m.fillerCount||0,fb||'None detected')}${card('Long pauses',m.pauseCount||0,m.pauseCount?'Longest '+(m.longestPause||0)+'s':'None of 2 s or more')}</div>`
    +(q.level==='low'||(q.warnings||[]).length?sec('RECORDING QUALITY',2,list(q.warnings)+(q.level==='low'?'<div class="acts"><button class="bt gh" data-act="eretake" type="button">TAKE IT AGAIN</button></div>':'')):'')
    +sec('TALK TIMELINE',3,timeline(m)+(ft?`<p class="basis" style="margin:10px 0 0"><b>Filler words:</b> ${ft}${(m.heuristicFillerCount||0)?'<br>* "like" is only counted when it looks like a filler, so these are possible fillers.':''}</p>`:'')+(pt?`<p class="basis" style="margin:6px 0 0"><b>Long pauses:</b> ${pt}</p>`:''))
-   +sec('FEEDBACK',4,`<p class="rec">${esc(f.summary||'')}</p><h4 class="plb" style="margin:10px 0 4px">Strengths</h4>${list(f.strengths)}<h4 class="plb" style="margin:10px 0 4px">Areas to improve</h4>${list(f.improvements)}<h4 class="plb" style="margin:10px 0 4px">Next practice session</h4>${list(f.recommendations)}`)
+   +sec('WHAT TO PRACTICE NEXT',4,`<p class="rec">${esc(f.summary||'')}</p><h4 class="plb" style="margin:10px 0 4px">Strengths</h4>${list(f.strengths)}<h4 class="plb" style="margin:10px 0 4px">Areas to improve</h4>${list(f.improvements)}<h4 class="plb" style="margin:10px 0 4px">Next practice session</h4>${list(f.recommendations)}`)
    +sec('HOW THIS WAS MEASURED',5,`<ul class="tp"><li>Speaking speed = spoken words ÷ speaking time in minutes. Pauses of 2 seconds or longer are <b>not</b> counted as speaking time; shorter pauses are.</li><li>Words and timing come from your browser's speech recognition, which can miss or add words and often skips "um" and "uh". Filler and pause counts are estimates, not definite mistakes.</li><li>Presentation time is the full length of your talk, compared with a 2 to 3 minute target.</li></ul><div class="acts"><button class="bt" data-go="up" type="button">UPLOAD PPT</button><button class="bt gh" data-go="hist" type="button">PRACTICE HISTORY</button></div>`));
 };
 
@@ -198,6 +208,6 @@ $('app').addEventListener('click',e=>{
   else if(a==='esave'){if(E.pend)commit(E.pend)}
   else if(a==='efin')finish(false);
   else if(a==='ecancel'){halt();setE({st:'idle'})}
-  else if(a==='eretake'){E.retake=true;E.st='idle';go('eval')}
+  else if(a==='eretake'){E.retake=true;E.st='idle';E.slide=0;go('eval')}
 });
 })();
