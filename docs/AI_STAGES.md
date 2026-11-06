@@ -32,6 +32,8 @@ Task order: main transcription OpenAI → Groq; timing Groq; verbatim Gemini onl
 
 ## Configuration
 
+DeepSeek connection check: the saved local key reached the API but generation returned HTTP 402 (insufficient balance). Provider 402 errors now fall through to the next configured provider and report `provider_balance` if none succeeds. This does not enable paid calls: the budget admission requirement still applies. DeepSeek remains for analysis/proofreading in this staged router, not Tracy's live Groq/Gemini chat route. See [DeepSeek error codes](https://api-docs.deepseek.com/quick_start/error_codes/).
+
 Existing keys stay in `.env.local`, Vercel secrets or worker secrets. Never commit actual keys. Defaults and new names are in `.env.example`. Model overrides use `PROVIDER_TASK_MODEL` (e.g. `GROQ_QUICKTIPS_MODEL`, `GEMINI_ANALYSIS_MODEL`); general `PROVIDER_MODEL` is the text/vision fallback. Transcription/timing have explicit defaults independent of text models.
 
 OpenAI and DeepSeek are treated as paid. Gemini/Groq are also gated if `GEMINI_PAID=true` / `GROQ_PAID=true`. Paid calls are disabled without an injected `admit` function. **The production daily budget ledger has not been implemented yet**; the hook is not a substitute for an atomic persistent budget. `cost: null` means not measured, not free. The next stage must reserve a conservative maximum atomically before requests and retain reservations for uncertain failures. Do not enable paid production routes by supplying an always-true admission function.

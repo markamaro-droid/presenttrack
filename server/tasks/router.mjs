@@ -99,8 +99,8 @@ export function createTaskRouter({ env = process.env, fetchImpl = fetch, admit, 
         const request = requestFor(env, provider, task, input, model, instruction);
         const response = await fetchImpl(request.url, { ...request.init, signal: AbortSignal.timeout(Math.max(1000, Math.min(30000, Number(env.TASK_TIMEOUT_MS) || 12000))) });
         if (!response.ok) {
-          last = new TaskError(response.status === 429 ? 'provider_limit' : [401, 403, 404].includes(response.status) ? 'provider_access' : 'provider_unavailable');
-          if ([401, 403, 404, 429].includes(response.status) || response.status >= 500) continue;
+          last = new TaskError(response.status === 402 ? 'provider_balance' : response.status === 429 ? 'provider_limit' : [401, 403, 404].includes(response.status) ? 'provider_access' : 'provider_unavailable');
+          if ([401, 402, 403, 404, 429].includes(response.status) || response.status >= 500) continue;
           throw new TaskError('provider_request_rejected', 400);
         }
         body = await response.json();

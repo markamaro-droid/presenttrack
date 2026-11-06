@@ -22,7 +22,7 @@ test('task routing orders match the requested policy', () => {
   assert.deepEqual(ROUTES.verbatim, ['gemini']);
 });
 test('429, 5xx, network, invalid JSON and schema failures fall through without leaking bodies', async () => {
-  for (const failed of [json({}, 429), json({}, 503), new Error('secret text'), new Response('bad json'), chat('{"bad":"shape"}')]) {
+  for (const failed of [json({}, 402), json({}, 429), json({}, 503), new Error('secret text'), new Response('bad json'), chat('{"bad":"shape"}')]) {
     const s = fixture([failed, gemini(JSON.stringify(analysis))]);
     const result = await s.route(request());
     assert.equal(result.provider, 'gemini'); assert.deepEqual(result.data, analysis);
