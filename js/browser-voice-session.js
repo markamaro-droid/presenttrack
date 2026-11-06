@@ -2,10 +2,11 @@
 (() => {
   const errors = {
     unauthorized: 'Please sign in again to talk with Tracy.',
-    setup_required: 'Tracy is not configured yet. The site owner needs to check the Groq and Supabase settings.',
+    setup_required: 'Tracy is not configured yet. The site owner needs to check the AI provider and Supabase settings.',
     quota_unavailable: 'Tracy cannot check usage right now. Please try again later.',
-    provider_access: 'Tracy’s Groq key needs attention from the site owner.',
-    provider_configuration: 'Tracy’s Groq model needs attention from the site owner.',
+    provider_access: 'Tracy’s AI provider access needs attention from the site owner.',
+    provider_configuration: 'Tracy’s AI model configuration needs attention from the site owner.',
+    provider_blocked: 'Tracy could not answer that request. Try rephrasing your presentation question.',
     provider_busy: 'Tracy’s AI service is unavailable. Please try again shortly.'
   };
   class SafeError extends Error {}
@@ -30,7 +31,7 @@
     }
     async request(run, body) {
       const controller = run.request = new AbortController();
-      this.arm(run, 'requestTimer', 35000, () => this.fail('Tracy’s request took too long. Please retry.'));
+      this.arm(run, 'requestTimer', 55000, () => this.fail('Tracy’s request took too long. Please retry.'));
       try {
         const session = await this.options.getSession();
         if (this.run !== run || controller.signal.aborted) throw new SafeError('Conversation ended.');
@@ -43,7 +44,7 @@
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
           const minutes = Math.ceil(Math.max(1, Math.min(86400, Number(response.headers.get('Retry-After')) || 60)) / 60);
-          throw new SafeError(data.error === 'groq_limit' ? `Tracy has reached Groq’s service limit. Retry in about ${minutes} minute(s); daily limits may take longer to reset.` :
+          throw new SafeError(['groq_limit', 'provider_limit'].includes(data.error) ? `Tracy has reached ${data.error === 'groq_limit' ? 'Groq’s service' : 'the available AI services’'} limit. Retry in about ${minutes} minute(s); daily limits may take longer to reset.` :
             response.status === 429 ? `Your conversation limit was reached. Retry in about ${minutes} minute(s).` :
             response.status === 404 ? 'Tracy’s new voice service has not been deployed yet.' : errors[data.error] || 'Tracy could not reply. Please try again shortly.');
         }

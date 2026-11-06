@@ -72,6 +72,6 @@ test('setup, idle and duration timeouts close the session', async () => {
     const s = setup(); await s.session.start(); s.expire(ms);
     assert.equal(s.session.active, false); assert.equal(s.current().running, false); assert.equal(s.timers.size, 0);
   }
-  const s = setup({ fetcher: () => new Promise(() => {}) }); s.session.start(); await flush(); s.expire(35000);
+  const s = setup({ fetcher: () => new Promise(() => {}) }); s.session.start(); await flush(); s.expire(55000);
   assert.equal(s.session.active, false); assert.equal(s.recognizers.length, 0);
 });

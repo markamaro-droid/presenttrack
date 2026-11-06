@@ -14,7 +14,7 @@ for (const authenticated of [false, true]) {
     const code = String(data.error || 'non_json_response').replace(/[^a-z_]/g, '').slice(0, 60);
     console.log(JSON.stringify({ check: authenticated ? 'Invalid token' : 'Missing token', status: response.status, code }));
     if (authenticated && code === 'setup_required') {
-      console.log('Production setup is incomplete. Set GROQ_API_KEY, SUPABASE_URL and SUPABASE_ANON_KEY in Vercel for Production, then redeploy.');
+      console.log('Production setup is incomplete. Set GROQ_API_KEY or GEMINI_API_KEY, plus SUPABASE_URL and SUPABASE_ANON_KEY in Vercel for Production, then redeploy.');
       process.exitCode = 1;
     } else if (response.status !== 401 || code !== 'unauthorized') {
       console.log('The deployment did not pass the authentication probe. Check its function configuration and deployment logs.');

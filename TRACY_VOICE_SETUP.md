@@ -1,6 +1,6 @@
 # Tracy: PresentTrack voice AI
 
-## Current setup: Groq + browser speech
+## Current setup: Groq, Gemini fallback + browser speech
 
 The active Tracy panel now loads `js/browser-voice-session.js` and uses `/api/coach`. OpenAI credits are **not required** for this mode. The existing robot, authentication, guided tour and evaluation are preserved. The OpenAI architecture below is historical reference for the retained `/api/voice` endpoint, not the current panel.
 
@@ -11,11 +11,13 @@ Save these in `.env.local` and in the existing Vercel project's Production envir
 ```dotenv
 GROQ_API_KEY=your-private-key
 GROQ_MODEL=openai/gpt-oss-20b
+GEMINI_API_KEY=your-private-gemini-key
+GEMINI_MODEL=gemini-3.5-flash-lite
 SUPABASE_URL=your-existing-project-url
 SUPABASE_ANON_KEY=your-existing-public-key
 ```
 
-`GROQ_MODEL` is optional; the default is shown above. Keep the key server-side and store it as a Vercel Secret. No new database migration is required if `20261106_tracy_voice.sql` is already applied. No Gemini fallback or automatic paid fallback is configured.
+Both model variables are optional; defaults are shown above. Keep keys server-side and store them as Vercel Secrets. No new database migration is required if `20261106_tracy_voice.sql` is already applied. The order is Groq then Gemini, skipping unconfigured providers; Gemini can work alone. One attempt per provider is allowed on rate limits, HTTP 5xx, network/timeouts, and HTTP 401/403/404 access/configuration failures. Validation, Supabase authentication/quota errors, HTTP 400 and blocked/empty successful answers do not trigger fallback. Provider requests have 12-second timeouts, within the browser's 55-second reply timeout. A fallback does not charge a second PresentTrack quota slot. No OpenAI fallback is configured. Provider account billing/free-tier settings still apply; adding a key does not guarantee free or unlimited access.
 
 Run `npm test` and `npm run build`. Commit/push the new backend, browser voice module, UI changes and Vercel configuration; then wait for the new Production deployment. Never commit `.env.local`. Redeploying an old commit does not include these changes. Check production with:
 
@@ -29,10 +31,10 @@ Both missing/invalid-token probes must return 401. This checks routing/configura
 
 - Browser speech recognition converts each spoken turn to text. It may send audio to a browser/vendor service and is not guaranteed to work offline or in every browser. Try Chrome or Edge over HTTPS; Filipino availability varies by browser/device.
 - `/api/coach` verifies Supabase identity and calls `take_tracy_slot` with the user's JWT before contacting Groq. Starts use the existing voice quota (2/minute, 6/hour, 12/day). Each reply uses the existing chat quota (5/minute, 30/hour, 100/day). Quotas are shared with the retained legacy endpoints.
-- Groq receives the recognized text and bounded recent conversation. The key and Supabase tokens are never included in prompts. PresentTrack stores no recordings or transcripts; the database stores usage metadata only.
+- Groq receives the recognized text and bounded recent conversation. Gemini receives the same bounded context when used as a backup (or alone). The panel discloses both providers. Keys and Supabase tokens are never included in prompts. PresentTrack stores no recordings or transcripts; the database stores usage metadata only.
 - Browser speech synthesis reads the reply using an available device voice. The microphone pauses while thinking/speaking. Use Interrupt to talk again; automatic spoken interruption is not supported in this mode. English/Filipino selects recognition/synthesis language, not a guaranteed branded voice.
 - End, sign-out/account change, tab hiding, page exit and minimization stop voice and clear conversation. The UI also ends after 10 minutes, 20 replies or 90 seconds without speech. These UI caps supplement the enforced database quotas.
-- Groq free-tier quotas are shared across the provider account. A 429 is reported without automatic retries or switching to OpenAI. A successful call does not guarantee unlimited availability.
+- Provider free-tier quotas are shared across their accounts/projects. A Groq 429 tries the configured Gemini backup once. If both fail, Tracy reports the last provider error without looping or switching to OpenAI. A successful call does not guarantee unlimited availability.
 
 ### Browser acceptance check
 
