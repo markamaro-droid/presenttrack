@@ -77,3 +77,18 @@ test('only owner of a signed ticket can end the call; forged tickets never reach
   await assert.rejects(forged.service('Bearer token-a', { action: 'end', ticket: ticket.slice(0, -4) + 'oops' }), { status: 403 });
   assert.equal(forged.calls.length, 1);
 });
+
+test('exhausted credits and billing limits are not classified as temporary provider congestion', async () => {
+  for (const [code, type, expected] of [
+    ['credit_balance_exhausted', 'insufficient_quota', 'provider_credits'],
+    ['organization_spend_limit_exceeded', null, 'provider_quota'],
+    ['project_spend_limit_exceeded', null, 'provider_quota'],
+    ['organization_usage_limit_exceeded', null, 'provider_quota'],
+    [null, 'insufficient_quota', 'provider_quota'],
+    ['slow_down', 'rate_limit_error', 'provider_busy']
+  ]) {
+    const { service, calls } = setup([json({ id: 'a' }), json({ allowed: true }), json({ error: { code, type, message: 'private billing details' } }, 429)]);
+    await assert.rejects(service('Bearer token', offer), error => error.code === expected && !error.message.includes('private billing details'));
+    assert.equal(calls.length, 3, 'Billing failures must not trigger automatic retries');
+  }
+});

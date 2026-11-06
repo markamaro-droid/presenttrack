@@ -178,6 +178,19 @@ test('provider failure never displays raw server details or leaves the microphon
   assert.equal(ui.track.stopped, true); assert.ok(!ui.states.at(-1).message.includes('private'));
 });
 
+test('credit exhaustion during setup or a live call explains the billing issue and releases the microphone', async () => {
+  const start = setup({ fetcher: async () => new Response(JSON.stringify({ error: 'provider_credits' }), { status: 503 }) });
+  await start.session.start();
+  assert.match(start.states.at(-1).message, /out of AI credits/);
+  assert.equal(start.track.stopped, true);
+  assert.equal(start.calls.length, 1);
+  const live = setup(); await live.session.start(); live.ready();
+  live.event({ type: 'error', error: { code: 'credit_balance_exhausted', message: 'private billing detail' } });
+  assert.match(live.states.at(-1).message, /out of AI credits/);
+  assert.equal(live.track.stopped, true);
+  assert.equal(live.session.active, false);
+});
+
 test('captions tolerate malformed events and old transcription results', async () => {
   const ui = setup(); await ui.session.start(); ui.ready();
   ui.channel.onmessage({ data: 'bad json' });

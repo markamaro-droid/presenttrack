@@ -3,7 +3,12 @@
   const messages = {
     setup_required: 'Tracy is not set up yet. Please contact the site owner.',
     unauthorized: 'Please sign in again to talk with Tracy.',
-    provider_quota: 'Tracy’s voice allowance is unavailable. Please contact the site owner.',
+    provider_credits: 'Tracy is out of AI credits. The site owner needs to add API credits before voice can resume.',
+    credit_balance_exhausted: 'Tracy is out of AI credits. The site owner needs to add API credits before voice can resume.',
+    provider_quota: 'Tracy’s AI billing or usage limit needs attention from the site owner.',
+    organization_spend_limit_exceeded: 'Tracy’s AI billing or usage limit needs attention from the site owner.',
+    project_spend_limit_exceeded: 'Tracy’s AI billing or usage limit needs attention from the site owner.',
+    organization_usage_limit_exceeded: 'Tracy’s AI billing or usage limit needs attention from the site owner.',
     provider_access: 'Tracy’s AI connection needs attention from the site owner.',
     provider_configuration: 'Tracy’s voice service needs setup by the site owner.',
     provider_busy: 'Tracy’s voice service is busy. Please try again shortly.',

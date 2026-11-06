@@ -34,7 +34,10 @@ export async function providerError(response) {
   // Inspect only a known error code; never relay or log provider messages/bodies.
   const body = await response.json().catch(() => ({}));
   if (response.status === 429) {
-    if (body.error?.code === 'insufficient_quota') return new ChatError(503, 'provider_quota', 'Tracy’s voice allowance is unavailable. Please contact the site owner.');
+    if (body.error?.code === 'credit_balance_exhausted') return new ChatError(503, 'provider_credits', 'Tracy is out of AI credits. The site owner needs to add API credits before voice can resume.');
+    if (body.error?.type === 'insufficient_quota' || ['insufficient_quota', 'organization_spend_limit_exceeded', 'project_spend_limit_exceeded', 'organization_usage_limit_exceeded'].includes(body.error?.code)) {
+      return new ChatError(503, 'provider_quota', 'Tracy’s AI billing or usage limit needs attention from the site owner.');
+    }
     return new ChatError(503, 'provider_busy', 'Tracy’s voice service is busy. Please try again shortly.');
   }
   if ([401, 403].includes(response.status)) return new ChatError(503, 'provider_access', 'Tracy’s AI connection needs attention from the site owner.');

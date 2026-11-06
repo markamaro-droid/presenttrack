@@ -138,6 +138,8 @@ Manual checks on your signed-in localhost and deployed site:
 
 ## GitHub and Vercel
 
+If OpenAI returns `credit_balance_exhausted`, add API credits to the organization associated with the configured key. This is a billing failure, not temporary service congestion; retrying alone cannot restore access. Other billing/usage-limit failures also require owner attention. Successful model-list checks do not prove that paid Realtime calls have available credits. Tracy distinguishes these failures from temporary rate limits without displaying raw provider details.
+
 1. Add the environment settings above to the **existing Vercel project → Settings → Environment Variables** for the environments you use. Supabase Edge Function secrets and `.env.local` do not automatically transfer to Vercel.
 2. Keep framework **Other**, Node **24.x**, build **`npm run build`**, output **`dist`**. Both routes are in `vercel.json`; no catch-all rewrite should intercept `/api/voice`.
 3. Review `git diff` and `git status`. `.env.local` must remain ignored. The build copies only public assets and required evaluation modules.
