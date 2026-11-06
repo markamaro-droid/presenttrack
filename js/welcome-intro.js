@@ -9,6 +9,8 @@
     const stage = $('welcome-stage'), bot = $('bot'), button = $('leval'), caption = $('welcome-intro');
     if (!stage || !bot || !button) return;
     const skip = $('welcome-skip'), replay = $('welcome-replay');
+    const hero = stage.closest('.welcome-hero');
+    hero.classList.remove('welcome-ready');
     let stopped = false, generation = 0, timer, arrival, waiting;
     const reducedMotion = matchMedia('(prefers-reduced-motion:reduce)').matches;
     stage.dataset.phase = 'waiting';
@@ -20,6 +22,7 @@
       podium.hushNow?.(); podium.robotPoint?.();
       caption.textContent = copy; button.hidden = false; skip.hidden = true; replay.hidden = false;
       stage.classList.add('introduced');
+      hero.classList.add('welcome-ready');
       stage.dataset.phase = 'pointing';
     };
     const introduce = () => {
@@ -94,6 +97,7 @@
       stopped = true; generation++; clearTimeout(timer); cancelAnimationFrame(waiting); arrival?.cancel();
       document.removeEventListener('visibilitychange', onVisibility);
       podium.hushNow?.(); bot.classList.remove('welcome'); document.body.appendChild(bot);
+      hero.classList.remove('welcome-ready');
       canvas.tabIndex = 0; canvas.removeAttribute('aria-hidden'); skip.onclick = replay.onclick = null;
     };
   };

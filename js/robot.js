@@ -92,7 +92,7 @@ function frame(){
   else if(s==='listening'){g.lean=.14;g.roll=.08+Math.sin(t*1.6)*.06}
   else if(s==='thinking'){g.pitch=.16;g.roll=-.14;g.ear=.4}
   else if(s==='talking'){g.mouth=1;g.pitch+=Math.sin(t*5)*.06;if(bot.classList.contains('welcome')){g.hR=.55+.25*Math.sin(t*2.5);g.hL=-.4-.2*Math.sin(t*2.5)}}
-  else if(s==='point'){const gesture=Math.exp(-Math.max(0,now-st.t0)*1.5);g.hR=.85*gesture-.55*(1-gesture);g.hL=-.35;g.pitch=.2;g.roll=.13;g.yaw=-.12;g.ex=0;g.ey=-1}
+  else if(s==='point'){g.hR=.2;g.hL=-1.25-.08*Math.sin(t*2);g.pitch=.08;g.roll=-.08;g.yaw=-.18;g.ex=-1;g.ey=-.2}
   else if(s==='celebrate'){const f=Math.sin(t*14);g.hR=2.9+.25*f;g.hL=-(2.9-.25*f);g.mouth=.6}
   if(speaking)g.mouth=Math.max(g.mouth,1);
   const a=1-Math.exp(-dt*8);for(const k in g)C[k]+=(g[k]-C[k])*a;
