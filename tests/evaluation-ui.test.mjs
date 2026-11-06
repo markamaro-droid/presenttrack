@@ -7,20 +7,26 @@ const deck = await readFile(new URL('../assets/evaluation/study-habits.js', impo
 const source = await readFile(new URL('../js/evaluation.js', import.meta.url), 'utf8');
 function setup() {
   const elements = new Map();
+  const classes = () => {
+    const values = new Set();
+    return { add: (...a) => a.forEach(v => values.add(v)), remove: (...a) => a.forEach(v => values.delete(v)), contains: v => values.has(v), toggle: (v, on) => on ? values.add(v) : values.delete(v) };
+  };
   const el = id => {
-    if (!elements.has(id)) elements.set(id, { innerHTML: '', textContent: '', addEventListener() {} });
+    if (!elements.has(id)) elements.set(id, { innerHTML: '', textContent: '', isConnected: true, classList: classes(), addEventListener() {} });
     return elements.get(id);
   };
   const S = { view: 'eval', evalRequired: false, pres: [], ses: [] }, V = {}, B = {}, PARENT = {};
   const X = { S, V, B, PARENT, esc: String, page: (...a) => a.join(''), sec: (t, i, h) => t + h, fmt: String };
-  const context = { window: {}, podium: { ext: X }, document: { getElementById: el, addEventListener() {} } };
+  const context = { window: {}, podium: { ext: X }, document: { body: { classList: classes() }, getElementById: el, addEventListener() {} } };
   vm.runInNewContext(deck, context); vm.runInNewContext(source, context);
-  return { S, V, B, PARENT, el, deck: context.window.PT_EVALUATION_DECK };
+  return { S, V, B, PARENT, el, context, deck: context.window.PT_EVALUATION_DECK };
 }
 test('Evaluation is separate and available to existing accounts without adding an uploaded presentation', () => {
   const app = setup();
-  assert.match(app.V.eval(), /No upload required/);
-  assert.match(app.V.eval(), /does not use a free upload/);
+  const html = app.V.eval();
+  assert.match(html, /Full screen/);
+  assert.doesNotMatch(html, /HOW IT WORKS|No upload required|BUILT-IN PRESENTATION/);
+  assert.ok(html.indexOf('id="erec"') < html.indexOf('id="eslide"'));
   assert.equal(app.PARENT.eval, undefined);
   assert.equal(app.PARENT.evres, 'eval');
   assert.equal(app.S.pres.length, 0);
@@ -43,4 +49,15 @@ test('completed baseline stays accessible with next-practice feedback', () => {
   app.S.ev = { done: true, results: { metrics: {}, feedback: { recommendations: ['Pause between ideas.'] } } };
   assert.match(app.V.eval(), /WHAT TO PRACTICE NEXT/);
   assert.match(app.V.eval(), /Pause between ideas/);
+});
+test('fullscreen fallback preserves slides and cleans up when leaving Evaluation', () => {
+  const app = setup(); app.B.eval();
+  app.el('enext').onclick();
+  app.el('efs').onclick();
+  assert.equal(app.el('evalviewer').classList.contains('evaluation-fullscreen'), true);
+  assert.equal(app.el('efs').textContent, 'Exit full screen');
+  assert.equal(app.el('eslide-count').textContent, 'Slide 2 / 5');
+  app.context.podium.leave();
+  assert.equal(app.el('evalviewer').classList.contains('evaluation-fullscreen'), false);
+  assert.equal(app.context.document.body.classList.contains('evaluation-fullscreen-open'), false);
 });

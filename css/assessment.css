@@ -29,3 +29,17 @@ html.clay .bt.dnb{background:linear-gradient(145deg,#F0728F,var(--err));color:#f
 .mc[role=alertdialog] h2{font:700 20px Sora,sans-serif}
 .dcard .st.warn{color:#B86E00}
 .dcard .acts .bt:disabled{opacity:.45}
+.evaluation-viewer{display:flex;flex-direction:column;gap:16px}
+.evaluation-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:12px;position:relative}
+.evaluation-toolbar>#eslide-count{font-weight:600;margin-right:auto;white-space:nowrap}
+.evaluation-record{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.evaluation-toolbar .vnote:empty{display:none}
+.evaluation-toolbar .vnote,.evaluation-toolbar .wr{margin:8px 0 0;max-width:560px}
+.evaluation-viewer .vst{flex:1;min-height:260px}
+.evaluation-viewer:fullscreen,.evaluation-viewer:-webkit-full-screen,.evaluation-expanded{width:100%;height:100%;box-sizing:border-box;border-radius:0;background:var(--cb2);padding:16px;overflow:auto}
+.evaluation-expanded .vst{min-height:0;container-type:size;overflow:auto}
+.evaluation-expanded .sld{width:min(100%,calc((100dvh - 120px)*1.7778))}
+@supports(width:1cqw){.evaluation-expanded .sld{width:min(100cqw,calc(100cqh*1.7778))}}
+.evaluation-fullscreen{position:fixed;inset:0;z-index:1000;margin:0!important}
+body.evaluation-fullscreen-open{overflow:hidden}
+@media(max-width:700px){.evaluation-toolbar{gap:10px}.evaluation-toolbar>#erec{order:2;width:100%}.evaluation-record .vtm{margin-right:auto}.evaluation-expanded{padding:10px}.evaluation-expanded .vst{min-height:200px}.evaluation-toolbar .vbt{gap:6px}}

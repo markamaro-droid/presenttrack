@@ -23,13 +23,22 @@ const core=()=>CORE||(CORE=Promise.all([import('../supabase/functions/_shared/me
 /* ---------- evaluation page ---------- */
 V.eval=()=>{
   if(S.ev&&S.ev.done&&!E.retake)return V.evres();
-  return page('Evaluation','Your pre-evaluation baseline ? Built-in presentation ? No upload required',
-   sec('HOW IT WORKS',1,`<ul class="tp"><li>You will talk for about <b>2 to 3 minutes</b> using the five slides below, out loud, in your own words. Do not read from a script.</li><li>We measure your <b>speaking speed (words per minute)</b>, the <b>filler words</b> you use (um, uh, like, you know, ano) and your <b>long pauses</b> (2 seconds or more).</li><li>Your <b>presentation time</b> is compared with the 2 to 3 minute target.</li><li>This is a <b>baseline</b>, not a final judgment of your ability. Eye contact, gestures and body language are not measured.</li><li>Use <b>Google Chrome or Microsoft Edge</b>, allow the microphone, and find a quiet place. PresentTrack does not record or upload audio. Your browser?s speech service may process microphone audio online. Your transcript and baseline results are saved to your account.</li></ul>`)
-   +sec('BUILT-IN PRESENTATION',2,`<p class="basis">This system-provided presentation does not use a free upload.</p><div id="eslide" class="vst" aria-live="polite"></div><div class="vctl"><button class="bt gh sm" id="eprev" type="button">Previous slide</button><span id="eslide-count" role="status"></span><button class="bt sm" id="enext" type="button">Next slide</button></div>`)
-   +sec('RECORD YOUR TALK',3,'<div id="erec"></div>'));
+  return page('Evaluation','',`<section class="pn evaluation-viewer" id="evalviewer">
+    <div class="evaluation-toolbar">
+      <span id="eslide-count" role="status"></span>
+      <div id="erec"></div>
+      <div class="vbt" role="group" aria-label="Slide controls">
+        <button class="bt gh sm" id="eprev" type="button" aria-label="Previous slide">Previous</button>
+        <button class="bt gh sm" id="enext" type="button" aria-label="Next slide">Next</button>
+        <button class="bt gh sm" id="efs" type="button">Full screen</button>
+      </div>
+    </div>
+    <div id="eslide" class="vst" aria-live="polite"></div>
+  </section>`);
 };
 B.eval=()=>{
   draw();showSlide();
+  if($('efs'))$('efs').onclick=()=>setFullscreen(!isFullscreen());
   if($('eprev'))$('eprev').onclick=()=>{E.slide--;showSlide()};
   if($('enext'))$('enext').onclick=()=>{E.slide++;showSlide()};
 };
@@ -47,14 +56,41 @@ document.addEventListener('keydown',e=>{
 });
 function setE(o){Object.assign(E,o);draw()}
 function draw(){
-  const h=$('erec');if(!h)return;let b='';
-  if(E.st==='idle')b=`<div class="arec"><div class="atm"><b id="etm">0:00</b><small>Recommended: 2 to 3 minutes</small></div><p class="sub" style="margin:0">Press Start, then present the built-in slides in your own words. Press Finish when you are done.</p><div class="acts"><button class="bt" data-act="estart" type="button">START</button></div></div>`;
-  else if(E.st==='ask')b=`<div class="alo" role="status"><i></i>Waiting for microphone permission…</div>`;
-  else if(E.st==='rec')b=`<div class="arec" style="width:100%"><div class="atm rec"><b id="etm">0:00</b><small>● Listening</small></div><p class="ai" id="elive" aria-live="polite" style="margin:0;width:100%;box-sizing:border-box;min-height:3.2em">Start talking…</p><p class="vnote" id="enote" role="status" style="text-align:left"></p><div class="acts"><button class="bt" data-act="efin" type="button">FINISH</button><button class="bt gh" data-act="ecancel" type="button">Cancel</button></div></div>`;
-  else if(E.st==='busy')b=`<div class="alo" role="status"><i></i>Analyzing your speech…</div>`;
-  else if(E.st==='err')b=`<div class="arec"><p class="wr" role="alert">${esc(E.msg||'Something went wrong.')}</p>${(E.warn||[]).length?`<ul class="tp">${E.warn.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}<div class="acts">${E.save?'<button class="bt" data-act="esave" type="button">TRY SAVING AGAIN</button>':''}<button class="bt${E.save?' gh':''}" data-act="estart" type="button">${E.save?'RECORD AGAIN':'TRY AGAIN'}</button></div></div>`;
-  h.innerHTML=b;
+  const h=$('erec');if(!h)return;
+  const elapsed=E.st==='rec'?(performance.now()-E.t0)/1000:0;
+  let controls='';
+  if(E.st==='idle')controls='<button class="bt sm" data-act="estart" type="button">Start</button><button class="bt gh sm" type="button" disabled>Finish</button>';
+  else if(E.st==='ask')controls='<span role="status">Waiting for microphone permission...</span>';
+  else if(E.st==='rec')controls='<button class="bt sm" data-act="efin" type="button">Finish</button><button class="bt gh sm" data-act="ecancel" type="button">Cancel</button>';
+  else if(E.st==='busy')controls='<span role="status">Analyzing your speech...</span>';
+  else if(E.st==='err')controls=`${E.save?'<button class="bt sm" data-act="esave" type="button">Retry saving</button>':''}<button class="bt gh sm" data-act="estart" type="button">Try again</button>`;
+  h.innerHTML=`<div class="evaluation-record"><div class="vtm" aria-label="Elapsed time"><b id="etm">${mm(elapsed)}</b><small>${E.st==='rec'?'Listening':'Target 2?3 min'}</small></div>${controls}</div>
+    <p class="vnote" id="enote" role="status"></p>${E.st==='err'?`<p class="wr" role="alert">${esc(E.msg||'Something went wrong.')}</p>`:''}`;
 }
+const fullscreenElement=()=>document.fullscreenElement||document.webkitFullscreenElement;
+const isFullscreen=()=>!!$('evalviewer')&&($('evalviewer')===fullscreenElement()||$('evalviewer').classList.contains('evaluation-fullscreen'));
+function syncFullscreen(){
+  const viewer=$('evalviewer');if(!viewer)return;
+  const full=isFullscreen();viewer.classList.toggle('evaluation-expanded',full);
+  $('efs').textContent=full?'Exit full screen':'Full screen';
+}
+function setFullscreen(on){
+  const viewer=$('evalviewer');if(!viewer)return;
+  const fallback=()=>{if(!viewer.isConnected)return;viewer.classList.add('evaluation-fullscreen');document.body.classList.add('evaluation-fullscreen-open');syncFullscreen()};
+  if(on){
+    const request=viewer.requestFullscreen||viewer.webkitRequestFullscreen;
+    if(!request)return fallback();
+    try{const p=request.call(viewer);if(p&&p.catch)p.catch(fallback)}catch(e){fallback()}
+  }else{
+    viewer.classList.remove('evaluation-fullscreen','evaluation-expanded');document.body.classList.remove('evaluation-fullscreen-open');
+    if(fullscreenElement()===viewer){try{const p=(document.exitFullscreen||document.webkitExitFullscreen).call(document);p?.catch?.(()=>{})}catch(e){}}
+    syncFullscreen();
+  }
+}
+document.addEventListener('fullscreenchange',syncFullscreen);
+document.addEventListener('webkitfullscreenchange',syncFullscreen);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('evalviewer')?.classList.contains('evaluation-fullscreen'))setFullscreen(false)});
+
 const note=m=>{const n=$('enote');if(n)n.textContent=m};
 
 /* ---------- listening ---------- */
@@ -89,7 +125,7 @@ function tick(){const t=$('etm');if(!t){if(E.st==='rec'){halt();E.st='idle'}retu
   const l=$('elive');if(l&&Object.keys(E.segs).length)l.textContent=liveText();if(e>=MAX)finish(true)}
 function halt(){E.want=false;clearInterval(E.iv);const r=E.rec;E.rec=null;if(r){r.onresult=r.onend=r.onerror=null;try{r.abort()}catch(e){}}}
 function abort(msg){halt();setE({st:'err',msg,warn:[]})}
-podium.leave=(p=>()=>{try{p&&p()}catch(e){}if(E.st==='rec'||E.st==='ask'){halt();E.st='idle'}})(podium.leave);
+podium.leave=(p=>()=>{setFullscreen(false);try{p&&p()}catch(e){}if(E.st==='rec'||E.st==='ask'){halt();E.st='idle'}})(podium.leave);
 
 async function finish(auto){
   if(E.st!=='rec')return;
