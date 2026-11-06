@@ -31,7 +31,7 @@
 .welcome-stage{position:relative;isolation:isolate;width:280px;height:260px;margin:0 auto;display:grid;place-items:center}
 .welcome-orbit{position:absolute;inset:28px 8px 14px;border-radius:50%;background:radial-gradient(ellipse,color-mix(in srgb,var(--brand) 25%,transparent),transparent 68%);z-index:-1}
 .welcome-orbit::after{content:"";position:absolute;left:20%;right:20%;bottom:3px;height:15px;border-radius:50%;background:color-mix(in srgb,var(--brand) 28%,transparent);filter:blur(9px)}
-#bot.welcome{position:relative;inset:auto;width:280px;height:260px;z-index:8;transform-origin:top left;pointer-events:none}
+#bot.welcome{position:relative;inset:auto;width:280px;height:260px;z-index:8;transform-origin:center;pointer-events:none}
 #bot.welcome .bbar,#bot.welcome .tracy-voice,#bot.welcome #rcap{display:none!important}
 .lh .welcome-intro{font-size:16px;line-height:1.65;max-width:610px;min-height:80px;margin:0 auto 16px}
 .welcome-actions{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;min-height:96px}

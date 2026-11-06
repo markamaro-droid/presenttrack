@@ -34,6 +34,8 @@ podium.narState=()=>({voice:!!SY&&podium.voiceOn!==false&&!V.on,started:nar.star
 podium.narPause=p=>{try{p?SY.pause():SY.resume()}catch(e){}};podium.hushNow=()=>{hush();set('idle',0,'')};
 podium.robotIntroduce=(text,done)=>{clearAll();stopVoice();set('talking',0,'');speak(text,done)};
 podium.robotPoint=()=>set('point',0,'');
+podium.robotReady=()=>ready&&W>0;
+podium.robotWelcomeWave=()=>set('wave',0,'');
 function set(n,dur,txt,spoken){st.n=n;st.t0=sec();st.until=dur?st.t0+dur:0;say(txt===undefined?(TXT[n]||''):txt);if(spoken)speak(spoken)}
 podium.emit=ev=>{const n=EV[ev];if(!n)return;stopVoice();clearAll();set(n,n==='wave'?2000:n==='celebrate'?2600:0)};
 
@@ -89,14 +91,15 @@ function frame(){
   if(s==='wave'){g.hL=-(2.7+.4*Math.sin(t*11));g.roll=.1}
   else if(s==='listening'){g.lean=.14;g.roll=.08+Math.sin(t*1.6)*.06}
   else if(s==='thinking'){g.pitch=.16;g.roll=-.14;g.ear=.4}
-  else if(s==='talking'){g.mouth=1;g.pitch+=Math.sin(t*5)*.06}
-  else if(s==='point'){g.hR=-.3;g.hL=.15;g.pitch=.15;g.yaw=-.1;g.ex=0;g.ey=-.7}
+  else if(s==='talking'){g.mouth=1;g.pitch+=Math.sin(t*5)*.06;if(bot.classList.contains('welcome')){g.hR=.55+.25*Math.sin(t*2.5);g.hL=-.4-.2*Math.sin(t*2.5)}}
+  else if(s==='point'){const gesture=Math.exp(-Math.max(0,now-st.t0)*1.5);g.hR=.85*gesture-.55*(1-gesture);g.hL=-.35;g.pitch=.2;g.roll=.13;g.yaw=-.12;g.ex=0;g.ey=-1}
   else if(s==='celebrate'){const f=Math.sin(t*14);g.hR=2.9+.25*f;g.hL=-(2.9-.25*f);g.mouth=.6}
   if(speaking)g.mouth=Math.max(g.mouth,1);
   const a=1-Math.exp(-dt*8);for(const k in g)C[k]+=(g[k]-C[k])*a;
-  root.rotation.set(C.pitch+C.lean,C.yaw,C.roll,'YXZ');root.position.set(0,bot.classList.contains('welcome')?(matchMedia('(prefers-reduced-motion:reduce)').matches?0:Math.sin(t*1.8)*5):-H*(bot.classList.contains('app')?.06:.18),0);
+  const welcome=bot.classList.contains('welcome'),still=welcome&&matchMedia('(prefers-reduced-motion:reduce)').matches;
+  root.rotation.set(still?0:C.pitch+C.lean,still?0:C.yaw,still?0:C.roll,'YXZ');root.position.set(0,welcome?(still?0:Math.sin(t*1.8)*10):-H*(bot.classList.contains('app')?.06:.18),0);
   mix.update(dt);N.model.updateMatrixWorld(true);
-  addRot(N.hR,Z,C.hR);addRot(N.hL,Z,C.hL);addRot(N.ears,Y,Math.sin(t*3)*.5*C.ear);
+  addRot(N.hR,Z,still?0:C.hR);addRot(N.hL,Z,still?0:C.hL);addRot(N.ears,Y,Math.sin(t*3)*.5*C.ear);
   if(C.mouth>.01){const m=1+C.mouth*.3*Math.abs(Math.sin(t*13));N.mouth.scale.set(N.mb.x*m,N.mb.y,N.mb.z*m);N.mouthOn=true}else if(N.mouthOn){N.mouth.scale.copy(N.mb);N.mouthOn=false}   // absolute from base: never compounds
   N.eyes.position.x=N.ex+C.ex*.12;N.eyes.position.z=N.ez+C.ey*.06;   // eyes only slide; never resize
   R.render(scene,cam);
