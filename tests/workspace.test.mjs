@@ -6,9 +6,11 @@ const model = await readFile(new URL('../js/workspace-model.js', import.meta.url
 const views = await readFile(new URL('../js/workspace.js', import.meta.url), 'utf8');
 function setup() {
   const S = { ses: [], pres: [], goals: [], notes: [], u: { name: 'Student' } }, V = {}, B = {};
-  const context = { podium: { ext: { S, V, B, esc: v => String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;'), fmt: n => `${Math.floor(n / 60)}:${String(Math.round(n % 60)).padStart(2,'0')}`, ic: () => '<svg></svg>', I: {}, pendingEval: () => false } } };
+  const context = { podium: { ext: { S, V, B, esc: v => String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;'), fmt: n => `${Math.floor(n / 60)}:${String(Math.round(n % 60)).padStart(2,'0')}`, ic: () => '<svg></svg>', I: {}, render: () => {}, pendingEval: () => false } } };
   vm.runInNewContext(model, context); vm.runInNewContext(views, context);
-  return { S, V, M: context.PTWorkspaceModel };
+  const elements = {};
+  context.document = { getElementById: id => elements[id] ||= { focus() {} }, querySelectorAll: () => [] };
+  return { S, V, B, elements, M: context.PTWorkspaceModel };
 }
 const session = (id, deckId, extra = {}) => ({ id, deckId, deck: 'Defense', d: 'Nov 7', at: `2026-11-0${id}T10:00:00Z`, dur: 120, tg: 120, wpm: 120, fill: 2, pau: 1, score: 75, analysis: { feedback: { recommendations: ['Use examples.'] } }, ...extra });
 test('selection isolates presentations, analyzed sources and date windows without mutating history', () => {
@@ -57,11 +59,21 @@ test('schedule countdown uses calendar days, including today and past events', (
   assert.equal(M.preparation({ id: 1, scheduledDate: '2026-11-08' }, [], now).days, 1);
   assert.equal(M.preparation({ id: 1, scheduledDate: '2026-11-06' }, [], now).days, -1);
 });
-test('new and baseline-only workspaces have next actions without fabricated charts', () => {
+test('empty progress offers clearly labelled sample charts without changing account data', () => {
   const { S, V } = setup(); assert.match(V.perf(), /Make your first rehearsal count/);
   S.ev = { results: { metrics: { totalDurationSec: 148, words: 253, fillerCount: 1, pauseCount: 0 } } };
-  assert.match(V.perf(), /Your baseline is ready/); assert.match(V.prog(), /103 WPM/);
-  assert.doesNotMatch(V.prog(), /class="ws-chart"/);
+  assert.match(V.perf(), /Your baseline is ready/);
+  const before = JSON.stringify(S);
+  for (const key of ['score', 'wpm', 'fillerRate', 'pauseRate', 'dur']) {
+    S.reviewMetric = key;
+    const html = V.prog();
+    assert.match(html, /fictional practice data/);
+    assert.match(html, /across 6 sample rehearsals/);
+    assert.match(html, /View chart data/);
+    assert.doesNotMatch(html, /data-go="rdet"/);
+  }
+  delete S.reviewMetric;
+  assert.equal(JSON.stringify(S), before);
 });
 test('populated performance supports distinct selection and progress data has accessible fallback', () => {
   const { S, V } = setup(); S.ses = [session(1, 1), session(2, 1, { deck: '<img onerror=alert(1)>', score: 50 })];
@@ -72,4 +84,18 @@ test('populated performance supports distinct selection and progress data has ac
 test('filtered-out rehearsals are not mixed into another presentation chart', () => {
   const { S, V } = setup(); S.ses = [session(1, 1)]; S.compareDeck = '2';
   assert.match(V.prog(), /No rehearsals match/); assert.doesNotMatch(V.prog(), /class="ws-chart"/);
+});
+
+test('preview switch restores real data and filters without creating sessions', () => {
+  const { S, V, B, elements } = setup();
+  V.prog(); B.prog(); elements['ws-preview'].onclick();
+  assert.doesNotMatch(V.prog(), /class="ws-chart"/);
+  assert.match(V.prog(), /id="ws-deck"/);
+  S.ses = [session(1, 1)];
+  B.prog(); elements['ws-preview'].onclick();
+  assert.match(V.prog(), /across 6 sample rehearsals/);
+  B.prog(); elements['ws-preview'].onclick();
+  assert.match(V.prog(), /across 1 recorded rehearsals/);
+  assert.equal(S.ses.length, 1);
+  assert.equal(S.goals.length, 0);
 });
