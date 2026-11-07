@@ -31,9 +31,9 @@ export function ruleBasedFeedback(metrics, result) {
   const improvements = [];
   const recommendations = [];
 
-  if (pts('pace') === 2) strengths.push('Your speaking pace was in a comfortable range for listeners.');
-  else if ((m.wpm || 0) < 130) { improvements.push('Your pace was on the slower side; a little more energy could help keep listeners engaged.'); recommendations.push('Practice reading a paragraph aloud at a slightly quicker, steady pace.'); }
-  else { improvements.push('Your pace was on the faster side; slowing down can make key points easier to follow.'); recommendations.push('Mark key phrases in your notes and pause briefly after each one.'); }
+  if (pts('pace') === 2) strengths.push('Your estimated pace falls within the presentation reference range. There is no need to speed up just to chase a WPM target.');
+  else if (dims.pace?.direction === 'slower') { improvements.push('Your estimated pace is below the reference range. Missed words and pauses can lower this estimate; this does not prove your delivery was too slow.'); recommendations.push('Check the recognized transcript for missed words, then ask a listener whether the pace feels clear before changing your speed.'); }
+  else { improvements.push('Your estimated pace is above the reference range. Check whether a listener can follow your key points.'); recommendations.push('Mark key phrases in your notes and pause briefly after each one.'); }
 
   if (pts('fillers') === 2) strengths.push('Few possible filler words were detected.');
   else { improvements.push('Possible filler words (such as "um" or "uh") showed up fairly often. Automatic detection is imperfect, so this is an estimate.'); recommendations.push('Replace a filler with a calm, short silent pause while you think.'); }

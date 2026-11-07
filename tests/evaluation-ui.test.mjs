@@ -76,7 +76,7 @@ test('results visualize saved scores and explain an empty event timeline', () =>
   app.S.ev = { done: true, results: { score: 50, metrics: { wpm: 103, fillerCount: 0, pauseCount: 0 }, dims: { pace: { points: 0, label: 'Slow pace' } }, quality: { level: 'low' }, feedback: {} } };
   const html = app.V.evres();
   assert.match(html, /Baseline score 50 out of 100/);
-  assert.match(html, /Pace 103 WPM; target 130 to 160 WPM/);
+  assert.match(html, /Pace 103 WPM; target 100 to 160 WPM/);
   assert.match(html, /No filler or long-pause markers were detected/);
   assert.match(html, /er-method" open/);
   assert.doesNotMatch(html, /NaN|undefined/);

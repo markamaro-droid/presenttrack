@@ -37,6 +37,7 @@ V.eval=()=>{
   </section>`);
 };
 B.eval=()=>{
+  if(S.ev?.done&&!E.retake){loadReportCriteria();return}
   draw();showSlide();
   if($('efs'))$('efs').onclick=()=>setFullscreen(!isFullscreen());
   if($('eprev'))$('eprev').onclick=()=>{E.slide--;showSlide()};
@@ -144,8 +145,10 @@ async function analyze(){
     qs.push({avg_logprob:g.conf>0?Math.log(g.conf):NaN,no_speech_prob:0})});
   const metrics=C.computeMetrics({words,totalDurationSec:E.total}),quality=C.assessQuality(metrics,qs);
   if(quality.level==='unusable')return setE({st:'err',msg:'We could not hear enough speech to give meaningful results. Please try again in a quiet place, closer to your microphone, and talk for 2 to 3 minutes.',warn:quality.warnings||[]});
+  // Browser recognition provides phrase events, not reliable word timestamps.
+  metrics.wpm=metrics.overallWpm;metrics.paceBasis='recognized-words-over-elapsed-time';
   const result=C.classify(metrics,quality,C.CRITERIA),feedback=C.ruleBasedFeedback(metrics,result);
-  const results={version:1,source:'browser-speech-recognition',topic:DECK.title,deckId:DECK.id,deckVersion:DECK.version,quality,metrics,durationAssessment:result.durationAssessment,dims:result.dims,totalPoints:result.totalPoints,maxPoints:result.maxPoints,score:result.score,classification:result.classification,explanation:result.explanation,feedback,transcript:segs.map(g=>g.text).join(' ').slice(0,6000),created_at:new Date().toISOString()};
+  const results={version:2,criteriaVersion:C.CRITERIA.version,criteria:C.CRITERIA,source:'browser-speech-recognition',topic:DECK.title,deckId:DECK.id,deckVersion:DECK.version,quality,metrics,durationAssessment:result.durationAssessment,dims:result.dims,totalPoints:result.totalPoints,maxPoints:result.maxPoints,score:result.score,classification:result.classification,explanation:result.explanation,feedback,transcript:segs.map(g=>g.text).join(' ').slice(0,6000),created_at:new Date().toISOString()};
   return commit(results);
 }
 /* Cloud accounts: the SERVER must accept the result first (it sets the flag that unlocks uploads).
@@ -182,13 +185,26 @@ const reportIcon=name=>{
   const paths={pace:'M4 16a8 8 0 1 1 16 0M12 13l4-5M4 20h16',words:'M4 4h16v13H8l-4 3zM8 8h8M8 12h5',time:'M12 8v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',fill:'M5 5h5v6H7v4H4V9zM15 5h5v6h-3v4h-3V9z',pause:'M8 5v14M16 5v14',check:'M5 12l4 4L19 6',target:'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0',arrow:'M5 12h14M13 6l6 6-6 6'};
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[name]||paths.target}"/></svg>`;
 };
+let reportLoading=false;
+function loadReportCriteria(){
+  if(CV||reportLoading)return;
+  reportLoading=true;core().then(()=>{reportLoading=false;if(['eval','evres','base'].includes(S.view))X.render()}).catch(()=>{reportLoading=false;toast('Updated scoring could not load. Please reload to refresh this report.')});
+}
+B.evres=loadReportCriteria;
 V.evres=()=>{
-  const r=S.ev&&S.ev.results;
+  const saved=S.ev&&S.ev.results;
+  let r=saved;
+  if(saved&&CV&&saved.source==='browser-speech-recognition'){
+    const metrics={...saved.metrics};
+    if(metrics.totalDurationSec>0&&Number.isFinite(metrics.words))metrics.wpm=Math.round(metrics.words*600/metrics.totalDurationSec)/10;
+    const updated=CV.classify(metrics,saved.quality,CV.CRITERIA);
+    r={...saved,...updated,metrics,criteria:CV.CRITERIA,feedback:CV.ruleBasedFeedback(metrics,updated)};
+  }
   if(!r)return page('Evaluation results','',sec('RESULTS',1,nodata('You have not taken the evaluation yet.','<button class="bt" data-go="eval" type="button">START EVALUATION</button>')));
   const m=r.metrics||{},q=r.quality||{},d=r.durationAssessment||{},f=r.feedback||{},cl=CLASS[r.classification]||['Result',''];
   const num=v=>Number.isFinite(Number(v))?Math.max(0,Number(v)):0;
   const score=Math.min(100,Math.round(num(r.score))),wpm=Math.round(num(m.wpm)),duration=num(m.totalDurationSec);
-  const pace=r.criteria?.pace||CV?.CRITERIA.pace||{idealMin:130,idealMax:160};
+  const pace=r.criteria?.pace||CV?.CRITERIA.pace||{idealMin:100,idealMax:160};
   const min=num(pace.idealMin),max=num(pace.idealMax),scale=Math.max(240,max+40,wpm+20);
   const targetMin=num(d.targetMinSec)||120,targetMax=num(d.targetMaxSec)||180;
   const list=a=>(a&&a.length)?`<ul>${a.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:'<p class="sub">No additional observations.</p>';
@@ -203,14 +219,14 @@ V.evres=()=>{
       <div class="er-focus"><span class="er-icon">${reportIcon('target')}</span><span class="er-eyebrow">YOUR NEXT FOCUS</span><p>${esc((f.recommendations||[])[0]||'Review your delivery below and choose one skill to practice.')}</p><a class="er-link" href="#evaluation-plan">See your practice plan ${reportIcon('arrow')}</a></div>
     </section>
     <div class="er-metrics">
-      ${metric('pace','Speaking pace',wpm,'WPM',r.dims?.pace?.label||'Recognized speaking speed')}
+      ${metric('pace','Estimated pace',wpm,'WPM',r.dims?.pace?.label||'Recognized speaking speed')}
       ${metric('words','Words spoken',num(m.words),'words','Recognized in this evaluation')}
       ${metric('time','Talk duration',mm(duration),'',`Target ${mm(targetMin)} to ${mm(targetMax)}`)}
       ${metric('fill','Filler words',num(m.fillerCount),'detected','Estimated by speech recognition')}
       ${metric('pause','Long pauses',num(m.pauseCount),'detected','Gaps of 2 seconds or longer')}
     </div>
     <div class="er-analysis">
-      <section class="er-panel"><span class="er-eyebrow">DELIVERY INSIGHTS</span><h3>Find your speaking rhythm</h3><div class="er-chart-title"><b>${wpm} <small>WPM</small></b><span>Target ${min}&ndash;${max} WPM</span></div>
+      <section class="er-panel"><span class="er-eyebrow">DELIVERY INSIGHTS</span><h3>Find your speaking rhythm</h3><div class="er-chart-title"><b>${wpm} <small>WPM</small></b><span>Reference ${min}&ndash;${max} WPM</span></div>
         <div class="er-pace" role="img" aria-label="Pace ${wpm} WPM; target ${min} to ${max} WPM"><i style="left:${min/scale*100}%;width:${(max-min)/scale*100}%"></i><b style="left:${wpm/scale*100}%"></b></div>
         <div class="er-axis"><span>0</span><span>Words per minute</span><span>${Math.ceil(scale)}</span></div>
         <div class="er-duration"><div><strong>Presentation length</strong><span>${mm(duration)} / ${mm(targetMin)}&ndash;${mm(targetMax)} target</span></div><progress max="${Math.max(targetMax,duration,1)}" value="${duration}" aria-label="Presentation duration"></progress><p>${esc({too_short:'Give each main point a little more room.',within_range:'Your talk fits the target duration.',too_long:'Focus on your key points to fit the time.'}[d.status]||'Compare your talk length with the target.')}</p></div>
@@ -222,7 +238,7 @@ V.evres=()=>{
       <ol class="er-steps">${(f.recommendations||[]).map((t,i)=>`<li><span>${String(i+1).padStart(2,'0')}</span><p>${esc(t)}</p></li>`).join('')}</ol>
       <div class="er-actions"><button class="bt" data-go="up" type="button">Practice with your presentation ${reportIcon('arrow')}</button><button class="bt gh" data-go="hist" type="button">Practice history</button><button class="bt gh" data-act="eretake" type="button">Retake evaluation</button></div>
     </section>
-    <details class="er-panel er-method" ${q.level==='low'?'open':''}><summary>${reportIcon('words')} Recognition quality &amp; how this was measured${q.level==='low'?' - Low-confidence recording':''}</summary><p>${esc(r.explanation||'This is a baseline, not a definitive judgment of your speaking ability.')}</p>${list(q.warnings)}<p>Speaking speed is recognized words divided by speaking time, excluding pauses of 2 seconds or longer. Browser recognition can miss fillers and estimate timing incorrectly. Eye contact, confidence and body language are not evaluated.</p>${f.summary?`<p>${esc(f.summary)}</p>`:''}</details>
+    <details class="er-panel er-method" ${q.level==='low'?'open':''}><summary>${reportIcon('words')} Recognition quality &amp; how this was measured${q.level==='low'?' - Low-confidence recording':''}</summary><p>${esc(r.explanation||'This is a baseline, not a definitive judgment of your speaking ability.')}</p>${list(q.warnings)}<p>For browser evaluations, pace is recognized words divided by total elapsed minutes, including pauses. This avoids treating estimated word timings as exact speech measurements. Browser recognition can miss fillers and estimate timing incorrectly. Eye contact, confidence and body language are not evaluated.</p>${f.summary?`<p>${esc(f.summary)}</p>`:''}<p>The 100-160 WPM range is a presentation coaching reference, not a universal standard. Clarity depends on content and audience. Saved browser evaluations are re-scored for this view with the current rubric; the original stored report and history are unchanged.</p>${r.transcript?`<details><summary>Review recognized transcript</summary><p>${esc(r.transcript)}</p></details>`:''}</details>
   </div>`);
 };
 

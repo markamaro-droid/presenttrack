@@ -2,9 +2,22 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { classify } from '../functions/_shared/classify.js';
 import { CRITERIA } from '../functions/_shared/criteria.js';
+import { ruleBasedFeedback } from '../functions/_shared/feedback.js';
 
 const ok = { level: 'ok' };
 const base = { wpm: 145, totalDurationSec: 150, fillersPerMin: 1, fillerCount: 2, pausesPerMin: 0.5, pauseCount: 1, longestPause: 2.2 };
+test('104 WPM earns full pace points without advice to speed up', () => {
+  const metrics = { ...base, wpm: 104 };
+  const result = classify(metrics, ok);
+  assert.equal(result.dims.pace.points, 2);
+  assert.equal(result.dims.pace.label, 'Within presentation range');
+  assert.doesNotMatch(ruleBasedFeedback(metrics, result).recommendations.join(' '), /quicker|speed up/);
+});
+test('pace boundaries use the published application rubric consistently', () => {
+  for (const [wpm, points] of [[89,0],[90,1],[99,1],[100,2],[160,2],[161,1],[180,1],[181,0]]) {
+    assert.equal(classify({ ...base, wpm }, ok).dims.pace.points, points, String(wpm));
+  }
+});
 
 test('criteria frozen', () => {
   assert.ok(Object.isFrozen(CRITERIA) && Object.isFrozen(CRITERIA.pace));
@@ -17,7 +30,7 @@ test('proficient', () => {
   assert.match(r.explanation, /BASELINE/); assert.match(r.explanation, /eye contact/i);
 });
 test('developing', () => {
-  const r = classify({ ...base, wpm: 120, fillersPerMin: 5, pausesPerMin: 3, totalDurationSec: 100 }, ok);
+  const r = classify({ ...base, wpm: 95, fillersPerMin: 5, pausesPerMin: 3, totalDurationSec: 100 }, ok);
   assert.equal(r.classification, 'developing');
   assert.equal(r.totalPoints, 4);
 });

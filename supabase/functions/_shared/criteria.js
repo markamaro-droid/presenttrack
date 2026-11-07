@@ -7,7 +7,7 @@ function deepFreeze(o) {
 }
 
 export const CRITERIA = deepFreeze({
-  version: 1,
+  version: 2,
   // Recording length (seconds)
   duration: {
     targetMinSec: 120, targetMaxSec: 180,        // 2:00-3:00 = full points
@@ -16,7 +16,9 @@ export const CRITERIA = deepFreeze({
     maxAudioBytes: 10 * 1024 * 1024,
   },
   // Pace in words per minute (speaking time only, see metrics.js)
-  pace: { idealMin: 130, idealMax: 160, acceptableMin: 110, acceptableMax: 180 },
+  // Coaching rubric, not a universal or clinically validated standard.
+  // UQ recommends ~100 WPM; Kent suggests 100–130 scripted / 130–160 unscripted.
+  pace: { idealMin: 100, idealMax: 160, acceptableMin: 90, acceptableMax: 180 },
   // Pauses
   pauses: {
     longPauseSec: 2.0,   // a gap >= this between two words is a "long pause"

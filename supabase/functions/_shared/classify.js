@@ -21,8 +21,9 @@ export function classify(metrics, quality, criteria = CRITERIA) {
   if (wpm >= c.pace.idealMin && wpm <= c.pace.idealMax) pPts = P.good;
   else if (wpm >= c.pace.acceptableMin && wpm <= c.pace.acceptableMax) pPts = P.ok;
   const paceDir = wpm < c.pace.idealMin ? 'slower' : 'faster';
-  const pace = grade(pPts, ['Comfortable pace', 'Acceptable pace', wpm < c.pace.idealMin ? 'Slow pace' : 'Fast pace'],
-    `About ${wpm} words per minute while speaking (comfortable range ${c.pace.idealMin}-${c.pace.idealMax}${pPts === P.good ? '' : `; yours is ${paceDir}`}).`);
+  const pace = grade(pPts, ['Within presentation range', 'Near presentation range', wpm < c.pace.idealMin ? 'Below reference range' : 'Above reference range'],
+    `Estimated ${wpm} words per minute (presentation reference ${c.pace.idealMin}-${c.pace.idealMax}${pPts === P.good ? '' : `; estimate is ${paceDir}`}). Pace alone does not establish clarity or listener comprehension.`);
+  pace.direction = pPts === P.good ? 'within' : paceDir;
 
   // fillers
   const fr = Number(m.fillersPerMin) || 0;
@@ -65,7 +66,7 @@ export function classify(metrics, quality, criteria = CRITERIA) {
   if (quality && quality.level === 'low') explanation += ' Recording quality was low, so treat this result as approximate.';
 
   return {
-    dims, totalPoints, maxPoints,
+    dims, totalPoints, maxPoints, criteriaVersion: criteria.version,
     score: Math.round((totalPoints / maxPoints) * 100),
     classification, durationAssessment, explanation,
   };
