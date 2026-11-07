@@ -18,11 +18,13 @@ Existing completed evaluations open their saved results rather than replacing th
 ## Deployment and assumptions
 
 - Deploy the static build; no new environment variables or AI keys are needed.
-- Assumes the existing authenticated `complete_browser_evaluation` RPC is deployed
-  and the evaluation gate schema is already installed. Its referenced
-  `20261030_evaluation_gate.sql` migration is missing from this checkout. Live
-  authenticated persistence has not been verified; this change does not replace
-  the production RPC or change database permissions.
+- Run `supabase/migrations/20261030_evaluation_gate.sql` after the existing
+  `20261028_initial_assessment.sql` migration in Supabase SQL Editor. The final
+  query must return `complete_browser_evaluation(jsonb)`. This restores the missing
+  authenticated baseline-saving RPC. No upload quota changes are made.
+- Live authenticated persistence and the SQL migration have not been executed
+  from this workspace. After applying SQL, retry saving from an open evaluation;
+  deploy the frontend update to expose Retry saving for missing-service errors.
 - Uses the currently active browser speech pipeline, not the separate experimental
   provider transcription pipeline. Browser recognition may omit fillers and its
   timing is approximate; results describe those limitations.

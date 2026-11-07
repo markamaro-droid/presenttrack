@@ -60,7 +60,7 @@ P.completeEvaluation=async results=>{
     const {error}=await sb.rpc('complete_browser_evaluation',{p_results:results});
     if(error){const m=String(error.message||'');
       if(/invalid_evaluation/.test(m))return{error:'The server could not accept these results. Please record your talk again.',invalid:true};
-      if(error.code==='PGRST202'||/could not find the function/i.test(m))return{error:'The evaluation service is not set up yet. The site owner needs to run the 20261030_evaluation_gate.sql migration.',retryable:false};
+      if(error.code==='PGRST202'||/could not find the function/i.test(m))return{error:'Evaluation saving needs a server setup update. Keep this page open and retry saving after the site owner completes setup.',retryable:true};
       return{error:'We could not save your evaluation to your account. Please try again.',retryable:true}}
     P.assessmentDone=true;return{}}
   catch(e){return{error:'Network error. Please check your connection and try again.',retryable:true}}

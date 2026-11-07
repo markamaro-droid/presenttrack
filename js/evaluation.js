@@ -57,14 +57,14 @@ document.addEventListener('keydown',e=>{
 function setE(o){Object.assign(E,o);draw()}
 function draw(){
   const h=$('erec');if(!h)return;
-  const elapsed=E.st==='rec'?(performance.now()-E.t0)/1000:0;
+  const elapsed=E.st==='rec'?(performance.now()-E.t0)/1000:E.st==='busy'||E.save?E.total:0;
   let controls='';
   if(E.st==='idle')controls='<button class="bt sm" data-act="estart" type="button">Start</button><button class="bt gh sm" type="button" disabled>Finish</button>';
   else if(E.st==='ask')controls='<span role="status">Waiting for microphone permission...</span>';
   else if(E.st==='rec')controls='<button class="bt sm" data-act="efin" type="button">Finish</button><button class="bt gh sm" data-act="ecancel" type="button">Cancel</button>';
   else if(E.st==='busy')controls='<span role="status">Analyzing your speech...</span>';
   else if(E.st==='err')controls=`${E.save?'<button class="bt sm" data-act="esave" type="button">Retry saving</button>':''}<button class="bt gh sm" data-act="estart" type="button">Try again</button>`;
-  h.innerHTML=`<div class="evaluation-record"><div class="vtm" aria-label="Elapsed time"><b id="etm">${mm(elapsed)}</b><small>${E.st==='rec'?'Listening':'Target 2?3 min'}</small></div>${controls}</div>
+  h.innerHTML=`<div class="evaluation-record"><div class="vtm" aria-label="Elapsed time"><b id="etm">${mm(elapsed)}</b><small>${E.st==='rec'?'Listening':'Target 2-3 min'}</small></div>${controls}</div>
     <p class="vnote" id="enote" role="status"></p>${E.st==='err'?`<p class="wr" role="alert">${esc(E.msg||'Something went wrong.')}</p>`:''}`;
 }
 const fullscreenElement=()=>document.fullscreenElement||document.webkitFullscreenElement;
