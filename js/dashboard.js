@@ -62,18 +62,36 @@ const tips=x=>x.analysis?[...x.analysis.feedback.strengths,...x.analysis.feedbac
 
 /* ---------- automatic video-style tour (new users, or on request) ---------- */
 const T={on:false,i:0,play:true,t0:0,pAt:0,est:8000,timer:null,steps:[]};
-function tourSteps(){const n=S.u.name.split(' ')[0]||'there';return [
- {nav:null,v:'dash',t:'Welcome to PresentTrack',x:'Hello '+n+'! Welcome to PresentTrack. I am Tracy, your presentation coach. In about two minutes I will show you every part of the system. Sit back and watch, or press skip anytime.'},
- {nav:'dash',v:'dash',t:'Dashboard',x:GUIDE.dash,c:[['next presentation','.nx','Your next presentation'],['how ready you are','.g-next>section:nth-child(2)','How ready you are'],['performance numbers','.g-perf','Your performance numbers'],['progress chart','.g-prog>section:first-child','Progress chart'],['coaching tip','.coach','My coaching tip'],['recent practice','[data-sec="recent-practice"]','Recent practice']]},
- {nav:'decks',v:'decks',t:'My Presentations',x:GUIDE.decks+' This is where you start.',c:[['Type your own title','#ut','Type your title here'],['drop in a PDF','#dz','Drop your file here'],['press Add Presentation','#ua','Then press this'],['practice, rename','[data-sec="upload-a-presentation"]+.g2,.g2','Your presentations appear here']]},
- {nav:'decks',v:'prac',t:'Practice',x:GUIDE.prac,c:[['Pick a presentation','#pd','Pick a presentation'],['target time','#pdur','Set your target time'],['press Start','#pgo','Press Start'],['press Finish','#pfin','Finish for your score']]},
- {nav:'perf',v:'perf',t:'Performance',x:GUIDE.perf,c:[['speaking pace','[data-sec="performance-overview"]','Your performance']]},
- {nav:'prog',v:'prog',t:'Progress',x:GUIDE.prog,c:[['Progress shows','[data-sec="your-performance-progress"]','Your progress chart'],['Use the buttons','.chips','Switch the metric here'],['goals beside it','[data-sec="goals"]','Your goals']]},
- {nav:'hist',v:'hist',t:'Practice History',x:GUIDE.hist,c:[['full list','[data-sec="all-practice"]','All your sessions']]},
- {nav:'note',v:'note',t:'Notifications',x:GUIDE.note,c:[['Notifications collects','[data-sec="all-notifications"]','Your notifications'],['mark them all','[data-act=markall]','Mark all as read']]},
- {nav:'set',v:'set',t:'Settings',x:GUIDE.set,c:[['change your name','[data-sec="profile"]','Your profile'],['switch light or dark theme','#st','Switch theme'],['turn my voice on or off','#rv','Robot voice']]},
- {nav:null,v:'set',bot:true,t:'Talk with Tracy',x:'I am Tracy, your AI presentation coach, down here. Click my picture, choose Start conversation, and allow your microphone. Speak naturally, interrupt me when needed, or use End conversation to turn the microphone off.',c:[['down here','#bc','Tracy'],['Click my picture','#bc','Open voice controls']]},
- {nav:'decks',v:'decks',t:'You are all set',x:'You are all set, '+n+'! '+(gated()?'Your first step is the Start Evaluation button on your dashboard.':'Your first step is to add a presentation in My Presentations.')+' Whenever you want this tour again, just ask me to guide you again.',fin:true,c:[['add a presentation','#ut','Start here'],['guide you again','#bc','Ask me anytime']]}]}
+function tourSteps(){
+  const step=(nav,v,t,x,sel)=>({nav,v,t,x,c:[[x,sel,t]]});
+  const steps=[
+    step('dash','dash','Dashboard','Your dashboard brings together your next rehearsal, recent activity and preparation checklist.','.dh-hero'),
+    step('dash','dash','Speaking overview','These cards summarize your presentations and analyzed practice sessions.','.dh-stats'),
+    step('dash','dash','Preparation checklist','Use this checklist to review your preparation and choose what to do next.','.dh-readiness'),
+    step('eval','eval','Evaluation','Evaluation gives you a speaking baseline using the built-in presentation. You can review your results here.','[data-go="eval"].nv'),
+    step('decks','decks','Practice toolkit','This toolkit opens practice, recording analysis, reports and goals.','[data-sec="quick-actions"]'),
+    step('decks','decks','Presentation title','Give your presentation a title before uploading your slides.','#ut'),
+    step('decks','decks','Upload slides','Choose or drop your presentation file here.','#dz'),
+    step('decks','decks','Save presentation','Select Add Presentation to save your file to your workspace.','#ua'),
+    step('decks','prac','Practice setup','Choose the presentation you want to rehearse.','#pd'),
+    step('decks','prac','Target duration','Set your target duration before starting the rehearsal.','#pdur'),
+    step('decks','prac','Start rehearsal','After agreeing to audio processing, press Start to begin recording your practice.','#pgo'),
+    step('decks','prac','Finish rehearsal','Press Finish when you are done to analyze your recording and create a report.','#pfin'),
+    step('perf','perf','Performance','Performance lets you compare your speaking measurements across attempts.','.ws-stats'),
+    step('perf','perf','Choose a comparison','Choose a reference attempt and a comparison attempt to see how the measurements differ.','#ws-a'),
+    step('prog','prog','Progress','Choose a metric to explore its trend across analyzed rehearsals.','[aria-label="Chart metric"]'),
+    step('prog','prog','Practice goals','Review your goals here, or open Manage Goals to set your next target.','.ws-goal-preview'),
+    step('hist','hist','Practice history','Find your saved sessions with presentation, date and session-type filters.','.ws-filters'),
+    step('hist','hist','Export results','Export the matching session measurements as a CSV file.','#ws-export'),
+    step('note','note','Notifications','Notifications collect updates from your presentation and evaluation activity.','[data-sec="all-notifications"]'),
+    step('set','set','Profile','Update your name and photo, then save your profile.','#settings-profile'),
+    step('set','set','Appearance','Preview Light and Dark, then choose the appearance you prefer.','#settings-appearance'),
+    step('set','set','Tracy voice','Turn my spoken guidance on or off with this switch.','#rv'),
+    step('set','set','Tracy shortcuts','Tap me to open the Conversation, Tour, Minimize and Mute bubbles.','#bc'),
+    {...step('dash','dash','You are all set','You are all set. Choose your next step here, and use my Tour bubble whenever you want another walkthrough.','.dh-hero'),fin:true}
+  ];
+  return steps;
+}
 const tourEl=()=>$('tour');
 function syncGuide(){$('bguide').hidden=!!(T.on||$('app').hidden)}
 function tourUI(){const st=T.steps[T.i],last=!!st.fin;tourEl().hidden=false;
@@ -83,7 +101,7 @@ function tourSub(frac,pos){T.sf=frac;T.sp=pos;const st=T.steps[T.i],el=$('tsub')
 function spotUpdate(n){
   const sp=$('spot'),cues=T.cues||[];let k=-1;cues.forEach((c,j)=>{if(n>=c.i&&document.querySelector(c.sel))k=j});
   if(k!==T.cue){T.cue=k;T.cueEl=k>=0?document.querySelector(cues[k].sel):null;
-    if(T.cueEl){const r=T.cueEl.getBoundingClientRect();if(r.top<90||r.bottom>innerHeight-50){try{T.cueEl.scrollIntoView({block:'center',behavior:'smooth'})}catch(e){}}}}
+    if(T.cueEl){const r=T.cueEl.getBoundingClientRect();if(r.top<90||r.bottom>innerHeight-50){try{T.cueEl.scrollIntoView({block:'center',behavior:'instant'})}catch(e){}}}}
   const el=T.cueEl;if(!T.on||!el||!document.contains(el)){sp.hidden=true;return}
   const r=el.getBoundingClientRect();if(r.width<2||r.height<2){sp.hidden=true;return}
   sp.hidden=false;sp.style.left=(r.left-8)+'px';sp.style.top=(r.top-8)+'px';sp.style.width=(r.width+16)+'px';sp.style.height=(r.height+16)+'px';
@@ -91,11 +109,13 @@ function spotUpdate(n){
 function spotOff(){const sp=$('spot');sp.hidden=true;T.cue=-1;T.cueEl=null}
 function tourAct(a){if(a==='tcol'){document.body.classList.toggle('tourcol',$('bot').classList.toggle('tcol'));tourUI();return}if(a==='tprev')tourGo(-1);else if(a==='tnext')tourGo(1);else if(a==='tplay')tourPlay(!T.play);else if(a==='tskip')endTour(true);else if(a==='tcc'){T.cc=!T.ccShown;T.ccShown=T.cc;$('tcap').hidden=!T.cc;tourUI()}else if(a==='tadd'){endTour(false);go('decks');setTimeout(()=>{const u=$('ut');if(u)u.focus()},400)}}
 function tourShow(i){
+  clearTimeout(T.advanceTimer);T.generation=(T.generation||0)+1;
   T.i=Math.max(0,Math.min(T.steps.length-1,i));const st=T.steps[T.i];
   if(S.view!==st.v)go(st.v);else nav();
   $('bot').classList.toggle('tourhl',!!st.bot);
   T.est=Math.max(6000,st.x.length*58+1500);T.t0=performance.now();T.pAt=0;T.play=true;T.adv=false;T.sf=0;T.sp=0;T.n=0;T.nmax=0;spotOff();{const st2=T.steps[T.i];T.cues=(st2.c||[]).map(([ph,sel,lab])=>({i:st2.x.toLowerCase().indexOf(ph.toLowerCase()),sel,lab})).filter(c=>c.i>=0).sort((a,b)=>a.i-b.i)}
-  tourUI();try{podium.narrate&&podium.narrate(st.x,T.est)}catch(e){}
+  if(T.cues.length&&!document.querySelector(T.cues[0].sel)){T.cues=[{i:0,sel:'.nv[data-go="'+st.nav+'"]',lab:st.t}];st.x=st.t+' is available from this tab. Complete the earlier setup steps to use its controls.';st.c=[[st.x,T.cues[0].sel,st.t]];}
+  tourUI();spotUpdate(0);try{podium.narrate&&podium.narrate(st.x,T.est)}catch(e){}
 }
 function tourGo(d){if(!T.on)return;const n=T.i+d;if(n>=T.steps.length){endTour(false);return}tourShow(n)}
 function tourPlay(p){if(!T.on||T.play===p)return;T.play=p;if(p){T.t0+=performance.now()-T.pAt}else T.pAt=performance.now();try{podium.narPause&&podium.narPause(!p)}catch(e){}tourUI()}
@@ -103,10 +123,10 @@ function tourTick(){
   if(!T.on)return;spotUpdate(T.n||0);if(!T.play||T.adv)return;const el=performance.now()-T.t0,ns=(podium.narState&&podium.narState())||{voice:false};
   const voice=ns.voice&&!ns.failed&&!(!ns.started&&el>2600);
   {const want=T.cc===null?(el>2600&&!voice):T.cc;if(want!==T.ccShown){T.ccShown=want;$('tcap').hidden=!want}}
-  const done=voice?((ns.ended&&el>2200)||el>T.est*2.4):el>T.est;
+  const done=voice?ns.ended:el>T.est;
   const b=$('ts'+T.i);if(b)b.style.width=Math.min(97,el/(voice?Math.max(T.est,el+800):T.est)*100)+'%';
   tourSub(voice&&ns.ended?1:Math.min(1,el/(T.est*.82)),voice&&ns.pos>0&&!ns.ended?ns.pos:0);
-  if(done){const b2=$('ts'+T.i);if(b2)b2.style.width='100%';tourSub(1,0);T.adv=true;setTimeout(()=>{T.adv=false;if(T.on&&T.play)tourGo(1)},450)}
+  if(done){const b2=$('ts'+T.i);if(b2)b2.style.width='100%';tourSub(1,0);T.adv=true;const generation=T.generation;T.advanceTimer=setTimeout(()=>{if(generation!==T.generation)return;T.adv=false;if(T.on&&T.play)tourGo(1)},450)}
 }
 function startTour(){
   if(T.on)return;if($('app').hidden)return;
@@ -115,9 +135,9 @@ function startTour(){
   if(innerWidth<900)$('side').classList.add('open');
   clearInterval(T.timer);T.timer=setInterval(tourTick,200);document.body.classList.add('touring');document.body.classList.remove('tourcol');$('bot').classList.remove('tcol');$('bot').classList.add('tourmode');T.cc=null;T.ccShown=false;syncGuide();tourShow(0)}
 function endTour(spoken){
-  if(!T.on)return;T.on=false;spotOff();clearInterval(T.timer);S.toured=true;S.isNew=false;{const k=(S.u.email||'').toLowerCase();if(DB[k])DB[k].onboarded=true;if(window.PTCloud)PTCloud.onboarded=true}tourEl().hidden=true;$('tcap').hidden=true;$('bot').classList.remove('tourhl','tourmode','tcol');document.body.classList.remove('touring','tourcol');
+  if(!T.on)return;T.on=false;clearTimeout(T.advanceTimer);T.generation=(T.generation||0)+1;spotOff();clearInterval(T.timer);S.toured=true;S.isNew=false;{const k=(S.u.email||'').toLowerCase();if(DB[k])DB[k].onboarded=true;if(window.PTCloud)PTCloud.onboarded=true}tourEl().hidden=true;$('tcap').hidden=true;$('bot').classList.remove('tourhl','tourmode','tcol');document.body.classList.remove('touring','tourcol');
   try{podium.hushNow&&podium.hushNow()}catch(e){}nav();$('side').classList.remove('open')}
-podium.tourStop=()=>{T.on=false;spotOff();clearInterval(T.timer);tourEl().hidden=true;$('tcap').hidden=true;document.body.classList.remove('touring','tourcol');$('bot').classList.remove('tourhl','tourmode','tcol');syncGuide()};podium.tourPause=()=>tourPlay(false);podium.startTour=startTour;podium.tourOn=()=>T.on;
+podium.tourStop=()=>{T.on=false;clearTimeout(T.advanceTimer);T.generation=(T.generation||0)+1;spotOff();clearInterval(T.timer);tourEl().hidden=true;$('tcap').hidden=true;document.body.classList.remove('touring','tourcol');$('bot').classList.remove('tourhl','tourmode','tcol');syncGuide()};podium.tourPause=()=>tourPlay(false);podium.startTour=startTour;podium.tourOn=()=>T.on;
 /* ---------- robot guide: navigate by voice/text and explain each page ---------- */
 const GUIDE={dash:'This is your dashboard. At the top you see your next presentation and how ready you are. Below are your performance numbers, your progress chart, my coaching tip and recent practice.',
  decks:'This is My Presentations. The practice toolkit gives you shortcuts to upload slides, practice, analyze recordings, reports and goals. Type your own title, drop in a PDF, Word or PowerPoint file, then press Add Presentation. You can then practice, rename or open details for each one.',

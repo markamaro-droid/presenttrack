@@ -64,5 +64,5 @@ body.tourcol .tcap{display:none!important}
 
 /* Hidden tour markup must not be revived by the flex layout above. */
 #bot #tour[hidden],#bot:not(.tourmode) #tour{display:none!important}
-#bot.tcol #tour{position:absolute!important;left:auto!important;right:calc(50% + 48px)!important;bottom:46px!important;width:auto!important;max-width:none!important}
+#bot.tcol #tour{position:absolute!important;left:auto!important;right:calc(50% + 24px)!important;bottom:64px!important;width:auto!important;max-width:none!important}
  
