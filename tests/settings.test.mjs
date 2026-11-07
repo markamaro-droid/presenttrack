@@ -20,14 +20,14 @@ test('Settings exposes only working groups and keeps account email out of editab
 });
 test('sign-in restores own preferences and another account resets them',()=>{
   const {podium,PTCloud,S}=setup();podium.account('student@example.test');
-  assert.equal(podium.voiceOn,false); assert.equal(S.u.pic,'');
+  assert.equal(podium.voiceOn,true); assert.equal(S.u.pic,'');
   PTCloud.row={data:{}};podium.account('second@example.test');assert.equal(podium.voiceOn,true);
   assert.equal(podium.snapshot().settings.voice,true);
 });
-test('voice save persists a snapshot and restores on sign-in',async()=>{
+test('voice save applies now and next sign-in starts unmuted',async()=>{
   const a=setup();a.B.set();a.el('rv').checked=false;await a.el('rv').onchange({target:a.el('rv')});
   assert.equal(a.writes[0].settings.voice,false);assert.equal(a.podium.voiceOn,false);
-  a.PTCloud.row={data:a.writes[0]};a.podium.account('student@example.test');assert.equal(a.podium.voiceOn,false);
+  a.PTCloud.row={data:a.writes[0]};a.podium.account('student@example.test');assert.equal(a.podium.voiceOn,true);
 });
 test('failed voice save preserves the previous control and runtime state',async()=>{
   const a=setup({fail:true});a.podium.voiceOn=true;a.B.set();a.el('rv').checked=false;
