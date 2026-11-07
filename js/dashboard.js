@@ -599,7 +599,7 @@ function renderLand(){
   <div class="lh welcome-hero"><p class="k">Welcome, ${esc(f)}</p><h1>Meet your presentation coach.</h1>
   <div class="welcome-stage" id="welcome-stage" aria-label="Tracy, your presentation coach"><div class="welcome-orbit" aria-hidden="true"></div></div>
   <p class="welcome-intro" id="welcome-intro" role="status" aria-live="polite">Tracy is getting ready to say hello…</p>
-  <div class="welcome-actions"><button class="bt big" id="leval" type="button" hidden>Start evaluation <span aria-hidden="true">→</span></button><button class="welcome-skip" id="welcome-skip" type="button">Skip introduction</button><button class="welcome-skip" id="welcome-replay" type="button" hidden>Hear introduction again</button></div></div>
+  <div class="welcome-actions"><button class="bt big" id="leval" type="button" hidden>Start evaluation</button><button class="welcome-skip" id="welcome-skip" type="button">Skip introduction</button><button class="welcome-skip" id="welcome-replay" type="button" hidden>Hear introduction again</button></div></div>
   <footer class="lfoot"><span>PresentTrack · Practice out loud, present with confidence</span><span>© 2026 PresentTrack</span></footer><div class="lf">${cards.map((c,i)=>`<div class="pn" data-r style="--i:${6+i}"><h3>${ico(c[1])}${c[0]}</h3><p>${c[2]}</p></div>`).join('')}</div>`;
   $('leval').onclick=e=>toApp('eval',ctr(e.currentTarget));$('llo').onclick=e=>signOut(ctr(e.currentTarget));
 }
