@@ -32,17 +32,19 @@
 .welcome-orbit{position:absolute;inset:28px 8px 14px;border-radius:50%;background:radial-gradient(ellipse,color-mix(in srgb,var(--brand) 25%,transparent),transparent 68%);z-index:-1}
 .welcome-orbit::after{content:"";position:absolute;left:20%;right:20%;bottom:3px;height:15px;border-radius:50%;background:color-mix(in srgb,var(--brand) 28%,transparent);filter:blur(9px)}
 #bot.welcome{position:relative;inset:auto;width:280px;height:260px;z-index:8;transform-origin:center;pointer-events:none}
+.welcome-stage[data-phase="waiting"] #bot.welcome{opacity:0}
 #bot.welcome .bbar,#bot.welcome .tracy-voice,#bot.welcome #rcap{display:none!important}
 .lh .welcome-intro{font-size:16px;line-height:1.65;max-width:610px;min-height:80px;margin:0 auto 16px}
 .welcome-actions{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;min-height:96px}
 .welcome-skip{border:0;background:transparent;color:var(--muted);font:inherit;font-size:13px;text-decoration:underline;text-underline-offset:4px;cursor:pointer;padding:6px}
-#leval{min-width:230px;box-shadow:0 8px 28px color-mix(in srgb,var(--brand) 28%,transparent);animation:welcome-action .5s ease both}
-#leval span{display:inline-block;margin-left:16px}
+#leval{min-width:220px;min-height:52px;padding:15px 28px;border:1px solid color-mix(in srgb,white 18%,transparent);border-radius:16px;font-weight:650;letter-spacing:.01em;box-shadow:0 6px 18px color-mix(in srgb,var(--brand) 20%,transparent);animation:welcome-action .5s ease both;transition:background .18s ease,box-shadow .18s ease}
+#leval:hover{box-shadow:0 8px 24px color-mix(in srgb,var(--brand) 32%,transparent)}
+#leval:focus-visible{outline:3px solid var(--text);outline-offset:4px}
 @keyframes welcome-action{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 .welcome-ready .welcome-stage{transform:translateX(150px)}
 .welcome-ready #leval{position:absolute;top:210px;left:calc(50% - 240px);animation:welcome-action .6s .65s ease both}
 .welcome-ready .welcome-actions{min-height:46px}
-@media(max-width:600px){.welcome-ready .welcome-stage{transform:translateX(72px)}.welcome-ready #bot.welcome{width:190px;height:230px}.welcome-ready #leval{top:210px;left:0;min-width:0;width:165px;padding:14px 10px;font-size:14px}.welcome-ready #leval span{display:none}}
+@media(max-width:600px){.welcome-ready .welcome-stage{transform:translateX(72px)}.welcome-ready #bot.welcome{width:190px;height:230px}.welcome-ready #leval{top:210px;left:0;min-width:0;width:165px;padding:14px 10px;font-size:14px}}
 @media(prefers-reduced-motion:reduce){.welcome-stage{transition:none}.welcome-ready #leval{animation:none}}
 @media(max-width:600px){.welcome-hero h1{font-size:28px}.welcome-stage,#bot.welcome{width:240px;height:230px}.lh .welcome-intro{font-size:15px;min-height:100px}.lt .logo{font-size:20px}.land{padding-left:18px;padding-right:18px}}
 @media(prefers-reduced-motion:reduce){#leval{animation:none}}

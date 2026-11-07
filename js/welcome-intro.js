@@ -54,24 +54,20 @@
       timer = setTimeout(introduce, reducedMotion ? 0 : 1100);
     };
     const arrive = () => {
-      const from = bot.getBoundingClientRect();
       dock();
-      const to = bot.getBoundingClientRect();
       stage.dataset.phase = 'arriving';
-      if (!reducedMotion && bot.animate && from.width && to.width) {
-        const x = from.left + from.width / 2 - to.left - to.width / 2;
-        const y = from.top + from.height / 2 - to.top - to.height / 2;
+      if (!reducedMotion && bot.animate) {
         podium.robotWelcomeWave?.();
         arrival = bot.animate([
-          { transform: `translate(${x}px, ${y}px) scale(.48) rotate(-12deg)` },
-          { transform: `translate(${x * .55}px, ${y * .35 - 35}px) scale(.72) rotate(8deg)`, offset: .45 },
-          { transform: 'translate(0, -18px) scale(1.08) rotate(-4deg)', offset: .82 },
-          { transform: 'translate(0, 0) scale(1) rotate(0deg)' }
-        ], { duration: 2400, easing: 'ease-in-out', fill: 'none' });
+          { opacity: 0, transform: 'translateY(16px) scale(.88)' },
+          { opacity: 1, transform: 'translateY(0) scale(1)' }
+        ], { duration: 700, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'none' });
         arrival.onfinish = greet;
-        timer = setTimeout(greet, 2700);
+        timer = setTimeout(greet, 800);
       } else greet();
     };
+    // Dock before waiting so Tracy never flashes in the lower-right corner.
+    dock();
     const waitStarted = performance.now();
     const waitForScene = () => {
       if (stopped) return;
