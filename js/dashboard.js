@@ -62,65 +62,40 @@ const tips=x=>x.analysis?[...x.analysis.feedback.strengths,...x.analysis.feedbac
 
 /* ---------- automatic video-style tour (new users, or on request) ---------- */
 const T={on:false,i:0,play:true,t0:0,pAt:0,est:8000,timer:null,steps:[]};
-function tourSteps(){
-  const step=(nav,v,t,x,sel)=>({nav,v,t,x,c:[[x,sel,t]]});
-  const steps=[
-    step('dash','dash','Dashboard','Your dashboard brings together your next rehearsal, recent activity and preparation checklist.','.dh-hero'),
-    step('dash','dash','Speaking overview','These cards summarize your presentations and analyzed practice sessions.','.dh-stats'),
-    step('dash','dash','Preparation checklist','Use this checklist to review your preparation and choose what to do next.','.dh-readiness'),
-    step('eval','eval','Evaluation','Evaluation gives you a speaking baseline using the built-in presentation. You can review your results here.','[data-go="eval"].nv'),
-    step('decks','decks','Practice toolkit','This toolkit opens practice, recording analysis, reports and goals.','[data-sec="quick-actions"]'),
-    step('decks','decks','Presentation title','Give your presentation a title before uploading your slides.','#ut'),
-    step('decks','decks','Upload slides','Choose or drop your presentation file here.','#dz'),
-    step('decks','decks','Save presentation','Select Add Presentation to save your file to your workspace.','#ua'),
-    step('decks','prac','Practice setup','Choose the presentation you want to rehearse.','#pd'),
-    step('decks','prac','Target duration','Set your target duration before starting the rehearsal.','#pdur'),
-    step('decks','prac','Start rehearsal','After agreeing to audio processing, press Start to begin recording your practice.','#pgo'),
-    step('decks','prac','Finish rehearsal','Press Finish when you are done to analyze your recording and create a report.','#pfin'),
-    step('perf','perf','Performance','Performance lets you compare your speaking measurements across attempts.','.ws-stats'),
-    step('perf','perf','Choose a comparison','Choose a reference attempt and a comparison attempt to see how the measurements differ.','#ws-a'),
-    step('prog','prog','Progress','Choose a metric to explore its trend across analyzed rehearsals.','[aria-label="Chart metric"]'),
-    step('prog','prog','Practice goals','Review your goals here, or open Manage Goals to set your next target.','.ws-goal-preview'),
-    step('hist','hist','Practice history','Find your saved sessions with presentation, date and session-type filters.','.ws-filters'),
-    step('hist','hist','Export results','Export the matching session measurements as a CSV file.','#ws-export'),
-    step('note','note','Notifications','Notifications collect updates from your presentation and evaluation activity.','[data-sec="all-notifications"]'),
-    step('set','set','Profile','Update your name and photo, then save your profile.','#settings-profile'),
-    step('set','set','Appearance','Preview Light and Dark, then choose the appearance you prefer.','#settings-appearance'),
-    step('set','set','Tracy voice','Turn my spoken guidance on or off with this switch.','#rv'),
-    step('set','set','Tracy shortcuts','Tap me to open the Conversation, Tour, Minimize and Mute bubbles.','#bc'),
-    {...step('dash','dash','You are all set','You are all set. Choose your next step here, and use my Tour bubble whenever you want another walkthrough.','.dh-hero'),fin:true}
-  ];
-  return steps;
-}
+function tourSteps(){return window.PTTourSteps.map(step=>({...step,v:step.view,t:step.title,x:step.voiceLine}));}
+let spotlight;
 const tourEl=()=>$('tour');
 function syncGuide(){$('bguide').hidden=!!(T.on||$('app').hidden)}
 function tourUI(){const st=T.steps[T.i],last=!!st.fin;tourEl().hidden=false;
   tourEl().innerHTML=`<div class="tp1"><b>Step ${T.i+1}/${T.steps.length}</b><span>${esc(st.t)}</span></div><div class="tsegs">${T.steps.map((_,k)=>`<i><b id="ts${k}" style="width:${k<T.i?100:0}%"></b></i>`).join('')}</div><div class="tbt"><button type="button" data-tact="tprev" ${T.i?'':'disabled'} aria-label="Previous step">Back</button><button type="button" data-tact="tplay" aria-label="${T.play?'Pause':'Play'}">${T.play?'Pause':'Play'}</button><button type="button" data-tact="tnext">${last?'Finish':'Next'}</button>${last?'<button type="button" class="wide" data-tact="tadd">Add presentation</button>':'<button type="button" class="wide skip" data-tact="tskip">Skip tour</button>'}<button type="button" data-tact="tcc" aria-pressed="${!!T.ccShown}" aria-label="Captions">CC</button></div><button type="button" class="tour-stop" data-tact="tskip">End tour</button><button type="button" class="tcolb" data-tact="tcol" aria-expanded="${!$('bot').classList.contains('tcol')}" aria-label="${$('bot').classList.contains('tcol')?'Show tour controls':'Hide tour controls'}" title="${$('bot').classList.contains('tcol')?'Show tour controls':'Hide tour controls'}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>`;
   const sub=$('tsub');if(sub)sub.innerHTML='<span class="sl">'+esc(st.x)+'</span>';if(T.sf)tourSub(T.sf,T.sp)}
 function tourSub(frac,pos){T.sf=frac;T.sp=pos;const st=T.steps[T.i],el=$('tsub');let n=pos>0?pos:Math.round(st.x.length*frac);if(n>=st.x.length)n=st.x.length;else{const sp=st.x.indexOf(' ',n);n=sp<0?st.x.length:sp}n=Math.max(n,T.nmax||0);T.nmax=n;if(el)el.innerHTML='<b>'+esc(st.x.slice(0,n))+'</b>'+esc(st.x.slice(n));T.n=n;return n}
-function spotUpdate(n){
-  const sp=$('spot'),cues=T.cues||[];let k=-1;cues.forEach((c,j)=>{if(n>=c.i&&document.querySelector(c.sel))k=j});
-  if(k!==T.cue){T.cue=k;T.cueEl=k>=0?document.querySelector(cues[k].sel):null;
-    if(T.cueEl){const r=T.cueEl.getBoundingClientRect();if(r.top<90||r.bottom>innerHeight-50){try{T.cueEl.scrollIntoView({block:'center',behavior:'instant'})}catch(e){}}}}
-  const el=T.cueEl;if(!T.on||!el||!document.contains(el)){sp.hidden=true;return}
-  const r=el.getBoundingClientRect();if(r.width<2||r.height<2){sp.hidden=true;return}
-  sp.hidden=false;sp.style.left=(r.left-8)+'px';sp.style.top=(r.top-8)+'px';sp.style.width=(r.width+16)+'px';sp.style.height=(r.height+16)+'px';
-  const b=sp.firstChild;b.textContent=cues[T.cue].lab;b.style.top=r.top<64?'calc(100% + 8px)':'-34px'}
-function spotOff(){const sp=$('spot');sp.hidden=true;T.cue=-1;T.cueEl=null}
+function spotOff(){spotlight?.stop();$('spot').hidden=true;}
 function tourAct(a){if(a==='tcol'){document.body.classList.toggle('tourcol',$('bot').classList.toggle('tcol'));tourUI();return}if(a==='tprev')tourGo(-1);else if(a==='tnext')tourGo(1);else if(a==='tplay')tourPlay(!T.play);else if(a==='tskip')endTour(true);else if(a==='tcc'){T.cc=!T.ccShown;T.ccShown=T.cc;$('tcap').hidden=!T.cc;tourUI()}else if(a==='tadd'){endTour(false);go('decks');setTimeout(()=>{const u=$('ut');if(u)u.focus()},400)}}
-function tourShow(i){
-  clearTimeout(T.advanceTimer);T.generation=(T.generation||0)+1;
-  T.i=Math.max(0,Math.min(T.steps.length-1,i));const st=T.steps[T.i];
-  if(S.view!==st.v)go(st.v);else nav();
-  $('bot').classList.toggle('tourhl',!!st.bot);
-  T.est=Math.max(6000,st.x.length*58+1500);T.t0=performance.now();T.pAt=0;T.play=true;T.adv=false;T.prepared=false;T.audioStarted=false;T.sf=0;T.sp=0;T.n=0;T.nmax=0;spotOff();{const st2=T.steps[T.i];T.cues=(st2.c||[]).map(([ph,sel,lab])=>({i:st2.x.toLowerCase().indexOf(ph.toLowerCase()),sel,lab})).filter(c=>c.i>=0).sort((a,b)=>a.i-b.i)}
-  if(T.cues.length&&!document.querySelector(T.cues[0].sel)){T.cues=[{i:0,sel:'.nv[data-go="'+st.nav+'"]',lab:st.t}];st.x=st.t+' is available from this tab. Complete the earlier setup steps to use its controls.';st.c=[[st.x,T.cues[0].sel,st.t]];}
-  tourUI();spotUpdate(0);try{podium.narrate&&podium.narrate(st.x,T.est)}catch(e){}
+function tourShow(i,direction=1){
+  clearTimeout(T.advanceTimer);T.generation=(T.generation||0)+1;spotOff();
+  // Visit each configured page, but never describe a missing or gated control.
+  let st,el;
+  while(i>=0&&i<T.steps.length){
+    T.i=i;st=T.steps[i];
+    if(S.view!==st.v)go(st.v);else nav();
+    $('side').classList.remove('open');
+    el=document.querySelector(st.target);
+    if(el&&el.getBoundingClientRect().width>=2&&el.getBoundingClientRect().height>=2)break;
+    i+=direction;
+  }
+  if(i<0){tourShow(0);return;}if(i>=T.steps.length){endTour(false);return;}
+  $('bot').classList.remove('tourhl');
+  T.est=Math.max(6000,st.x.length*58+1500);T.t0=performance.now();T.pAt=0;T.play=true;T.adv=false;T.prepared=false;T.audioStarted=false;T.sf=0;T.sp=0;T.n=0;T.nmax=0;
+  tourUI();
+  spotlight ||= new window.PTTourSpotlight($('spot'));
+  spotlight.start(st.target,st.title,st.description);
+  try{podium.narrate&&podium.narrate(st.x,T.est)}catch(e){}
 }
-function tourGo(d){if(!T.on)return;const n=T.i+d;if(n>=T.steps.length){endTour(false);return}tourShow(n)}
+function tourGo(d){if(!T.on)return;const n=T.i+d;if(n>=T.steps.length){endTour(false);return}tourShow(n,d)}
 function tourPlay(p){if(!T.on||T.play===p)return;T.play=p;if(p){T.t0+=performance.now()-T.pAt}else T.pAt=performance.now();try{podium.narPause&&podium.narPause(!p)}catch(e){}tourUI()}
 function tourTick(){
-  if(!T.on)return;spotUpdate(T.n||0);if(!T.play||T.adv)return;let el=performance.now()-T.t0;const ns=(podium.narState&&podium.narState())||{voice:false};
+  if(!T.on)return;if(!T.play||T.adv)return;let el=performance.now()-T.t0;const ns=(podium.narState&&podium.narState())||{voice:false};
   const voice=ns.voice&&!ns.failed;
   if(voice&&ns.started&&!T.audioStarted){T.audioStarted=true;T.t0=performance.now();el=0}
   if(voice&&ns.started&&!T.prepared){T.prepared=true;const next=T.steps[T.i+1];if(next)podium.prepareNarration?.(next.x)}
@@ -134,7 +109,7 @@ function startTour(){
   if(T.on)return;if($('app').hidden)return;
   window.PTVoice?.active&&PTVoice.stop();
   S.guide=true;T.on=true;T.steps=tourSteps();closePops();$('hm').hidden=true;setMin(false);
-  if(innerWidth<900)$('side').classList.add('open');
+  $('side').classList.remove('open');
   clearInterval(T.timer);T.timer=setInterval(tourTick,100);document.body.classList.add('touring');document.body.classList.remove('tourcol');$('bot').classList.remove('tcol');$('bot').classList.add('tourmode');T.cc=null;T.ccShown=false;syncGuide();tourShow(0)}
 function endTour(spoken){
   if(!T.on)return;T.on=false;clearTimeout(T.advanceTimer);T.generation=(T.generation||0)+1;spotOff();clearInterval(T.timer);S.toured=true;S.isNew=false;{const k=(S.u.email||'').toLowerCase();if(DB[k])DB[k].onboarded=true;if(window.PTCloud)PTCloud.onboarded=true}tourEl().hidden=true;$('tcap').hidden=true;$('bot').classList.remove('tourhl','tourmode','tcol');document.body.classList.remove('touring','tourcol');
