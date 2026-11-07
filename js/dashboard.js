@@ -64,7 +64,7 @@ const tips=x=>x.analysis?[...x.analysis.feedback.strengths,...x.analysis.feedbac
 const T={on:false,i:0,play:true,t0:0,pAt:0,est:8000,timer:null,steps:[]};
 function tourSteps(){const n=S.u.name.split(' ')[0]||'there';return [
  {nav:null,v:'dash',t:'Welcome to PresentTrack',x:'Hello '+n+'! Welcome to PresentTrack. I am Tracy, your presentation coach. In about two minutes I will show you every part of the system. Sit back and watch, or press skip anytime.'},
- {nav:'dash',v:'dash',t:'Dashboard',x:GUIDE.dash,c:[['next presentation','.nx','Your next presentation'],['how ready you are','.g-next>section:nth-child(2)','How ready you are'],['performance numbers','.g-perf','Your performance numbers'],['progress chart','.g-prog>section:first-child','Progress chart'],['coaching tip','.coach','My coaching tip'],['recent practice','[data-sec="recent-practice"]','Recent practice'],['quick actions','[data-sec="quick-actions"]','Quick actions']]},
+ {nav:'dash',v:'dash',t:'Dashboard',x:GUIDE.dash,c:[['next presentation','.nx','Your next presentation'],['how ready you are','.g-next>section:nth-child(2)','How ready you are'],['performance numbers','.g-perf','Your performance numbers'],['progress chart','.g-prog>section:first-child','Progress chart'],['coaching tip','.coach','My coaching tip'],['recent practice','[data-sec="recent-practice"]','Recent practice']]},
  {nav:'decks',v:'decks',t:'My Presentations',x:GUIDE.decks+' This is where you start.',c:[['Type your own title','#ut','Type your title here'],['drop in a PDF','#dz','Drop your file here'],['press Add Presentation','#ua','Then press this'],['practice, rename','[data-sec="upload-a-presentation"]+.g2,.g2','Your presentations appear here']]},
  {nav:'decks',v:'prac',t:'Practice',x:GUIDE.prac,c:[['Pick a presentation','#pd','Pick a presentation'],['target time','#pdur','Set your target time'],['press Start','#pgo','Press Start'],['press Finish','#pfin','Finish for your score']]},
  {nav:'perf',v:'perf',t:'Performance',x:GUIDE.perf,c:[['speaking pace','[data-sec="performance-overview"]','Your performance']]},
@@ -119,8 +119,8 @@ function endTour(spoken){
   try{podium.hushNow&&podium.hushNow()}catch(e){}nav();$('side').classList.remove('open')}
 podium.tourStop=()=>{T.on=false;spotOff();clearInterval(T.timer);tourEl().hidden=true;$('tcap').hidden=true;document.body.classList.remove('touring','tourcol');$('bot').classList.remove('tourhl','tourmode','tcol');syncGuide()};podium.tourPause=()=>tourPlay(false);podium.startTour=startTour;podium.tourOn=()=>T.on;
 /* ---------- robot guide: navigate by voice/text and explain each page ---------- */
-const GUIDE={dash:'This is your dashboard. At the top you see your next presentation and how ready you are. Below are your performance numbers, your progress chart, my coaching tip, recent practice and quick actions.',
- decks:'This is My Presentations. Type your own title, drop in a PDF, Word or PowerPoint file, then press Add Presentation. You can then practice, rename or open details for each one.',
+const GUIDE={dash:'This is your dashboard. At the top you see your next presentation and how ready you are. Below are your performance numbers, your progress chart, my coaching tip and recent practice.',
+ decks:'This is My Presentations. The practice toolkit gives you shortcuts to upload slides, practice, analyze recordings, reports and goals. Type your own title, drop in a PDF, Word or PowerPoint file, then press Add Presentation. You can then practice, rename or open details for each one.',
  prac:'This is Practice. Pick a presentation and a target time, press Start and speak out loud, then press Finish to get your score and tips.',
  rep:'Reports lists every practice session. Press View Report on any row to see the numbers and my feedback.',
  perf:'Performance shows your speaking pace, filler words, long pauses and score, and compares your first and latest attempts.',
