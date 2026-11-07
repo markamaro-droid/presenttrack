@@ -57,5 +57,29 @@
       ...sessions.map(s => [s.deck, s.at || s.d, s.assess ? 'Pre-evaluation' : s.analysis ? 'Recorded audio' : 'Legacy / unverified', s.dur, s.tg, s.wpm, s.fill, s.pau, s.score])];
     return '\uFEFF' + rows.map(row => row.map(cell).join(',')).join('\r\n');
   }
-  globalThis.PTWorkspaceModel = { select, value, baseline, goal, preparation, csv, date };
+  function analytics(sessions, now = Date.now()) {
+    const list = select(sessions);
+    const summary = {};
+    for (const key of ['score', 'wpm', 'fillerRate', 'pauseRate', 'dur']) {
+      const values = list.map(s => value(s, key)).filter(v => v !== null);
+      const first = value(list[0], key), latest = value(list.at(-1), key);
+      summary[key] = { first, latest, count: values.length,
+        average: values.length ? values.reduce((a, b) => a + b, 0) / values.length : null,
+        min: values.length ? Math.min(...values) : null, max: values.length ? Math.max(...values) : null,
+        change: list.length > 1 && first !== null && latest !== null ? latest - first : null };
+    }
+    // Calendar-day buckets in the viewer's timezone; unknown dates are not invented.
+    const today = new Date(now); today.setHours(0, 0, 0, 0);
+    const activity = Array.from({ length: 4 }, (_, i) => {
+      const start = new Date(today), end = new Date(today);
+      start.setDate(start.getDate() - 27 + i * 7); end.setDate(end.getDate() - 20 + i * 7);
+      const matches = list.filter(s => date(s) !== null && date(s) >= +start && date(s) < +end && date(s) <= now);
+      return { start: +start, end: +end, count: matches.length,
+        minutes: matches.reduce((n, s) => n + Math.max(0, value(s, 'dur') || 0), 0) / 60 };
+    });
+    const paced = list.filter(s => value(s, 'wpm') !== null);
+    return { summary, activity, count: list.length,
+      paceCount: paced.length, paceInRange: paced.filter(s => s.wpm >= 100 && s.wpm <= 160).length };
+  }
+  globalThis.PTWorkspaceModel = { select, value, baseline, goal, preparation, csv, date, analytics };
 })();

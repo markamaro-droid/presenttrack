@@ -99,3 +99,38 @@ test('preview switch restores real data and filters without creating sessions', 
   assert.equal(S.ses.length, 1);
   assert.equal(S.goals.length, 0);
 });
+
+test('analytics calculate endpoint changes, measured averages and pace coverage', () => {
+  const { M } = setup();
+  const list = [session(1, 1, { score: 50, fill: 8, wpm: 180 }), session(2, 1, { score: null }), session(3, 1, { score: 80, fill: 2, wpm: 140 })];
+  const before = JSON.stringify(list), a = M.analytics(list);
+  assert.equal(a.summary.score.average, 65);
+  assert.equal(a.summary.score.change, 30);
+  assert.equal(a.summary.fillerRate.change, -3);
+  assert.equal(a.paceInRange, 2);
+  assert.equal(a.paceCount, 3);
+  assert.equal(JSON.stringify(list), before);
+  assert.equal(M.analytics([]).summary.score.average, null);
+  assert.equal(M.analytics([list[0]]).summary.score.change, null);
+  assert.equal(M.analytics([list[0], { ...list[2], score: null }]).summary.score.change, null);
+});
+
+test('activity excludes unknown and future dates and uses four calendar periods', () => {
+  const { M } = setup(), now = new Date(2026, 10, 7, 12).getTime();
+  const at = (day, hour = 10) => new Date(2026, 10, day, hour).toISOString();
+  const list = [session(1, 1, { at: at(7) }), session(2, 1, { at: at(7, 15) }), session(3, 1, { at: undefined }), session(4, 1, { at: at(1) }), session(5, 1, { at: at(0) })];
+  const a = M.analytics(list, now);
+  assert.deepEqual(Array.from(a.activity, w => w.count), [0, 0, 1, 2]);
+  assert.equal(a.activity[3].minutes, 4);
+});
+
+test('progress analytics render for samples and honor the real-data selection', () => {
+  const { S, V } = setup();
+  for (const title of ['Latest score', 'Average score', 'First attempt vs latest', 'Your practice rhythm', 'A focus for your next attempt']) assert.ok(V.prog().includes(title));
+  S.ses = [session(1, 1), session(2, 2, { score: 99 })];
+  S.compareDeck = '1';
+  assert.match(V.prog(), /Highest score: 75% across 1 scored attempts/);
+  assert.doesNotMatch(V.prog(), /Highest score: 99/);
+  S.compareDeck = 'missing';
+  assert.doesNotMatch(V.prog(), /First attempt vs latest/);
+});
