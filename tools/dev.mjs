@@ -5,6 +5,7 @@ import path from 'node:path';
 import chat from '../api/chat.js';
 import voice from '../api/voice.js';
 import coach from '../api/coach.js';
+import practice from '../api/practice.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.glb': 'model/gltf-binary', '.png': 'image/png', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg' };
@@ -14,6 +15,7 @@ createServer(async (req, res) => {
     const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
     if (pathname === '/api/chat') return await chat(req, res);
     if (pathname === '/api/voice') return await voice(req, res);
+    if (pathname === '/api/practice') return await practice(req, res);
     if (pathname === '/api/coach') return await coach(req, res);
     const relative = pathname === '/' ? 'index.html' : pathname.slice(1);
     const target = path.resolve(root, relative);

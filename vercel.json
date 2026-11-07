@@ -3,5 +3,18 @@
   "framework": null,
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "functions": { "api/chat.js": { "maxDuration": 60 }, "api/voice.js": { "maxDuration": 60 }, "api/coach.js": { "maxDuration": 60 } }
+  "functions": {
+    "api/chat.js": {
+      "maxDuration": 60
+    },
+    "api/voice.js": {
+      "maxDuration": 60
+    },
+    "api/coach.js": {
+      "maxDuration": 60
+    },
+    "api/practice.js": {
+      "maxDuration": 60
+    }
+  }
 }
