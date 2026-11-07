@@ -148,6 +148,7 @@
       utterance.lang = run.language;
       const voices = this.synth.getVoices();
       utterance.voice = voices.find(v => v.lang === run.language) || voices.find(v => v.lang.startsWith(run.language.split('-')[0])) || null;
+      globalThis.TracySpeech?.configure(utterance, this.synth, run.language);
       this.stateChanged('speaking', 'Microphone paused — Tracy is speaking. Tap Interrupt to talk.');
       const current = () => this.run === run && run.utterance === utterance;
       utterance.onend = () => { if (current()) { run.utterance = null; clearTimeout(run.speechTimer); run.pendingSpeech = null; this.listen(run); } };

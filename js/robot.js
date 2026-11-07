@@ -24,7 +24,7 @@ function clean(t){return String(t).replace(/[●“”]/g,'').replace(/…/g,'.'
 function hush(){try{SY&&SY.cancel()}catch(e){}speaking=false}
 let nar={started:false,ended:false,pos:0};
 function speak(text,done){nar={started:false,ended:false,pos:0};if(!SY||podium.voiceOn===false||V.on||document.hidden){done?.();return}const t=clean(text);if(!t){done?.();return}
-  try{SY.cancel();const u=new SpeechSynthesisUtterance(t),v=pickVoice();if(v){u.voice=v;u.lang=v.lang}else u.lang='en-US';u.rate=1.02;u.pitch=1.12;u.volume=1;const my=nar;u.onboundary=e=>{if(typeof e.charIndex==='number')my.pos=e.charIndex};u.onstart=()=>{speaking=true;my.started=true};u.onend=()=>{speaking=false;my.ended=true;done?.()};u.onerror=()=>{speaking=false;my.failed=true;done?.()};SY.resume();SY.speak(u)}catch(e){speaking=false;done?.()}}
+  try{SY.cancel();const u=new SpeechSynthesisUtterance(t),v=pickVoice();if(v){u.voice=v;u.lang=v.lang}else u.lang='en-US';u.rate=.96;u.pitch=1.05;u.volume=1;globalThis.TracySpeech?.configure(u,SY,'en-US');const my=nar;u.onboundary=e=>{if(typeof e.charIndex==='number')my.pos=e.charIndex};u.onstart=()=>{speaking=true;my.started=true};u.onend=()=>{speaking=false;my.ended=true;done?.()};u.onerror=()=>{speaking=false;my.failed=true;done?.()};SY.resume();SY.speak(u)}catch(e){speaking=false;done?.()}}
 const mute=$('bmute');
 podium.setVoice=on=>{podium.voiceOn=on;window.PTVoice&&PTVoice.setSpeaker(on);mute.textContent=on?'🔊':'🔇';mute.setAttribute('aria-pressed',String(!on));mute.setAttribute('aria-label',on?'Mute Tracy\'s voice':'Unmute Tracy\'s voice');mute.title=on?'Mute Tracy\'s voice':'Unmute Tracy\'s voice';if(!on)hush()};
 mute.onclick=()=>podium.setVoice(podium.voiceOn===false);
