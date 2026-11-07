@@ -4,7 +4,7 @@ The welcome button and the Evaluation sidebar entry open `eval`. Its results use
 `evres`, under the same navigation entry. My Presentations, its uploads and its
 practice handlers are unchanged.
 
-`assets/evaluation/study-habits.js` contains the five supplied slides verbatim.
+`assets/evaluation/study-habits.js` contains version 2 of the five-slide study-habits talk, expanded to 324 spoken words.
 They load with the page, require no storage upload or generation request, and are
 never inserted into `S.pres`. Evaluation therefore does not consume an upload use.
 Previous/Next and arrow keys navigate without restarting speech recognition.
@@ -13,7 +13,7 @@ The existing browser recognition pipeline computes metrics, quality, classificat
 and feedback using the shared assessment modules. Results include the deck ID and
 version. Cloud saves still call `complete_browser_evaluation(p_results)` before
 updating the local baseline and account snapshot. Failed saves retain retry controls.
-Existing completed evaluations open their saved results rather than replacing them.
+Existing completed evaluations open their saved results. Every results page offers Retake evaluation; the previous baseline remains until the new result saves successfully.
 
 ## Deployment and assumptions
 
@@ -30,7 +30,7 @@ Existing completed evaluations open their saved results rather than replacing th
   timing is approximate; results describe those limitations.
 - `[Your Name]` is deliberately preserved as supplied. Students say their own name.
 - Target duration remains 2–3 minutes, with the existing 20-second minimum and
-  five-minute automatic finish. Existing baseline and retake policies are retained.
+  five-minute automatic finish. The expanded script takes approximately 2:01?2:30 at 130?160 WPM, before extra pauses. It is displayed in paragraphs suitable for reading aloud; this is a supported reading baseline, not a test of spontaneous speech.
 
 ## Verification
 

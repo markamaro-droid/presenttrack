@@ -34,7 +34,7 @@ test('Evaluation is separate and available to existing accounts without adding a
 test('built-in deck loads immediately and all five slides have bounded navigation', () => {
   const app = setup(); app.B.eval();
   assert.equal(app.deck.slides.length, 5);
-  assert.match(app.el('eslide').innerHTML, /Presented by: \[Your Name\]/);
+  assert.match(app.el('eslide').innerHTML, /My name is \[Your Name\]/);
   assert.equal(app.el('eprev').disabled, true);
   for (let i = 1; i < 5; i++) {
     app.el('enext').onclick();
@@ -49,6 +49,16 @@ test('completed baseline stays accessible with next-practice feedback', () => {
   app.S.ev = { done: true, results: { metrics: {}, feedback: { recommendations: ['Pause between ideas.'] } } };
   assert.match(app.V.eval(), /WHAT TO PRACTICE NEXT/);
   assert.match(app.V.eval(), /Pause between ideas/);
+  assert.match(app.V.eval(), /data-act="eretake"/);
+});
+test('expanded deck provides about two to two-and-a-half minutes at the target speaking pace', () => {
+  const app = setup();
+  const words = app.deck.slides.flatMap(s => s.bullets).join(' ').split(/\s+/).length;
+  assert.ok(words / 160 * 60 >= 120);
+  assert.ok(words / 130 * 60 <= 150);
+  assert.equal(app.deck.version, 2);
+  app.B.eval();
+  assert.match(app.el('eslide').innerHTML, /evaluation-script/);
 });
 test('fullscreen fallback preserves slides and cleans up when leaving Evaluation', () => {
   const app = setup(); app.B.eval();

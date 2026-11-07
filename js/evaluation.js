@@ -46,7 +46,7 @@ function showSlide(){
   const host=$('eslide');if(!host)return;
   E.slide=Math.max(0,Math.min(E.slide,DECK.slides.length-1));
   const slide=DECK.slides[E.slide];
-  host.innerHTML=`<div class="sld${E.slide===0?' stitle':''}"><h4>${esc(slide.title)}</h4><ul>${slide.bullets.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div>`;
+  host.innerHTML=`<div class="sld${DECK.narrative?' evaluation-script':E.slide===0?' stitle':''}"><h4>${esc(slide.title)}</h4>${DECK.narrative?slide.bullets.map(t=>`<p>${esc(t)}</p>`).join(''):`<ul>${slide.bullets.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`}</div>`;
   $('eslide-count').textContent='Slide '+(E.slide+1)+' / '+DECK.slides.length;
   $('eprev').disabled=E.slide===0;$('enext').disabled=E.slide===DECK.slides.length-1;
 }
@@ -220,7 +220,7 @@ V.evres=()=>{
     <section class="er-panel er-timeline"><div class="er-section-head"><div><span class="er-eyebrow">MOMENTS IN YOUR TALK</span><h3>Your delivery timeline</h3></div><span class="er-tag">${mm(duration)} total</span></div>${timeline(m)}${!(m.fillers||[]).length&&!(m.pauses||[]).length?'<p class="er-empty">No filler or long-pause markers were detected in this evaluation.</p>':''}<p class="basis">Markers show estimated events, not an audio waveform.</p></section>
     <section id="evaluation-plan" class="er-plan"><span class="er-eyebrow">WHAT TO PRACTICE NEXT</span><h2>Turn feedback into your next rehearsal.</h2><div class="er-coaching"><article class="er-panel er-strength"><h3>${reportIcon('check')} Keep doing</h3>${list(f.strengths)}</article><article class="er-panel er-improve"><h3>${reportIcon('target')} Give attention to</h3>${list(f.improvements)}</article></div>
       <ol class="er-steps">${(f.recommendations||[]).map((t,i)=>`<li><span>${String(i+1).padStart(2,'0')}</span><p>${esc(t)}</p></li>`).join('')}</ol>
-      <div class="er-actions"><button class="bt" data-go="up" type="button">Practice with your presentation ${reportIcon('arrow')}</button><button class="bt gh" data-go="hist" type="button">Practice history</button>${q.level==='low'?'<button class="bt gh" data-act="eretake" type="button">Retake evaluation</button>':''}</div>
+      <div class="er-actions"><button class="bt" data-go="up" type="button">Practice with your presentation ${reportIcon('arrow')}</button><button class="bt gh" data-go="hist" type="button">Practice history</button><button class="bt gh" data-act="eretake" type="button">Retake evaluation</button></div>
     </section>
     <details class="er-panel er-method" ${q.level==='low'?'open':''}><summary>${reportIcon('words')} Recognition quality &amp; how this was measured${q.level==='low'?' - Low-confidence recording':''}</summary><p>${esc(r.explanation||'This is a baseline, not a definitive judgment of your speaking ability.')}</p>${list(q.warnings)}<p>Speaking speed is recognized words divided by speaking time, excluding pauses of 2 seconds or longer. Browser recognition can miss fillers and estimate timing incorrectly. Eye contact, confidence and body language are not evaluated.</p>${f.summary?`<p>${esc(f.summary)}</p>`:''}</details>
   </div>`);
