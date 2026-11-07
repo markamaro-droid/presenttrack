@@ -121,7 +121,7 @@ function tourGo(d){if(!T.on)return;const n=T.i+d;if(n>=T.steps.length){endTour(f
 function tourPlay(p){if(!T.on||T.play===p)return;T.play=p;if(p){T.t0+=performance.now()-T.pAt}else T.pAt=performance.now();try{podium.narPause&&podium.narPause(!p)}catch(e){}tourUI()}
 function tourTick(){
   if(!T.on)return;spotUpdate(T.n||0);if(!T.play||T.adv)return;const el=performance.now()-T.t0,ns=(podium.narState&&podium.narState())||{voice:false};
-  const voice=ns.voice&&!ns.failed&&!(!ns.started&&el>2600);
+  const voice=ns.voice&&!ns.failed;
   {const want=T.cc===null?(el>2600&&!voice):T.cc;if(want!==T.ccShown){T.ccShown=want;$('tcap').hidden=!want}}
   const done=voice?ns.ended:el>T.est;
   const b=$('ts'+T.i);if(b)b.style.width=Math.min(97,el/(voice?Math.max(T.est,el+800):T.est)*100)+'%';

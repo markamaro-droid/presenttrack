@@ -21,17 +21,23 @@ function say(x){clearTimeout(rct);
 const SY=window.speechSynthesis;let speaking=false;podium.voiceOn=true;
 function pickVoice(){const vs=(SY.getVoices()||[]).filter(v=>/^en/i.test(v.lang));return vs.find(v=>/Google US English|Samantha|Aria|Jenny|Zira|Karen|Moira|Serena|Female/i.test(v.name))||vs.find(v=>/en[-_]US/i.test(v.lang))||vs[0]||null}
 function clean(t){return String(t).replace(/[●“”]/g,'').replace(/…/g,'.').replace(/\bwpm\b/gi,'words per minute').replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu,'').replace(/\s+/g,' ').trim()}
-function hush(){try{SY&&SY.cancel()}catch(e){}speaking=false}
+function hush(){globalThis.TracyAudio?.cancel();try{SY&&SY.cancel()}catch(e){}speaking=false}
 let nar={started:false,ended:false,pos:0};
-function speak(text,done){nar={started:false,ended:false,pos:0};if(!SY||podium.voiceOn===false||V.on||document.hidden){done?.();return}const t=clean(text);if(!t){done?.();return}
-  try{SY.cancel();const u=new SpeechSynthesisUtterance(t),v=pickVoice();if(v){u.voice=v;u.lang=v.lang}else u.lang='en-US';u.rate=.96;u.pitch=1.05;u.volume=1;globalThis.TracySpeech?.configure(u,SY,'en-US');const my=nar;u.onboundary=e=>{if(typeof e.charIndex==='number')my.pos=e.charIndex};u.onstart=()=>{speaking=true;my.started=true};u.onend=()=>{speaking=false;my.ended=true;done?.()};u.onerror=()=>{speaking=false;my.failed=true;done?.()};SY.resume();SY.speak(u)}catch(e){speaking=false;done?.()}}
+function speak(text,done){
+  hush();const my=nar={started:false,ended:false,pos:0};
+  const t=clean(text);
+  if(!t||podium.voiceOn===false||V.on||document.hidden){my.ended=true;done?.();return}
+  const fail=()=>{speaking=false;my.failed=true;my.ended=true;rsub.textContent=t;rcap.hidden=bot.classList.contains('tourmode');done?.()};
+  if(!globalThis.TracyAudio){fail();return}
+  TracyAudio.speak(t,{onstart:()=>{speaking=true;my.started=true},onend:()=>{speaking=false;my.ended=true;done?.()},onerror:fail});
+}
 const mute=$('bmute');
 podium.setVoice=on=>{podium.voiceOn=on;window.PTVoice&&PTVoice.setSpeaker(on);mute.textContent=on?'🔊':'🔇';mute.setAttribute('aria-pressed',String(!on));mute.setAttribute('aria-label',on?'Mute Tracy\'s voice':'Unmute Tracy\'s voice');mute.title=on?'Mute Tracy\'s voice':'Unmute Tracy\'s voice';if(!on)hush()};
 mute.onclick=()=>podium.setVoice(podium.voiceOn===false);
 
 podium.narrate=(text,est)=>{if(window.PTVoice&&PTVoice.active)PTVoice.stop();set('talking',Math.min(60000,(est||8000)*2.5),'',text)};
-podium.narState=()=>({voice:!!SY&&podium.voiceOn!==false&&!V.on,started:nar.started,ended:nar.ended,failed:!!nar.failed,pos:nar.pos||0,speaking});
-podium.narPause=p=>{try{p?SY.pause():SY.resume()}catch(e){}};podium.hushNow=()=>{hush();set('idle',0,'')};
+podium.narState=()=>({voice:!!globalThis.TracyAudio&&podium.voiceOn!==false&&!V.on,started:nar.started,ended:nar.ended,failed:!!nar.failed,pos:nar.pos||0,speaking});
+podium.narPause=p=>{globalThis.TracyAudio?.pause(p)};podium.hushNow=()=>{hush();set('idle',0,'')};
 podium.robotIntroduce=(text,done)=>{clearAll();stopVoice();set('talking',0,'');speak(text,done)};
 podium.robotPoint=()=>set('point',0,'');
 podium.robotReady=()=>ready&&W>0;

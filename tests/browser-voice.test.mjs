@@ -17,7 +17,7 @@ function setup(options = {}) {
   const context = { AbortController, navigator: { onLine: true }, setTimeout: (fn, ms) => { timers.set(++count, { fn, ms }); return count; }, clearTimeout: id => timers.delete(id) };
   vm.createContext(context); vm.runInContext(source, context);
   let owner = 'a';
-  const session = new context.TracyBrowserVoiceSession({ Recognition, synth, Utterance: class { constructor(text) { this.text = text; } },
+  const session = new context.TracyBrowserVoiceSession({ tts: options.tts, Recognition, synth, Utterance: class { constructor(text) { this.text = text; } },
     getSession: async () => options.noAuth ? null : { user: { id: owner }, access_token: 'session-token' },
     fetchImpl: async (url, init) => { const body = JSON.parse(init.body); calls.push({ url, init, body }); return options.fetcher ? options.fetcher(body) : new Response(JSON.stringify(body.action ? { ready: true } : { reply: 'Try a clear opening.' })); },
     onState: state => states.push(state), onCaption: (who, text) => captions.push({ who, text }) });
@@ -74,4 +74,21 @@ test('setup, idle and duration timeouts close the session', async () => {
   }
   const s = setup({ fetcher: () => new Promise(() => {}) }); s.session.start(); await flush(); s.expire(55000);
   assert.equal(s.session.active, false); assert.equal(s.recognizers.length, 0);
+});
+
+test('Cartesia playback keeps microphone paused; interruption and failure never change voice', async () => {
+  const clips = [];
+  const tts = { speak(text, hooks) { const clip = { hooks, cancelled: false, cancel() { this.cancelled = true; } }; clips.push(clip); return clip; } };
+  const s = setup({ tts }); await s.session.start();
+  s.current().result('Hello'); await flush();
+  assert.equal(s.session.state, 'speaking'); assert.equal(s.current().running, false);
+  assert.equal(s.synth.utterance, undefined);
+  s.session.interrupt(); assert.equal(clips[0].cancelled, true);
+  clips[0].hooks.onend(); assert.equal(s.session.state, 'listening');
+  s.current().result('Again'); await flush();
+  clips[1].hooks.onerror(); assert.equal(s.session.state, 'playback');
+  assert.equal(s.current().running, false); assert.equal(s.synth.utterance, undefined);
+  s.session.enablePlayback(); s.session.muteMicrophone(true);
+  clips[2].hooks.onend(); assert.equal(s.session.state, 'muted');
+  s.session.stop();
 });

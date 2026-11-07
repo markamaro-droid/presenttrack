@@ -17,6 +17,7 @@
       this.Recognition = options.Recognition || globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
       this.synth = options.synth || globalThis.speechSynthesis;
       this.Utterance = options.Utterance || globalThis.SpeechSynthesisUtterance;
+      this.audio = options.tts || globalThis.TracyAudio;
       this.run = null; this.state = 'idle'; this.speakerMuted = false;
     }
     get active() { return !!this.run; }
@@ -54,7 +55,7 @@
     async start(language = 'en-US') {
       if (this.active) return;
       if (globalThis.navigator?.onLine === false) { this.stateChanged('error', 'You are offline. Reconnect and retry.'); return; }
-      if (!this.Recognition || !this.synth || !this.Utterance) { this.stateChanged('error', 'This browser does not support voice conversations. Try Chrome or Edge on HTTPS.'); return; }
+      if (!this.Recognition || (!this.audio && (!this.synth || !this.Utterance))) { this.stateChanged('error', 'This browser does not support voice conversations. Try Chrome or Edge on HTTPS.'); return; }
       const run = { history: [], micMuted: false, turns: 0, language: ['en-US', 'fil-PH'].includes(language) ? language : 'en-US' };
       this.run = run;
       this.stateChanged('connecting', 'Checking your sign-in and voice access…');
@@ -137,6 +138,7 @@
       }
     }
     cancelSpeech(run) {
+      run.audio?.cancel(); run.audio = null;
       if (run.utterance) { run.utterance.onend = run.utterance.onerror = null; run.utterance = null; this.synth.cancel(); }
       clearTimeout(run.speechTimer);
     }
@@ -144,6 +146,16 @@
       if (this.run !== run) return;
       if (this.speakerMuted) { this.listen(run); return; }
       this.cancelSpeech(run); run.pendingSpeech = text;
+      if (this.audio) {
+        this.stateChanged('speaking', 'Microphone paused ? Tracy is speaking. Tap Interrupt to talk.');
+        const marker = {}; run.audioMarker = marker;
+        const current = () => this.run === run && run.audioMarker === marker && !!run.audio;
+        run.audio = this.audio.speak(text, { language: run.language,
+          onend: () => { if (current()) { run.audio = null; run.pendingSpeech = null; this.listen(run); } },
+          onerror: () => { if (current()) { run.audio = null; this.stateChanged('playback', 'Voice unavailable or playback blocked. Read Tracy?s reply, then tap Interrupt to continue, or Enable audio to retry.'); } }
+        });
+        return;
+      }
       const utterance = run.utterance = new this.Utterance(text);
       utterance.lang = run.language;
       const voices = this.synth.getVoices();
