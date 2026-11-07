@@ -127,7 +127,7 @@ const GUIDE={dash:'This is your dashboard. At the top you see your next presenta
  prog:'Progress shows how each number changes attempt by attempt. Use the buttons above the chart to switch between pace, filler words, pauses, duration and score, and check your goals beside it.',
  hist:'Practice History is the full list of your sessions with date, duration, pace, fillers, pauses and score. Press View Report on any row to open it and download it as a PDF.',
  note:'Notifications collects reminders, recommendations and progress updates. Mark one as read, or mark them all.',
- set:'Settings is where you change your name, email and picture, switch light or dark theme, and turn my voice on or off.',
+ set:'Settings is where you update your profile, reset your password, choose an appearance, manage my voice and export your workspace data.',
  goals:'Goals lets you add targets, like keeping your pace between 100 and 160, and track your progress toward each one.',
  coach:'This is the AI coach analysis. It shows where your pace drifts and what to practice next.'};
 const LABEL={dash:'Dashboard',decks:'My Presentations',prac:'Practice',rep:'Reports',perf:'Performance',prog:'Progress',hist:'Practice History',note:'Notifications',set:'Settings',goals:'Goals',coach:'the AI Coach'};
