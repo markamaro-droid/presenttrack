@@ -29,11 +29,10 @@
        <div class="dh-baseline"><span class="dh-big-icon">${icon('goal')}</span><div><span class="dh-tag">${baseline?'Baseline recorded':'Your first milestone'}</span><h3>${baseline?'You have a starting point.':'Meet your speaking baseline.'}</h3><p>${baseline?'Your evaluation is saved. Practice with your own slides to begin tracking change.':'Take the built-in evaluation before adding your own slides.'}</p></div></div>
        ${baseline?`<div class="dh-baseline-facts"><div><b>${baselineWpm??'—'}<small> WPM</small></b><span>Estimated pace</span></div><div><b>${fmt(number(baseline.metrics?.totalDurationSec))}</b><span>Evaluation length</span></div><div><b>${number(baseline.metrics?.fillerCount)}</b><span>Detected fillers</span></div></div>`:''}
        <div class="acts">${button(baseline?'View evaluation results':'Take evaluation','eval','','gh sm')}</div>`;
-    const readinessItems=deck?[
-      ['Presentation scheduled',deck.left!=null],['Slides uploaded',!!deck.ppt],['Speaker profile prepared',!!deck.sp],['Recording quality checked',!!deck.rq],['Three practice attempts',S.ses.filter(s=>!s.assess&&s.analysis&&(s.deckId===deck.id||s.deck===deck.short)).length>=3],['Final rehearsal completed',!!deck.final]
-    ]:[];
-    const completed=readinessItems.filter(([,done])=>done).length;
-    const readiness=deck?Math.round(completed/6*100):0;
+    const preparation=deck?PTWorkspaceModel.preparation(deck,S.ses):null;
+    const readinessItems=preparation?.items||[];
+    const completed=preparation?.done||0;
+    const readiness=preparation?.percent||0;
     const recommendation=latest?.analysis?.feedback?.recommendations?.[0]|| (required?'Start with the short evaluation to see which speaking skills to focus on.':deck?'Choose one main point, rehearse it aloud, then review your feedback.':'Bring a presentation you know well. Familiar content helps you focus on delivery.');
     const recent=S.ses.filter(s=>s.analysis||s.assess).slice(-3).reverse();
     const notes=S.notes.filter((n,i,a)=>a.findIndex(x=>x.t===n.t&&x.s===n.s)===i).slice(0,2);

@@ -163,7 +163,7 @@ async function commit(results){
   E.pend=null;E.save=false;
   const metrics=results.metrics||{};
   S.ev={done:true,at:results.created_at,results};S.evalRequired=false;S.assessRequired=false;
-  const x={id:S.nid++,deck:'Initial Evaluation',d:today(),dur:Math.round(metrics.totalDurationSec||0),wpm:Math.round(metrics.wpm||0),fill:metrics.fillerCount||0,pau:metrics.pauseCount||0,score:results.score,tg:150,assess:true};
+  const x={id:S.nid++,deck:'Initial Evaluation',d:today(),at:results.created_at||new Date().toISOString(),dur:Math.round(metrics.totalDurationSec||0),wpm:Math.round(metrics.wpm||0),fill:metrics.fillerCount||0,pau:metrics.pauseCount||0,score:results.score,tg:150,assess:true};
   const i=S.ses.findIndex(q=>q.assess);if(i>=0)S.ses.splice(i,1);S.ses.push(x);
   E.retake=false;E.st='idle';
   let saved=true;

@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
+const model=await readFile(new URL('../js/workspace-model.js',import.meta.url),'utf8');
 const source=await readFile(new URL('../js/dashboard-home.js',import.meta.url),'utf8');
 function setup(required=false){
   const S={u:{name:'Test <User>'},ses:[],pres:[],notes:[]},V={dash:()=>'<loading>'};
   const esc=v=>String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
-  vm.runInNewContext(source,{podium:{ext:{S,V,esc,fmt:n=>`${Math.floor(n/60)}:${String(Math.round(n%60)).padStart(2,'0')}`,ic:()=>'<svg></svg>',I:{},pendingEval:()=>required}}});
+  vm.runInNewContext(model+'\n'+source,{podium:{ext:{S,V,esc,fmt:n=>`${Math.floor(n/60)}:${String(Math.round(n%60)).padStart(2,'0')}`,ic:()=>'<svg></svg>',I:{},pendingEval:()=>required}}});
   return{S,V};
 }
 test('new users get evaluation next action and no fabricated progress chart',()=>{

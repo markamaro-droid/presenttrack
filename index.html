@@ -18,6 +18,7 @@
 <link rel="stylesheet" href="css/tour-guide.css">
 <link rel="stylesheet" href="css/assessment.css">
 <link rel="stylesheet" href="css/dashboard-home.css">
+<link rel="stylesheet" href="css/workspace.css">
 <link rel="stylesheet" href="css/robot-voice.css">
 </head>
 <body>
@@ -129,7 +130,7 @@
   <div class="tcap" id="tcap" hidden aria-live="off"><p id="tsub"></p></div>
   <div class="spot" id="spot" hidden aria-hidden="true"><b></b></div>
   <div class="modal" id="hm" hidden><div class="mc" role="dialog" aria-label="Help"><h2>Help</h2>
-    <ul><li>Upload a presentation, then open Practice to rehearse it out loud.</li><li>Tap a filler word each time you hear yourself say it.</li><li>Finish a session to get a score and tips. It is saved to Practice history and Progress.</li><li>Change your picture and defaults in Settings.</li></ul>
+    <ul><li>Complete Evaluation for your starting baseline, then add your own presentation.</li><li>In Practice, choose a target, consent to audio processing and start the microphone. Use full screen to rehearse with your slides.</li><li>Finish to transcribe the recording and generate a report. Audio is sent to Groq; the transcript and results are saved, but raw audio is not retained.</li><li>Use Performance to compare attempts, Progress to view trends and Goals to set measurable targets.</li><li>History includes saved reports and CSV export. Speech measurements are estimates, not an assessment of overall ability.</li></ul>
     <div class="acts"><button class="bt gh" id="hrt" type="button">Replay guided tour</button><button class="bt" id="hx" type="button">Got it</button></div></div></div>
   <div class="toast" id="toast" role="status"></div>
 </div>
@@ -169,12 +170,14 @@
 <script src="js/water.js"></script>
 <script src="js/hero-tour-demo.js"></script>
 <script src="js/practice-audio.js"></script>
+<script src="js/workspace-model.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="js/assessment.js"></script>
 <script src="assets/evaluation/study-habits.js"></script>
 <script src="js/evaluation.js"></script>
 <script src="js/practice-insights.js"></script>
 <script src="js/dashboard-home.js"></script>
+<script src="js/workspace.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="assets/models/robot-glb.js"></script>
