@@ -8,12 +8,30 @@ import { CRITERIA } from '../supabase/functions/_shared/criteria.js';
 export function createPracticeService({ env = process.env, fetchImpl = fetch, access = createAccess({ env, fetchImpl, requiredKey: 'GROQ_API_KEY' }) } = {}) {
   return async (authorization, input) => {
     const identity = await access.authenticate(authorization);
-    if (input?.consent !== true || typeof input.audio !== 'string' || input.audio.length > 4000000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(input.audio)
+    const stored = typeof input?.storagePath === 'string';
+    const validSource = stored
+      ? input.audio === undefined && input.storagePath.startsWith(identity.userId + '/') && /^[0-9a-f-]+\/[0-9a-f-]+$/.test(input.storagePath)
+      : typeof input?.audio === 'string' && input.audio.length <= 4000000 && /^[A-Za-z0-9+/]+={0,2}$/.test(input.audio);
+    if (input?.consent !== true || !validSource
       || !['audio/webm','audio/mp4','audio/mpeg','audio/wav','audio/ogg','video/mp4','video/webm'].includes(input.mime)
-      || !Number.isFinite(input.target) || input.target < 60 || input.target > 14400) throw new ChatError(400, 'invalid_recording', 'Choose a supported recording under 3 MB and a valid target time.');
-    const audio = Buffer.from(input.audio, 'base64');
-    if (!audio.length || audio.length > 3000000) throw new ChatError(413, 'too_large', 'Use a recording under 3 MB.');
+      || !Number.isFinite(input.target) || input.target < 60 || input.target > 14400) throw new ChatError(400, 'invalid_recording', 'Choose a supported recording and a valid target time.');
+    const storageUrl = stored ? `${env.SUPABASE_URL.replace(/\/$/, '')}/storage/v1/object/practice-audio-temp/${input.storagePath}` : null;
+    try {
     await access.quota(identity, 'voice');
+    let audio;
+    if (stored) {
+      const download = await fetchImpl(storageUrl, { headers: identity.headers, signal: AbortSignal.timeout(30000) });
+      if (!download.ok) throw new ChatError(400, 'upload_unavailable', 'Temporary recording unavailable. Please upload it again.');
+      if (Number(download.headers.get('content-length')) > 25000000) { await download.body?.cancel(); throw new ChatError(413, 'too_large', 'Use a recording up to 25 MB.'); }
+      const chunks = []; let size = 0;
+      for await (const chunk of download.body) {
+        size += chunk.length;
+        if (size > 25000000) throw new ChatError(413, 'too_large', 'Use a recording up to 25 MB.');
+        chunks.push(Buffer.from(chunk));
+      }
+      audio = Buffer.concat(chunks);
+    } else audio = Buffer.from(input.audio, 'base64');
+    if (!audio.length || audio.length > (stored ? 25000000 : 3000000)) throw new ChatError(413, 'too_large', 'Recording exceeds the upload limit.');
     const form = new FormData();
     const ext = { 'audio/webm':'webm','audio/mp4':'m4a','audio/mpeg':'mp3','audio/wav':'wav','audio/ogg':'ogg','video/mp4':'mp4','video/webm':'webm' }[input.mime];
     form.set('file', new Blob([audio], { type: input.mime }), 'practice.' + ext);
@@ -37,5 +55,16 @@ export function createPracticeService({ env = process.env, fetchImpl = fetch, ac
     // Shared baseline feedback assumes a 2–3 minute task; use the selected practice target instead.
     for (const key of ['strengths','improvements','recommendations']) feedback[key] = feedback[key].map(t => t.replace(/2-3 minute/g, `${Math.round(input.target / 60)} minute`));
     return { ...result, metrics, quality, feedback, criteria, provider: 'groq', source: 'recorded-audio', transcript: String(data.text || '').slice(0, 20000) };
+    } finally {
+      if (stored) {
+        try {
+          const removed = await fetchImpl(`${env.SUPABASE_URL.replace(/\/$/, '')}/storage/v1/object/practice-audio-temp`, {
+            method: 'DELETE', headers: { ...identity.headers, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prefixes: [input.storagePath] }), signal: AbortSignal.timeout(8000)
+          });
+          if (!removed.ok) console.warn('Temporary practice audio cleanup failed.');
+        } catch { console.warn('Temporary practice audio cleanup unavailable.'); }
+      }
+    }
   };
 }

@@ -23,3 +23,37 @@ test('silence and missing timestamps never produce a fabricated report',async()=
     const s=setup({response});await assert.rejects(s.service('Bearer test',request));
   }
 });
+
+function storedSetup({ failure = false, oversize = false } = {}) {
+  const calls = [], userId = '12345678-1234-1234-1234-123456789abc';
+  const service = createPracticeService({ env: { SUPABASE_URL: 'https://storage.test', GROQ_API_KEY: 'test' },
+    access: { authenticate: async () => ({ userId, headers: { Authorization: 'Bearer user' } }), quota: async () => {} },
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      if (options.method === 'DELETE') return new Response('{}');
+      if (url.startsWith('https://storage.test')) return new Response('audio', { headers: { 'content-length': oversize ? '25000001' : '5' } });
+      return failure ? new Response('{}', { status: 503 }) : new Response(JSON.stringify(sample));
+    }
+  });
+  return { service, calls, input: { mime: 'audio/wav', target: 120, consent: true, storagePath: `${userId}/12345678-abcd-abcd-abcd-123456789abc` } };
+}
+test('large recordings are fetched privately and deleted after transcription', async () => {
+  const s = storedSetup();
+  assert.equal((await s.service('Bearer user', s.input)).metrics.wpm, 120);
+  assert.equal(s.calls.length, 3);
+  assert.equal(s.calls[0].options.headers.Authorization, 'Bearer user');
+  assert.equal(s.calls[2].options.method, 'DELETE');
+  assert.deepEqual(JSON.parse(s.calls[2].options.body).prefixes, [s.input.storagePath]);
+});
+test('foreign paths, traversal and ambiguous sources never reach storage or Groq', async () => {
+  for (const edit of [{ storagePath: 'another-user/file' }, { storagePath: 'https://evil.test/file' }, { audio: request.audio }]) {
+    const s = storedSetup(); await assert.rejects(s.service('Bearer user', { ...s.input, ...edit })); assert.equal(s.calls.length, 0);
+  }
+});
+test('provider failures and oversized downloads still delete temporary audio', async () => {
+  for (const options of [{ failure: true }, { oversize: true }]) {
+    const s = storedSetup(options); await assert.rejects(s.service('Bearer user', s.input));
+    assert.equal(s.calls.at(-1).options.method, 'DELETE');
+    if (options.oversize) assert.equal(s.calls.length, 2);
+  }
+});

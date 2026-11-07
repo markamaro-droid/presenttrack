@@ -24,3 +24,30 @@ test('practice capture pauses, resumes, retains retry audio and stops the microp
 test('navigation before microphone permission resolves releases the late stream',async()=>{
   const s=setup(true);const pending=s.capture.start();s.capture.dispose();s.grant();await assert.rejects(pending,/cancelled/);assert.equal(s.stops,1);
 });
+
+function uploadSetup({ fail = false, signal } = {}) {
+  const calls = [], session = { data: { session: { access_token: 'token', user: { id: 'account' } } } };
+  const bucket = { upload: async (path, blob) => { calls.push(['upload', path, blob.size]); return {}; }, remove: async paths => { calls.push(['remove', paths]); return {}; } };
+  const window = { PTCloud: { client: { auth: { getSession: async () => session }, storage: { from: () => bucket } } } };
+  vm.runInNewContext(code, { window, Blob, Uint8Array, crypto: { randomUUID: () => 'unique' }, btoa: s => Buffer.from(s, 'binary').toString('base64'), addEventListener() {},
+    fetch: async (url, options) => { calls.push(['request', JSON.parse(options.body)]); if (fail) throw new Error('offline'); return { ok: true, json: async () => ({ score: 80 }) }; }
+  });
+  return { calls, analyze: blob => window.PTPracticeAudio.analyze(blob, 120, signal) };
+}
+test('large browser uploads send a storage reference and clean up on success and failure', async () => {
+  for (const fail of [false, true]) {
+    const s = uploadSetup({ fail }), work = s.analyze(new Blob([new Uint8Array(3000001)], { type: 'audio/wav' }));
+    if (fail) await assert.rejects(work, /offline/); else assert.equal((await work).score, 80);
+    assert.equal(s.calls[0][0], 'upload');
+    assert.equal(s.calls[1][1].storagePath, 'account/unique');
+    assert.equal(s.calls[1][1].audio, undefined);
+    assert.equal(s.calls.at(-1)[0], 'remove');
+  }
+});
+test('small recordings stay inline; oversized and cancelled files do not upload', async () => {
+  const s = uploadSetup(); await s.analyze(new Blob(['audio'], { type: 'audio/webm' }));
+  assert.equal(s.calls.length, 1); assert.equal(s.calls[0][1].audio, Buffer.from('audio').toString('base64'));
+  const large = uploadSetup(); await assert.rejects(large.analyze({ size: 25000001 }), /25 MB/); assert.equal(large.calls.length, 0);
+  const cancelled = uploadSetup({ signal: AbortSignal.abort() });
+  await assert.rejects(cancelled.analyze(new Blob(['audio'], { type: 'audio/webm' }))); assert.equal(cancelled.calls.length, 0);
+});

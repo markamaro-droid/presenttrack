@@ -14,7 +14,7 @@
       "maxDuration": 60
     },
     "api/practice.js": {
-      "maxDuration": 60
+      "maxDuration": 120
     },
     "api/speech.js": {
       "maxDuration": 60
