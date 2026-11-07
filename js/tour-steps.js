@@ -62,7 +62,7 @@ window.PTTourSteps = [
     "target": "#ua",
     "title": "ADD PRESENTATION",
     "description": "Select ADD PRESENTATION to save your presentation.",
-    "voiceLine": "Select ADD PRESENTATION to save your presentation."
+    "voiceLine": "Select Add presentation to save your presentation."
   },
   {
     "nav": "decks",
@@ -110,7 +110,7 @@ window.PTTourSteps = [
     "target": "#ra",
     "title": "ANALYZE RECORDING",
     "description": "You can also upload an existing recording. Choose a presentation and file, give consent, then select ANALYZE RECORDING.",
-    "voiceLine": "You can also upload an existing recording. Choose a presentation and file, give consent, then select ANALYZE RECORDING."
+    "voiceLine": "Have a recording already? Choose your file, give consent, then select Analyze recording."
   },
   {
     "nav": "perf",
@@ -174,7 +174,7 @@ window.PTTourSteps = [
     "target": "#ws-export",
     "title": "Export filtered CSV",
     "description": "Select Export filtered CSV to download the matching session measurements.",
-    "voiceLine": "Select Export filtered CSV to download the matching session measurements."
+    "voiceLine": "Select Export filtered C S V to download these session measurements."
   },
   {
     "nav": "note",

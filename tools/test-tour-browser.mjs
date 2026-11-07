@@ -39,7 +39,7 @@ try {
   for (const [width,height] of [[1440,900],[390,844]]) {
     await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<600});
     await call('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/`});
-    for(let n=0;n<100;n++){if(await evaluate('!!window.PTTourSpotlight && !!window.podium?.ext && !!podium.ext.V.goals && !!document.querySelector("#tour")'))break;await new Promise(r=>setTimeout(r,50));}
+    for(let n=0;n<100;n++){if(await evaluate('document.readyState === "complete" && !!window.PTTourSpotlight && !!window.podium?.ext && podium.ext.V.set.toString().includes("settings-profile-form") && !!document.querySelector("#tour")'))break;await new Promise(r=>setTimeout(r,50));}
     await evaluate(`document.documentElement.classList.add('clay');document.querySelector('#app').hidden=false;document.querySelector('#bot').hidden=false;window.PTCloud={enabled:false};const S=podium.ext.S;S.u={name:'Tour Tester',email:'tour@example.test',pic:''};S.booted=true;S.loading=false;S.evalRequired=false;S.ses=[1,2].map(i=>({id:i,deckId:1,deck:'Test',at:new Date().toISOString(),d:'Today',dur:120,wpm:130,fill:2,pau:1,score:80,analysis:{}}));podium.ext.go('dash');`);
     // Every configured selector resolves in a populated account, using actual views.
     const missing = await evaluate(`(()=>{const missing=[];for(const step of PTTourSteps){podium.ext.go(step.view);const el=document.querySelector(step.target);if(!el||el.getBoundingClientRect().width<2)missing.push(step.title+' '+step.target);}return missing;})()`);
@@ -63,3 +63,4 @@ try {
     console.log(`PASS ${width}x${height}: all selectors, scrolling, resizing, replacement, navigation, tooltip bounds, gated steps and cleanup`);
   }
 } finally { socket?.close(); chrome.kill(); server.close(); }
+

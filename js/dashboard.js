@@ -86,24 +86,36 @@ function tourShow(i,direction=1){
   }
   if(i<0){tourShow(0);return;}if(i>=T.steps.length){endTour(false);return;}
   $('bot').classList.remove('tourhl');
-  T.est=Math.max(6000,st.x.length*58+1500);T.t0=performance.now();T.pAt=0;T.play=true;T.adv=false;T.prepared=false;T.audioStarted=false;T.sf=0;T.sp=0;T.n=0;T.nmax=0;
+  T.est=Math.max(2800,st.x.split(/\s+/).length*350+500);T.t0=performance.now();T.pAt=0;T.play=true;T.adv=false;T.captionOnly=false;T.audioStarted=false;T.sf=0;T.sp=0;T.n=0;T.nmax=0;
   tourUI();
   spotlight ||= new window.PTTourSpotlight($('spot'));
   spotlight.start(st.target,st.title,st.description);
   try{podium.narrate&&podium.narrate(st.x,T.est)}catch(e){}
+  // Start look-ahead while this clip loads, rather than waiting for playback.
+  // Reuse the speech player's pending requests/cache; never synthesize the whole tour.
+  const generation=T.generation;
+  Promise.resolve().then(async()=>{
+    for(const next of T.steps.slice(T.i+1,T.i+3)){
+      if(!T.on||T.generation!==generation)break;
+      try{await podium.prepareNarration?.(next.x)}catch(e){}
+    }
+  });
 }
 function tourGo(d){if(!T.on)return;const n=T.i+d;if(n>=T.steps.length){endTour(false);return}tourShow(n,d)}
 function tourPlay(p){if(!T.on||T.play===p)return;T.play=p;if(p){T.t0+=performance.now()-T.pAt}else T.pAt=performance.now();try{podium.narPause&&podium.narPause(!p)}catch(e){}tourUI()}
 function tourTick(){
   if(!T.on)return;if(!T.play||T.adv)return;let el=performance.now()-T.t0;const ns=(podium.narState&&podium.narState())||{voice:false};
-  const voice=ns.voice&&!ns.failed;
+  // A slow provider must not hold a step in silence for its full network timeout.
+  if(!T.captionOnly&&ns.voice&&!ns.started&&!ns.ended&&el>6000){
+    T.captionOnly=true;podium.hushNow?.();T.t0=performance.now();el=0;
+  }
+  const voice=ns.voice&&!ns.failed&&!T.captionOnly;
   if(voice&&ns.started&&!T.audioStarted){T.audioStarted=true;T.t0=performance.now();el=0}
-  if(voice&&ns.started&&!T.prepared){T.prepared=true;const next=T.steps[T.i+1];if(next)podium.prepareNarration?.(next.x)}
-  {const want=T.cc===null?(el>2600&&!voice):T.cc;if(want!==T.ccShown){T.ccShown=want;$('tcap').hidden=!want}}
+  {const want=T.cc===null?(!voice||!ns.started):T.cc;if(want!==T.ccShown){T.ccShown=want;$('tcap').hidden=!want}}
   const done=voice?ns.ended:el>T.est;
   const b=$('ts'+T.i);if(b)b.style.width=Math.min(97,el/(voice?Math.max(T.est,el+800):T.est)*100)+'%';
   tourSub(voice&&!ns.started?0:voice&&ns.ended?1:Math.min(1,el/(T.est*.82)),voice&&ns.pos>0&&!ns.ended?ns.pos:0);
-  if(done){const b2=$('ts'+T.i);if(b2)b2.style.width='100%';tourSub(1,0);T.adv=true;const generation=T.generation;T.advanceTimer=setTimeout(()=>{if(generation!==T.generation)return;T.adv=false;if(T.on&&T.play)tourGo(1)},100)}
+  if(done){const b2=$('ts'+T.i);if(b2)b2.style.width='100%';tourSub(1,0);T.adv=true;const generation=T.generation;T.advanceTimer=setTimeout(()=>{if(generation!==T.generation)return;T.adv=false;if(T.on&&T.play)tourGo(1)},0)}
 }
 function startTour(){
   if(T.on)return;if($('app').hidden)return;
