@@ -1,4 +1,4 @@
-/* Post-login introduction uses the existing robot and device voice; no AI calls or microphone. */
+/* Post-login introduction: prepare Cartesia audio during the robot arrival. */
 (() => {
   const $ = id => document.getElementById(id);
   const copy = "Hi, I’m Tracy, your presentation coach! I’ll guide you through PresentTrack, help you practice your delivery, and explain your feedback. Let’s start with a short speaking evaluation.";
@@ -8,6 +8,7 @@
     podium.welcomeStop();
     const stage = $('welcome-stage'), bot = $('bot'), button = $('leval'), caption = $('welcome-intro');
     if (!stage || !bot || !button) return;
+    podium.prepareNarration?.(copy);
     const skip = $('welcome-skip'), replay = $('welcome-replay');
     const hero = stage.closest('.welcome-hero');
     hero.classList.remove('welcome-ready');

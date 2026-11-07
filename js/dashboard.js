@@ -113,27 +113,29 @@ function tourShow(i){
   T.i=Math.max(0,Math.min(T.steps.length-1,i));const st=T.steps[T.i];
   if(S.view!==st.v)go(st.v);else nav();
   $('bot').classList.toggle('tourhl',!!st.bot);
-  T.est=Math.max(6000,st.x.length*58+1500);T.t0=performance.now();T.pAt=0;T.play=true;T.adv=false;T.sf=0;T.sp=0;T.n=0;T.nmax=0;spotOff();{const st2=T.steps[T.i];T.cues=(st2.c||[]).map(([ph,sel,lab])=>({i:st2.x.toLowerCase().indexOf(ph.toLowerCase()),sel,lab})).filter(c=>c.i>=0).sort((a,b)=>a.i-b.i)}
+  T.est=Math.max(6000,st.x.length*58+1500);T.t0=performance.now();T.pAt=0;T.play=true;T.adv=false;T.prepared=false;T.audioStarted=false;T.sf=0;T.sp=0;T.n=0;T.nmax=0;spotOff();{const st2=T.steps[T.i];T.cues=(st2.c||[]).map(([ph,sel,lab])=>({i:st2.x.toLowerCase().indexOf(ph.toLowerCase()),sel,lab})).filter(c=>c.i>=0).sort((a,b)=>a.i-b.i)}
   if(T.cues.length&&!document.querySelector(T.cues[0].sel)){T.cues=[{i:0,sel:'.nv[data-go="'+st.nav+'"]',lab:st.t}];st.x=st.t+' is available from this tab. Complete the earlier setup steps to use its controls.';st.c=[[st.x,T.cues[0].sel,st.t]];}
   tourUI();spotUpdate(0);try{podium.narrate&&podium.narrate(st.x,T.est)}catch(e){}
 }
 function tourGo(d){if(!T.on)return;const n=T.i+d;if(n>=T.steps.length){endTour(false);return}tourShow(n)}
 function tourPlay(p){if(!T.on||T.play===p)return;T.play=p;if(p){T.t0+=performance.now()-T.pAt}else T.pAt=performance.now();try{podium.narPause&&podium.narPause(!p)}catch(e){}tourUI()}
 function tourTick(){
-  if(!T.on)return;spotUpdate(T.n||0);if(!T.play||T.adv)return;const el=performance.now()-T.t0,ns=(podium.narState&&podium.narState())||{voice:false};
+  if(!T.on)return;spotUpdate(T.n||0);if(!T.play||T.adv)return;let el=performance.now()-T.t0;const ns=(podium.narState&&podium.narState())||{voice:false};
   const voice=ns.voice&&!ns.failed;
+  if(voice&&ns.started&&!T.audioStarted){T.audioStarted=true;T.t0=performance.now();el=0}
+  if(voice&&ns.started&&!T.prepared){T.prepared=true;const next=T.steps[T.i+1];if(next)podium.prepareNarration?.(next.x)}
   {const want=T.cc===null?(el>2600&&!voice):T.cc;if(want!==T.ccShown){T.ccShown=want;$('tcap').hidden=!want}}
   const done=voice?ns.ended:el>T.est;
   const b=$('ts'+T.i);if(b)b.style.width=Math.min(97,el/(voice?Math.max(T.est,el+800):T.est)*100)+'%';
-  tourSub(voice&&ns.ended?1:Math.min(1,el/(T.est*.82)),voice&&ns.pos>0&&!ns.ended?ns.pos:0);
-  if(done){const b2=$('ts'+T.i);if(b2)b2.style.width='100%';tourSub(1,0);T.adv=true;const generation=T.generation;T.advanceTimer=setTimeout(()=>{if(generation!==T.generation)return;T.adv=false;if(T.on&&T.play)tourGo(1)},450)}
+  tourSub(voice&&!ns.started?0:voice&&ns.ended?1:Math.min(1,el/(T.est*.82)),voice&&ns.pos>0&&!ns.ended?ns.pos:0);
+  if(done){const b2=$('ts'+T.i);if(b2)b2.style.width='100%';tourSub(1,0);T.adv=true;const generation=T.generation;T.advanceTimer=setTimeout(()=>{if(generation!==T.generation)return;T.adv=false;if(T.on&&T.play)tourGo(1)},100)}
 }
 function startTour(){
   if(T.on)return;if($('app').hidden)return;
   window.PTVoice?.active&&PTVoice.stop();
   S.guide=true;T.on=true;T.steps=tourSteps();closePops();$('hm').hidden=true;setMin(false);
   if(innerWidth<900)$('side').classList.add('open');
-  clearInterval(T.timer);T.timer=setInterval(tourTick,200);document.body.classList.add('touring');document.body.classList.remove('tourcol');$('bot').classList.remove('tcol');$('bot').classList.add('tourmode');T.cc=null;T.ccShown=false;syncGuide();tourShow(0)}
+  clearInterval(T.timer);T.timer=setInterval(tourTick,100);document.body.classList.add('touring');document.body.classList.remove('tourcol');$('bot').classList.remove('tcol');$('bot').classList.add('tourmode');T.cc=null;T.ccShown=false;syncGuide();tourShow(0)}
 function endTour(spoken){
   if(!T.on)return;T.on=false;clearTimeout(T.advanceTimer);T.generation=(T.generation||0)+1;spotOff();clearInterval(T.timer);S.toured=true;S.isNew=false;{const k=(S.u.email||'').toLowerCase();if(DB[k])DB[k].onboarded=true;if(window.PTCloud)PTCloud.onboarded=true}tourEl().hidden=true;$('tcap').hidden=true;$('bot').classList.remove('tourhl','tourmode','tcol');document.body.classList.remove('touring','tourcol');
   try{podium.hushNow&&podium.hushNow()}catch(e){}nav();$('side').classList.remove('open')}

@@ -35,6 +35,7 @@ const mute=$('bmute');
 podium.setVoice=on=>{podium.voiceOn=on;window.PTVoice&&PTVoice.setSpeaker(on);mute.textContent=on?'🔊':'🔇';mute.setAttribute('aria-pressed',String(!on));mute.setAttribute('aria-label',on?'Mute Tracy\'s voice':'Unmute Tracy\'s voice');mute.title=on?'Mute Tracy\'s voice':'Unmute Tracy\'s voice';if(!on)hush()};
 mute.onclick=()=>podium.setVoice(podium.voiceOn===false);
 
+podium.prepareNarration=text=>podium.voiceOn!==false?globalThis.TracyAudio?.prepare(clean(text)):Promise.resolve(false);
 podium.narrate=(text,est)=>{if(window.PTVoice&&PTVoice.active)PTVoice.stop();set('talking',Math.min(60000,(est||8000)*2.5),'',text)};
 podium.narState=()=>({voice:!!globalThis.TracyAudio&&podium.voiceOn!==false&&!V.on,started:nar.started,ended:nar.ended,failed:!!nar.failed,pos:nar.pos||0,speaking});
 podium.narPause=p=>{globalThis.TracyAudio?.pause(p)};podium.hushNow=()=>{hush();set('idle',0,'')};
