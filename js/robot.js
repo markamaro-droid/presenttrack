@@ -48,11 +48,6 @@ voice.setHooks({
 });
 podium.openChat=()=>voice.open();
 podium.openVoice=()=>voice.open();
-const bar=bot.querySelector('.bbar');
-const menu=on=>{bot.classList.toggle('menu',on);clearTimeout(menu.t);if(on)menu.t=setTimeout(()=>{if(!voice.active)menu(false)},8000)};
-cv.addEventListener('click',()=>{menu(true);voice.open();if(voice.state==='speaking')voice.interrupt()});
-cv.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();menu(true);voice.open()}});
-if(bar)bar.addEventListener('click',()=>menu(true));
 function addRot(n,ax,a){if(!n||Math.abs(a)<.002)return;
   n.parent.getWorldQuaternion(q1);q2.copy(root.quaternion).invert();q1.premultiply(q2);
   q3.setFromAxisAngle(ax,a).premultiply(q2.copy(q1).invert()).multiply(q1);n.quaternion.premultiply(q3)}
