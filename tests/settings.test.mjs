@@ -16,7 +16,7 @@ test('Settings exposes only working groups and keeps account email out of editab
   const {V}=setup(), html=V.set();
   for(const name of ['Profile','Account & Security','Appearance','Coaching Preferences','Data & Privacy']) assert.ok(html.includes(name));
   assert.doesNotMatch(html,/prototype-states|Email me practice reminders|type="email"/);
-  assert.match(html,/data-settings-theme="system"/); assert.match(html,/Download JSON/);
+  assert.doesNotMatch(html,/data-settings-theme="system"/); assert.match(html,/theme-mini-cards/); assert.match(html,/Download JSON/);
 });
 test('sign-in restores own preferences and another account resets them',()=>{
   const {podium,PTCloud,S}=setup();podium.account('student@example.test');

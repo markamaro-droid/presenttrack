@@ -13,8 +13,8 @@ purple tokens, icons, workspace shell, history navigation and guided tour remain
 - Photo and voice: saved under `user_data.data.settings` by the existing
   authenticated snapshot save; restored on sign-in. No schema change. Demo
   accounts retain these settings only within the current page session.
-- Theme: Light, Dark or System, persisted on this browser with localStorage.
-  If storage is blocked, the UI explains that the change is temporary.
+- Theme: Light or Dark, persisted on this browser with localStorage.
+  Existing System choices resolve once to the device?s current theme. If storage is blocked, the UI explains that the change is temporary.
 - Password reset: existing Supabase email recovery method and recovery handler.
   Requires a cloud account and the existing valid Auth redirect/email setup.
 - Sign out: uses the existing application sign-out flow.
