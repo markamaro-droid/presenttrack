@@ -178,23 +178,52 @@ function timeline(m){
   const pa=(m.pauses||[]).map(p=>`<rect x="${x(p.t)}" y="22" width="${Math.max(3,x(p.t+p.dur)-x(p.t))}" height="26" rx="3" fill="color-mix(in srgb,var(--err) 55%,transparent)" style="filter:none"><title>Pause ${mm(p.t)} · ${p.dur}s</title></rect>`).join('');
   const fi=(m.fillers||[]).map(f=>`<rect x="${x(f.t)-1.5}" y="14" width="3" height="42" rx="1.5" fill="#E8930C" style="filter:none"><title>${esc(f.word)} at ${mm(f.t)}</title></rect>`).join('');
   return `<svg class="cht" viewBox="0 0 ${W} 86" role="img" aria-label="Timeline of your talk with ${m.fillerCount} filler words and ${m.pauseCount} long pauses"><rect x="8" y="22" width="${W-16}" height="26" rx="8" fill="var(--cs)" style="filter:none" stroke="var(--ish)"/>${pa}${fi}<text x="8" y="72">0:00</text><text x="${W-8}" y="72" text-anchor="end">${mm(tot)}</text><text x="${W/2}" y="72" text-anchor="middle">Talk timeline</text></svg><p class="basis" style="margin:6px 0 0"><span class="lg amber"></span> filler word &nbsp; <span class="lg red"></span> long pause</p>`}
+const reportIcon=name=>{
+  const paths={pace:'M4 16a8 8 0 1 1 16 0M12 13l4-5M4 20h16',words:'M4 4h16v13H8l-4 3zM8 8h8M8 12h5',time:'M12 8v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',fill:'M5 5h5v6H7v4H4V9zM15 5h5v6h-3v4h-3V9z',pause:'M8 5v14M16 5v14',check:'M5 12l4 4L19 6',target:'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0',arrow:'M5 12h14M13 6l6 6-6 6'};
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[name]||paths.target}"/></svg>`;
+};
 V.evres=()=>{
   const r=S.ev&&S.ev.results;
-  if(!r)return page('Evaluation results','',sec('RESULTS',1,nodata('You have not taken the evaluation yet.',S.evalRequired?'<button class="bt" data-go="eval" type="button">START EVALUATION</button>':'')));
+  if(!r)return page('Evaluation results','',sec('RESULTS',1,nodata('You have not taken the evaluation yet.','<button class="bt" data-go="eval" type="button">START EVALUATION</button>')));
   const m=r.metrics||{},q=r.quality||{},d=r.durationAssessment||{},f=r.feedback||{},cl=CLASS[r.classification]||['Result',''];
-  const dst={too_short:'Shorter than the 2 to 3 minute target',within_range:'Within the 2 to 3 minute target',too_long:'Longer than the 2 to 3 minute target'}[d.status]||'';
-  const list=a=>(a&&a.length)?`<ul class="tp">${a.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:'<p class="em">Nothing to show here.</p>';
-  const card=(n,v,s)=>`<article class="mc"><h4>${n}</h4><p class="mv">${v}</p>${s?`<small>${s}</small>`:''}</article>`;
-  const fb=Object.entries(m.fillerByWord||{}).map(([w,c])=>esc(w)+' ×'+c).join(', ');
-  const ft=(m.fillers||[]).slice(0,40).map(x=>esc(x.word)+(x.heuristic?'*':'')+' '+mm(x.t)).join(' · ');
-  const pt=(m.pauses||[]).map(p=>mm(p.t)+' ('+p.dur+'s)').join(' · ');
-  return page('Evaluation results','Your speaking baseline.',
-   sec('YOUR BASELINE',1,`<p class="sub" style="margin:0 0 8px"><span class="st ${cl[1]}">${cl[0]}</span> &nbsp; Score ${Math.round(r.score||0)}%</p><p class="sub" style="margin:0">${esc(r.explanation||'')}</p>`)
-   +`<div class="g-perf five">${card('Speaking speed',Math.round(m.wpm||0)+' <small>WPM</small>',esc((r.dims&&r.dims.pace&&r.dims.pace.label)||''))}${card('Total words',m.words||0,'')}${card('Presentation time',mm(m.totalDurationSec),esc(dst))}${card('Filler words',m.fillerCount||0,fb||'None detected')}${card('Long pauses',m.pauseCount||0,m.pauseCount?'Longest '+(m.longestPause||0)+'s':'None of 2 s or more')}</div>`
-   +(q.level==='low'||(q.warnings||[]).length?sec('RECORDING QUALITY',2,list(q.warnings)+(q.level==='low'?'<div class="acts"><button class="bt gh" data-act="eretake" type="button">TAKE IT AGAIN</button></div>':'')):'')
-   +sec('TALK TIMELINE',3,timeline(m)+(ft?`<p class="basis" style="margin:10px 0 0"><b>Filler words:</b> ${ft}${(m.heuristicFillerCount||0)?'<br>* "like" is only counted when it looks like a filler, so these are possible fillers.':''}</p>`:'')+(pt?`<p class="basis" style="margin:6px 0 0"><b>Long pauses:</b> ${pt}</p>`:''))
-   +sec('WHAT TO PRACTICE NEXT',4,`<p class="rec">${esc(f.summary||'')}</p><h4 class="plb" style="margin:10px 0 4px">Strengths</h4>${list(f.strengths)}<h4 class="plb" style="margin:10px 0 4px">Areas to improve</h4>${list(f.improvements)}<h4 class="plb" style="margin:10px 0 4px">Next practice session</h4>${list(f.recommendations)}`)
-   +sec('HOW THIS WAS MEASURED',5,`<ul class="tp"><li>Speaking speed = spoken words ÷ speaking time in minutes. Pauses of 2 seconds or longer are <b>not</b> counted as speaking time; shorter pauses are.</li><li>Words and timing come from your browser's speech recognition, which can miss or add words and often skips "um" and "uh". Filler and pause counts are estimates, not definite mistakes.</li><li>Presentation time is the full length of your talk, compared with a 2 to 3 minute target.</li></ul><div class="acts"><button class="bt" data-go="up" type="button">UPLOAD PPT</button><button class="bt gh" data-go="hist" type="button">PRACTICE HISTORY</button></div>`));
+  const num=v=>Number.isFinite(Number(v))?Math.max(0,Number(v)):0;
+  const score=Math.min(100,Math.round(num(r.score))),wpm=Math.round(num(m.wpm)),duration=num(m.totalDurationSec);
+  const pace=r.criteria?.pace||CV?.CRITERIA.pace||{idealMin:130,idealMax:160};
+  const min=num(pace.idealMin),max=num(pace.idealMax),scale=Math.max(240,max+40,wpm+20);
+  const targetMin=num(d.targetMinSec)||120,targetMax=num(d.targetMaxSec)||180;
+  const list=a=>(a&&a.length)?`<ul>${a.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:'<p class="sub">No additional observations.</p>';
+  const metric=(icon,title,value,unit,note)=>`<article class="er-metric"><span class="er-icon">${reportIcon(icon)}</span><h3>${title}</h3><div class="er-value">${value}<small>${unit}</small></div><p>${esc(note)}</p></article>`;
+  const dims=Object.entries(r.dims||{}).filter(([,v])=>v&&Number.isFinite(v.points));
+  const dimNames={pace:'Speaking pace',fillers:'Filler control',pauses:'Pause control',duration:'Talk duration'};
+  const date=r.created_at&&!Number.isNaN(Date.parse(r.created_at))?new Date(r.created_at).toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'}):'Baseline assessment';
+  return page('Evaluation results','Your starting point. Your next step.',`<div class="evaluation-report">
+    <section class="er-hero">
+      <div class="er-score" role="img" aria-label="Baseline score ${score} out of 100"><svg viewBox="0 0 160 160" aria-hidden="true"><circle cx="80" cy="80" r="66" class="er-ring-track"/><circle cx="80" cy="80" r="66" class="er-ring-value" pathLength="100" stroke-dasharray="${score} 100"/></svg><div><strong>${score}<small>/100</small></strong><span>BASELINE SCORE</span></div></div>
+      <div class="er-intro"><span class="er-eyebrow">YOUR SPEAKING SNAPSHOT</span><h2>A starting point for stronger presentations.</h2><div class="er-meta"><span class="st ${cl[1]}">${cl[0]}</span><span>${esc(date)}</span></div><p>This baseline measures pace, fillers, pauses and talk length. Use it to choose what to practice next.</p></div>
+      <div class="er-focus"><span class="er-icon">${reportIcon('target')}</span><span class="er-eyebrow">YOUR NEXT FOCUS</span><p>${esc((f.recommendations||[])[0]||'Review your delivery below and choose one skill to practice.')}</p><a class="er-link" href="#evaluation-plan">See your practice plan ${reportIcon('arrow')}</a></div>
+    </section>
+    <div class="er-metrics">
+      ${metric('pace','Speaking pace',wpm,'WPM',r.dims?.pace?.label||'Recognized speaking speed')}
+      ${metric('words','Words spoken',num(m.words),'words','Recognized in this evaluation')}
+      ${metric('time','Talk duration',mm(duration),'',`Target ${mm(targetMin)} to ${mm(targetMax)}`)}
+      ${metric('fill','Filler words',num(m.fillerCount),'detected','Estimated by speech recognition')}
+      ${metric('pause','Long pauses',num(m.pauseCount),'detected','Gaps of 2 seconds or longer')}
+    </div>
+    <div class="er-analysis">
+      <section class="er-panel"><span class="er-eyebrow">DELIVERY INSIGHTS</span><h3>Find your speaking rhythm</h3><div class="er-chart-title"><b>${wpm} <small>WPM</small></b><span>Target ${min}&ndash;${max} WPM</span></div>
+        <div class="er-pace" role="img" aria-label="Pace ${wpm} WPM; target ${min} to ${max} WPM"><i style="left:${min/scale*100}%;width:${(max-min)/scale*100}%"></i><b style="left:${wpm/scale*100}%"></b></div>
+        <div class="er-axis"><span>0</span><span>Words per minute</span><span>${Math.ceil(scale)}</span></div>
+        <div class="er-duration"><div><strong>Presentation length</strong><span>${mm(duration)} / ${mm(targetMin)}&ndash;${mm(targetMax)} target</span></div><progress max="${Math.max(targetMax,duration,1)}" value="${duration}" aria-label="Presentation duration"></progress><p>${esc({too_short:'Give each main point a little more room.',within_range:'Your talk fits the target duration.',too_long:'Focus on your key points to fit the time.'}[d.status]||'Compare your talk length with the target.')}</p></div>
+      </section>
+      <section class="er-panel"><span class="er-eyebrow">SCORE BREAKDOWN</span><h3>What shaped your baseline</h3>${dims.length?dims.map(([key,v])=>`<div class="er-dimension"><div><span>${esc(dimNames[key]||key)}</span><b>${num(v.points)} / 2</b></div><progress max="2" value="${Math.min(2,num(v.points))}" aria-label="${esc(dimNames[key]||key)} score"></progress><small>${esc(v.label||'')}</small></div>`).join(''):'<p class="sub">A detailed score breakdown is not available for this saved evaluation.</p>'}</section>
+    </div>
+    <section class="er-panel er-timeline"><div class="er-section-head"><div><span class="er-eyebrow">MOMENTS IN YOUR TALK</span><h3>Your delivery timeline</h3></div><span class="er-tag">${mm(duration)} total</span></div>${timeline(m)}${!(m.fillers||[]).length&&!(m.pauses||[]).length?'<p class="er-empty">No filler or long-pause markers were detected in this evaluation.</p>':''}<p class="basis">Markers show estimated events, not an audio waveform.</p></section>
+    <section id="evaluation-plan" class="er-plan"><span class="er-eyebrow">WHAT TO PRACTICE NEXT</span><h2>Turn feedback into your next rehearsal.</h2><div class="er-coaching"><article class="er-panel er-strength"><h3>${reportIcon('check')} Keep doing</h3>${list(f.strengths)}</article><article class="er-panel er-improve"><h3>${reportIcon('target')} Give attention to</h3>${list(f.improvements)}</article></div>
+      <ol class="er-steps">${(f.recommendations||[]).map((t,i)=>`<li><span>${String(i+1).padStart(2,'0')}</span><p>${esc(t)}</p></li>`).join('')}</ol>
+      <div class="er-actions"><button class="bt" data-go="up" type="button">Practice with your presentation ${reportIcon('arrow')}</button><button class="bt gh" data-go="hist" type="button">Practice history</button>${q.level==='low'?'<button class="bt gh" data-act="eretake" type="button">Retake evaluation</button>':''}</div>
+    </section>
+    <details class="er-panel er-method" ${q.level==='low'?'open':''}><summary>${reportIcon('words')} Recognition quality &amp; how this was measured${q.level==='low'?' - Low-confidence recording':''}</summary><p>${esc(r.explanation||'This is a baseline, not a definitive judgment of your speaking ability.')}</p>${list(q.warnings)}<p>Speaking speed is recognized words divided by speaking time, excluding pauses of 2 seconds or longer. Browser recognition can miss fillers and estimate timing incorrectly. Eye contact, confidence and body language are not evaluated.</p>${f.summary?`<p>${esc(f.summary)}</p>`:''}</details>
+  </div>`);
 };
 
 /* ---------- baseline for EXISTING accounts ----------
