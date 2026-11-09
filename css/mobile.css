@@ -86,7 +86,7 @@
   html #top>.srch { grid-column:auto; grid-row:auto; }
 }
 
-/* Slim tour bar: pinned step label and collapse button, scrollable actions. */
+/* Single-row tour bar. Short labels keep every action visible on phones. */
 @media (max-width:767px), (max-height:500px) and (max-width:950px) {
   html #bot.app { right:max(4px,env(safe-area-inset-right));bottom:max(4px,env(safe-area-inset-bottom)); }
   html body.touring #bot.app,html body.tourcol #bot.app {
@@ -95,22 +95,23 @@
   html body.touring #bot.tourmode #tour {
     position:fixed!important;left:max(8px,env(safe-area-inset-left))!important;right:max(8px,env(safe-area-inset-right))!important;
     top:auto!important;bottom:max(8px,env(safe-area-inset-bottom))!important;width:auto!important;max-width:none!important;
-    display:grid!important;grid-template-columns:minmax(76px,104px) minmax(0,1fr) 40px!important;
-    gap:6px!important;padding:8px 8px 12px!important;min-height:64px;max-height:none;overflow:visible;border-radius:20px!important;align-items:center;
+    display:grid!important;grid-template-columns:minmax(58px,80px) minmax(0,1fr) 28px!important;
+    gap:2px!important;padding:6px 6px 10px!important;min-height:62px;max-height:none;overflow:visible;border-radius:20px!important;align-items:center;
     border:1px solid var(--line);background:var(--panel);box-shadow:0 6px 24px rgb(0 0 0 / .16);
   }
   html body.touring #bot #tour .tp1 { grid-column:1;grid-row:1;min-width:0;margin:0!important;padding-left:4px; }
   html body.touring #bot #tour .tp1 b { font-size:10px; }
   html body.touring #bot #tour .tp1 span { font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-  html body.touring #bot #tour .tcolb { grid-column:3;grid-row:1;width:40px;height:44px; }
+  html body.touring #bot #tour .tcolb { grid-column:3;grid-row:1;width:28px;height:44px; }
   html body.touring #bot #tour .tbt {
-    display:flex!important;grid-column:2;grid-row:1;gap:4px;flex-wrap:nowrap;min-width:0;
-    overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent;
-    -webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;
+    display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;grid-column:2;grid-row:1;gap:1px;min-width:0;overflow:visible;
   }
   html body.touring #bot #tour .tbt button {
-    flex:0 0 auto;min-width:48px;min-height:44px;padding:10px 8px;font-size:12px;line-height:1.3;white-space:nowrap;scroll-snap-align:start;touch-action:manipulation;
+    min-width:0;width:100%;min-height:44px;padding:10px 1px;font-size:11px;line-height:1.3;white-space:nowrap;touch-action:manipulation;border-radius:10px;overflow:visible;text-overflow:clip;text-align:center;
   }
+  html body.touring #bot #tour .tour-label-full { display:none; }
+  html body.touring #bot #tour .tour-label-short { display:inline; }
+  html body.touring #bot #tour [data-tact=tcc][aria-pressed=true] { background:var(--brand);color:#fff; }
   html body.touring #bot #tour .tbt .wide { grid-column:auto; }
   html body.touring #bot #tour .tsegs {
     display:flex!important;position:absolute;left:16px;right:16px;bottom:5px;height:3px;gap:3px;margin:0!important;
@@ -129,4 +130,9 @@
   html body.tourcol #bot.tcol #tour .tcolb { grid-column:1;grid-row:1; }
   html body.tourcol #bot.tcol #tour :is(.tp1,.tour-mobile-copy,.tbt,.tsegs,.tour-stop) { display:none!important; }
   html body.touring #bot .bbar { display:none!important; }
+}
+@media(max-width:359px){
+  html body.touring #bot.tourmode #tour { grid-template-columns:62px minmax(0,1fr) 24px!important;gap:1px!important;padding-inline:4px!important; }
+  html body.touring #bot #tour .tcolb { width:24px; }
+  html body.touring #bot #tour .tp1 span { font-size:11px; }
 }
