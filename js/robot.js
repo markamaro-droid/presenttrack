@@ -23,13 +23,13 @@ function pickVoice(){const vs=(SY.getVoices()||[]).filter(v=>/^en/i.test(v.lang)
 function clean(t){return String(t).replace(/[●“”]/g,'').replace(/…/g,'.').replace(/\bwpm\b/gi,'words per minute').replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu,'').replace(/\s+/g,' ').trim()}
 function hush(){globalThis.TracyAudio?.cancel();try{SY&&SY.cancel()}catch(e){}speaking=false}
 let nar={started:false,ended:false,pos:0};
-function speak(text,done){
+function speak(text,done,playback={}){
   hush();const my=nar={started:false,ended:false,pos:0};
   const t=clean(text);
   if(!t||podium.voiceOn===false||V.on||document.hidden){my.ended=true;done?.();return}
   const fail=()=>{speaking=false;my.failed=true;my.ended=true;rsub.textContent=t;rcap.hidden=bot.classList.contains('tourmode');done?.()};
   if(!globalThis.TracyAudio){fail();return}
-  TracyAudio.speak(t,{onstart:()=>{speaking=true;my.started=true},onend:()=>{speaking=false;my.ended=true;done?.()},onerror:fail});
+  TracyAudio.speak(t,{onstart:()=>{if(nar!==my)return;speaking=true;my.started=true;playback.onstart?.()},onpause:()=>{if(nar!==my)return;speaking=false;playback.onpause?.()},onend:()=>{if(nar!==my)return;speaking=false;my.ended=true;done?.()},onerror:fail});
 }
 const mute=$('bmute');
 podium.setVoice=on=>{podium.voiceOn=on;window.PTVoice&&PTVoice.setSpeaker(on);mute.textContent=on?'🔊':'🔇';mute.setAttribute('aria-pressed',String(!on));mute.setAttribute('aria-label',on?'Mute Tracy\'s voice':'Unmute Tracy\'s voice');mute.title=on?'Mute Tracy\'s voice':'Unmute Tracy\'s voice';if(!on)hush()};
@@ -39,7 +39,13 @@ podium.prepareNarration=text=>podium.voiceOn!==false?globalThis.TracyAudio?.prep
 podium.narrate=(text,est)=>{if(window.PTVoice&&PTVoice.active)PTVoice.stop();set('talking',Math.min(60000,(est||8000)*2.5),'',text)};
 podium.narState=()=>({voice:!!globalThis.TracyAudio&&podium.voiceOn!==false&&!V.on,started:nar.started,ended:nar.ended,failed:!!nar.failed,pos:nar.pos||0,speaking});
 podium.narPause=p=>{globalThis.TracyAudio?.pause(p)};podium.hushNow=()=>{hush();set('idle',0,'')};
-podium.robotIntroduce=(text,done)=>{clearAll();stopVoice();set('talking',0,'');speak(text,done)};
+podium.robotIntroduce=(text,done,onstart)=>{
+  clearAll();stopVoice();set('idle',0,'');let greeted=false;
+  speak(text,()=>{clearAll();set('idle',0,'');done?.()},{
+    onstart:()=>{clearAll();if(!greeted){greeted=true;set('wave',0,'');later(()=>{if(speaking)set('talking',0,'')},1100)}else set('talking',0,'');onstart?.()},
+    onpause:()=>{clearAll();set('idle',0,'')}
+  });
+};
 podium.robotPoint=()=>set('point',0,'');
 podium.robotReady=()=>ready&&W>0;
 podium.robotWelcomeWave=()=>set('wave',0,'');
@@ -93,7 +99,7 @@ function frame(){
   if(s==='wave'){g.hL=-(2.7+.4*Math.sin(t*11));g.roll=.1}
   else if(s==='listening'){g.lean=.14;g.roll=.08+Math.sin(t*1.6)*.06}
   else if(s==='thinking'){g.pitch=.16;g.roll=-.14;g.ear=.4}
-  else if(s==='talking'){g.mouth=1;g.pitch+=Math.sin(t*5)*.06;if(bot.classList.contains('welcome')){g.hR=.55+.25*Math.sin(t*2.5);g.hL=-.4-.2*Math.sin(t*2.5)}}
+  else if(s==='talking'&&(speaking||V.on)){g.mouth=1;g.pitch+=Math.sin(t*5)*.06;if(bot.classList.contains('welcome')){g.hR=.55+.25*Math.sin(t*2.5);g.hL=-.4-.2*Math.sin(t*2.5)}}
   else if(s==='point'){g.hR=.2;g.hL=-1.25-.08*Math.sin(t*2);g.pitch=.08;g.roll=-.08;g.yaw=-.18;g.ex=-1;g.ey=-.2}
   else if(s==='celebrate'){const f=Math.sin(t*14);g.hR=2.9+.25*f;g.hL=-(2.9-.25*f);g.mouth=.6}
   if(speaking)g.mouth=Math.max(g.mouth,1);

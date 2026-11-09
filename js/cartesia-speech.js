@@ -43,7 +43,7 @@
     const run = current; current = null;
     if (!run) return;
     run.controller.abort(); clearTimeout(run.timer); run.release?.();
-    if (run.audio) { run.audio.onended = run.audio.onerror = null; run.audio.pause(); run.audio.removeAttribute('src'); }
+    if (run.audio) { run.audio.onended = run.audio.onerror = run.audio.onplaying = run.audio.onpause = run.audio.onwaiting = null; run.audio.pause(); run.audio.removeAttribute('src'); }
     if (run.url) URL.revokeObjectURL(run.url);
   }
   function speak(text, options = {}) {
@@ -70,8 +70,9 @@
         run.url = URL.createObjectURL(new Blob([bytes], { type: 'audio/wav' }));
         run.audio = new Audio(run.url);
         await new Promise((resolve, reject) => {
-          run.release = resolve; run.audio.onended = resolve; run.audio.onerror = reject;
+          run.release = resolve; run.audio.onended = () => { if (active()) options.onpause?.(); resolve(); }; run.audio.onerror = reject;
           run.audio.onplaying = () => { if (active()) options.onstart?.(); };
+          run.audio.onpause = run.audio.onwaiting = () => { if (active()) options.onpause?.(); };
           run.reject = reject;
           if (!run.paused) run.audio.play().catch(reject);
         });

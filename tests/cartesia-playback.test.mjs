@@ -61,3 +61,17 @@ test('normal tour clips above the former 500 KB threshold stay cached', async ()
   assert.equal(s.requests.length, 1);
   s.audio.cancel();
 });
+
+test('animation callbacks follow actual playback, buffering, resume and end', async () => {
+  let resolve; const s = setup(() => new Promise(r => { resolve = r; }));
+  const events = [];
+  s.audio.speak('Welcome.', { onstart: () => events.push('playing'), onpause: () => events.push('paused'), onend: () => events.push('ended') });
+  await flush(); assert.deepEqual(events, []);
+  resolve(new Response(JSON.stringify({ audio: 'UklGRg==' }))); await flush();
+  assert.deepEqual(events, ['playing']);
+  s.clips[0].onwaiting(); s.clips[0].onplaying(); s.clips[0].onpause();
+  assert.deepEqual(events, ['playing','paused','playing','paused']);
+  s.clips[0].onended(); await flush();
+  assert.deepEqual(events.slice(-2), ['paused','ended']);
+  assert.equal(s.clips[0].onplaying, null);
+});

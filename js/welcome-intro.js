@@ -29,18 +29,25 @@
     const introduce = () => {
       if (stopped) return;
       const current = ++generation;
-      stage.dataset.phase = 'introducing';
-      caption.textContent = copy;
-      const started = performance.now();
+      stage.dataset.phase = 'preparing';
+      caption.textContent = 'Preparing Tracy’s voice…';
+      let played = false;
+      const speechStarted = () => {
+        if (stopped || current !== generation) return;
+        played = true; stage.dataset.phase = 'introducing'; caption.textContent = copy;
+        // Playback, not network latency, determines the introduction's duration.
+        clearTimeout(timer); timer = setTimeout(finish, 120000);
+      };
       const speechDone = () => {
         if (stopped || current !== generation) return;
-        // Autoplay can fail immediately. Leave time to read the introduction and see Tracy gesture.
+        // If playback is blocked or unavailable, keep the transcript and replay action usable.
         clearTimeout(timer);
-        timer = setTimeout(finish, Math.max(0, 6500 - (performance.now() - started)));
+        if (played) finish();
+        else { caption.textContent = copy; finish(); replay.textContent = 'Play introduction'; }
       };
       // Always reveal the action even if device speech never emits an end event.
-      clearTimeout(timer); timer = setTimeout(finish, 16000);
-      if (podium.robotIntroduce) podium.robotIntroduce(copy, speechDone);
+      clearTimeout(timer); timer = setTimeout(finish, 45000);
+      if (podium.robotIntroduce) podium.robotIntroduce(copy, speechDone, speechStarted);
       else { clearTimeout(timer); timer = setTimeout(finish, 7000); }
     };
     function dock() {
@@ -50,14 +57,12 @@
       if (stopped || stage.dataset.phase !== 'arriving') return;
       clearTimeout(timer);
       stage.dataset.phase = 'greeting';
-      podium.robotWelcomeWave?.();
-      timer = setTimeout(introduce, reducedMotion ? 0 : 1100);
+      introduce();
     };
     const arrive = () => {
       dock();
       stage.dataset.phase = 'arriving';
       if (!reducedMotion && bot.animate) {
-        podium.robotWelcomeWave?.();
         arrival = bot.animate([
           { opacity: 0, transform: 'translateY(16px) scale(.88)' },
           { opacity: 1, transform: 'translateY(0) scale(1)' }
