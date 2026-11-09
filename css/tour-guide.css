@@ -1,4 +1,5 @@
 .dk{display:flex;gap:12px;align-items:center;margin-bottom:14px}.dkt{flex:1;min-width:0}.dkt b{display:block;font:700 17px Inter,sans-serif;overflow-wrap:anywhere}.dkt small{display:block;color:var(--muted);overflow-wrap:anywhere}
+.tour-mobile-copy{display:none}
 .ftp{flex:none;padding:6px 12px;border-radius:14px;font:700 12px Inter,sans-serif;color:#fff;box-shadow:var(--clay-sm)}.ftp.pdf{background:#D6485B}.ftp.word{background:#2B6CD6}.ftp.ppt{background:#E8730C}
 .bmute{position:absolute;bottom:0;left:0;z-index:2;width:34px;height:30px;border:0;border-radius:999px;background:var(--cs,var(--panel));color:var(--ink);box-shadow:var(--clay-sm,0 4px 10px rgba(10,40,90,.2));font-size:15px;cursor:pointer;line-height:1}.bmute:focus-visible{outline:3px solid color-mix(in srgb,var(--brand) 55%,transparent);outline-offset:2px}
 

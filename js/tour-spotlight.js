@@ -32,7 +32,8 @@
         this.target = el;
         if (el) {
           this.observer.observe(el);
-          el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+          const phone = matchMedia('(max-width:767px), (max-height:500px) and (max-width:950px)').matches;
+          el.scrollIntoView({ block: phone ? 'start' : 'center', inline: 'nearest', behavior: 'instant' });
         }
       }
       if (!el || !el.isConnected) { this.overlay.hidden = true; return; }
@@ -41,6 +42,17 @@
         this.overlay.hidden = true; return;
       }
       this.overlay.hidden = false;
+      const mobile = matchMedia('(max-width:767px), (max-height:500px) and (max-width:950px)').matches;
+      if (mobile) {
+        const header = document.getElementById('top')?.getBoundingClientRect();
+        const dock = document.getElementById('tour')?.getBoundingClientRect();
+        const top = Math.max(r.top - 4, (header?.bottom || 0) + 8);
+        const bottom = Math.min(r.bottom + 4, dock?.top > 0 ? dock.top - 12 : vh - 12);
+        const left = Math.max(6,r.left-4), right = Math.min(vw-6,r.right+4);
+        this.overlay.hidden = bottom <= top || right <= left;
+        Object.assign(this.overlay.style,{left:`${left}px`,top:`${top}px`,width:`${Math.max(0,right-left)}px`,height:`${Math.max(0,bottom-top)}px`});
+        return;
+      }
       Object.assign(this.overlay.style, { left: `${r.left - 8}px`, top: `${r.top - 8}px`, width: `${r.width + 16}px`, height: `${r.height + 16}px` });
       const box = this.tooltip.getBoundingClientRect();
       const left = Math.max(12, Math.min(r.left, vw - box.width - 12));

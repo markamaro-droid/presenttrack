@@ -53,5 +53,28 @@ try {
     await evaluate(`document.getElementById('app').hidden=false;document.querySelector('.shell').hidden=true`);
   }
   assert.deepEqual(errors,[]);console.log(`Passed ${layouts} page/viewport layout checks plus authentication at six widths.`);
+  let tourChecks=0;
+  await evaluate(`podium.narrate=()=>{};podium.prepareNarration=()=>{};podium.narState=()=>({voice:true,started:true,ended:false});`);
+  for(const [width,height] of [[320,568],[360,740],[390,844],[412,915],[844,390]])for(const theme of ['light','dark']){
+    await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:true});
+    await evaluate(`document.documentElement.dataset.theme='${theme}';document.getElementById('bot').hidden=false;podium.ext.go('dash');podium.startTour();podium.tourPause();`);
+    for(let step=0;step<35;step++){
+      if(!await evaluate('podium.tourOn()'))break;
+      await new Promise(r=>setTimeout(r,60));
+      const result=await evaluate(`(()=>{const dock=document.getElementById('tour'),bot=document.getElementById('bot'),r=dock.getBoundingClientRect(),b=bot.getBoundingClientRect();const hit=el=>{const q=el.getBoundingClientRect();return el.contains(document.elementFromPoint(q.x+q.width/2,q.y+q.height/2))};return {fits:r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight,overflow:dock.scrollWidth>dock.clientWidth+1,overlap:r.right>b.left&&r.bottom>b.top,duplicate:getComputedStyle(document.querySelector('.spot>b')).display!=='none',buttons:[...dock.querySelectorAll('button')].filter(el=>!el.disabled&&getComputedStyle(el).display!=='none').map(el=>({action:el.dataset.tact,hit:hit(el)}))}})()`);
+      if(result.buttons.some(b=>!b.hit)&&process.env.UI_SCREENSHOT){const shot=await call('Page.captureScreenshot');await writeFile(process.env.UI_SCREENSHOT+'.failure.png',Buffer.from(shot.data,'base64'));}
+      assert.ok(result.fits&&!result.overflow&&!result.overlap&&!result.duplicate&&result.buttons.every(b=>b.hit),JSON.stringify({width,height,theme,step,result}));tourChecks++;
+      if(step===0){
+        if(process.env.UI_SCREENSHOT&&width===390&&theme==='dark'){const shot=await call('Page.captureScreenshot');await writeFile(process.env.UI_SCREENSHOT+'.tour.png',Buffer.from(shot.data,'base64'));}
+        await evaluate(`document.querySelector('[data-tact=tcol]').click()`);
+        assert.equal(await evaluate(`getComputedStyle(document.querySelector('.tour-mobile-copy')).display==='none'&&document.querySelector('.tcolb').getAttribute('aria-expanded')==='false'`),true);
+        await evaluate(`document.querySelector('[data-tact=tcol]').click();document.querySelector('[data-tact=tplay]').click();podium.tourPause()`);
+      }
+      await evaluate(`document.querySelector('[data-tact=tnext]').click();podium.tourPause()`);
+    }
+    await evaluate(`podium.startTour();document.querySelector('.tour-stop').click()`);
+    assert.equal(await evaluate('podium.tourOn()'),false);
+  }
+  assert.deepEqual(errors,[]);console.log(`Passed ${tourChecks} live tour-step layouts, plus collapse, playback controls and End tour on five phone sizes in both themes.`);
   await call('Browser.close');
 } finally { ws?.close();chrome.kill();await new Promise(r=>setTimeout(r,500));await rm(profile,{recursive:true,force:true,maxRetries:3}); }
