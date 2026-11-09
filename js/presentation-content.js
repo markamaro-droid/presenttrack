@@ -1,9 +1,9 @@
 /* Read-only extraction. Original File objects are uploaded and retained unchanged. */
 (() => {
   const limit=20000;
-  const supported=name=>/\.(pdf|pptx?)$/i.test(name||'');
+  const supported=name=>/\.(pdf|pptx)$/i.test(name||'');
   async function scan(file,{pdf,zip}={}) {
-    if(!supported(file?.name))throw new Error('Choose a PDF or PowerPoint (PPT/PPTX) file.');
+    if(!supported(file?.name))throw new Error('Choose a PDF or PowerPoint (PPTX) file.');
     if(file.size>50000000)throw new Error('Choose a presentation up to 50 MB.');
     const pages=[];let length=0;
     const add=text=>{const remaining=limit-length;if(remaining<=0)return;const value=String(text).replace(/\s+/g,' ').trim().slice(0,remaining);pages.push(value);length+=value.length;};

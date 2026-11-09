@@ -1,6 +1,6 @@
 # Presentation practice
 
-New presentation uploads accept PDF, PPT and PPTX, up to 50 MB per file. PowerPoint uploads require a PDF exported from the same deck. The original PowerPoint and its PDF export are stored separately and uploaded as the original File bytes. Neither is rewritten. The viewer renders the PDF with the existing PDF.js renderer instead of rebuilding slides from extracted paragraphs.
+New presentation uploads accept PDF and PPTX, up to 50 MB per file. PowerPoint uploads require a PDF exported from the same deck. The original PowerPoint and its PDF export are stored separately and uploaded as the original File bytes. Neither is rewritten. The viewer renders the PDF with the existing PDF.js renderer instead of rebuilding slides from extracted paragraphs.
 
 Existing PowerPoint entries can attach their PDF from the Practice viewer. Existing Word uploads remain in the library, but new Word uploads are not accepted. A plain PDF upload needs no second file.
 

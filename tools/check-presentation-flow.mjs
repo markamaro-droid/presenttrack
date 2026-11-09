@@ -32,6 +32,12 @@ try{
  await evaluate(`document.getElementById('ut').value='Rejected document';document.getElementById('ua').click()`);
  assert.equal(await evaluate('podium.ext.S.pres.length'),0);assert.equal(await evaluate('uploads.length'),0);
  assert.equal(await evaluate(`document.getElementById('f').files.length`),0);
+ assert.equal(await evaluate(`document.getElementById('f').accept`),'.pdf,.pptx');
+ await evaluate(`pick('f',[new File(['old'],'legacy.ppt')])`);
+ assert.match(await evaluate(`document.getElementById('toast').textContent`),/Rejected: only/);
+ await evaluate(`pick('f',[new File(['cancelled'],'cancelled.pptx')]);pick('slide-pdf',[new File(['pdf'],'cancelled.pdf')]);document.getElementById('ut').value='Cancelled draft';document.getElementById('uc').click()`);
+ assert.deepEqual(await evaluate(`({title:document.getElementById('ut').value,original:document.getElementById('f').files.length,pdf:document.getElementById('slide-pdf').files.length,hidden:document.getElementById('slide-pdf-field').hidden})`),{title:'',original:0,pdf:0,hidden:true});
+ await evaluate(`document.getElementById('ua').click()`);assert.equal(await evaluate('uploads.length'),0);
  await evaluate(`pick('f',[new File(['ORIGINAL POWERPOINT BYTES'],'research.pptx')]);document.getElementById('ut').value='Research';document.getElementById('ua').click()`);
  assert.equal(await evaluate('podium.ext.S.pres.length'),0);
  assert.match(await evaluate(`document.getElementById('toast').textContent`),/Attach a PDF/);
