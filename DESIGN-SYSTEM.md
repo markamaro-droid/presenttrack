@@ -1,5 +1,9 @@
 # Royal Blue & Gold interface
 
+Phone-specific layout rules live in `css/mobile.css`, loaded after the shared design system. They apply below 768px, with additional narrow-phone and landscape rules. Shared tokens and desktop module styles remain in their existing files; no browser sniffing or separate application markup is required.
+
+Mobile validation: Chrome touch/phone emulation at 320, 360, 390, 412, and 767px, plus a 1440px desktop regression check. Twelve workspace navigation targets and authentication were checked for document, content, and header overflow. These checks use empty preview state, retain access gates, and do not substitute for real Android hardware testing. `tools/check-companion-ui.mjs` runs these checks along with the companion controls; set `UI_SCREENSHOT` to save the 390px dashboard preview.
+
 `css/design-system.css` is the shared visual system, loaded after component and responsive styles. It owns light/dark theme colors, spacing, typography, surfaces, controls, navigation, and page treatments. Existing `--cs`, `--b2`, and `--clay-*` names are compatibility aliases; new styles should use the semantic tokens (`--panel`, `--brand`, `--ink`, `--line`, etc.). The legacy clay stylesheet is retained as an empty compatibility entry.
 
 - Primary: royal blue `#1D4ED8`; emphasis: deep blue `#1E40AF`.

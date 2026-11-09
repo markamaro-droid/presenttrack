@@ -1,0 +1,84 @@
+/* Phone layout overrides. Loaded last; desktop keeps the shared/module styles.
+   Width-based rules also work in Android Chrome, zoomed windows and tablets. */
+@media (max-width:767px) {
+  html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+  html #app { height:100dvh; padding:8px; gap:8px; grid-template-rows:auto minmax(0,1fr); }
+  html #top { display:grid; grid-template-columns:44px minmax(0,1fr); gap:8px; padding:10px; }
+  #top .mbtn { grid-column:1; grid-row:1; justify-content:center; padding:8px; }
+  #top>.tr { grid-column:2; grid-row:1; justify-self:end; }
+  #top>.srch { grid-column:1/-1; grid-row:2; width:100%; max-width:none; margin:0; }
+  #top .srch input { font-size:16px; min-height:44px; }
+  html #top .prof { padding:4px 8px; min-height:44px; }
+  html #top .pop { position:fixed; left:16px; right:16px; top:132px; width:auto; max-height:calc(100dvh - 156px); overflow:auto; }
+  html #mainc { padding:12px 4px 232px!important; overscroll-behavior-y:contain; }
+  html .side { width:min(288px,calc(100vw - 60px)); padding:20px 12px; }
+  #view :is(h1,h2,h3,p,b,strong,small),.settings-identity { overflow-wrap:anywhere; }
+  #view :is(.ws-head,.ws-panel-head,.dh-welcome,.settings-heading,.er-section-head,.cont) { flex-wrap:wrap; gap:12px; }
+  #view :is(.workspace,.dashboard-home,.evaluation-report) { gap:16px; }
+  #view :is(.ws-grid,.ws-pair,.ws-compare,.settings-columns,.er-analysis,.er-coaching,.er-steps,.g-next,.g-prog,.psetup) { grid-template-columns:minmax(0,1fr); }
+  #view :is(.dh-grid,.dh-hero) { grid-template-columns:minmax(0,1fr)!important; }
+  #view :is(.pn,.dh-panel,.ws-panel,.settings-card,.er-panel,.er-hero,.dh-hero) { padding:16px; }
+  #view :is(.dh-stats,.ws-stats,.er-metrics,.g-perf,.g-perf.five) { display:grid; grid-template-columns:repeat(2,minmax(0,1fr))!important; gap:12px; }
+  #view :is(.dh-stat,.ws-stat,.er-metric,.mc) { min-width:0; padding:16px; }
+  #view .dh-stat { flex-direction:column; gap:12px; }
+  #view :is(.dh-stat h3,.ws-stat h3,.er-metric h3) { font-size:13px; }
+  #view :is(.dh-stat p,.ws-stat p,.dh-tool small,.dh-step small,.dh-session small,.settings-row span,.settings-page .settings-hint,.ws-caption) { font-size:12px; }
+  #view :is(.bt,.chip2,.settings-nav button,.settings-text,.settings-themes button) { min-height:44px; font-size:14px; }
+  #view .acts { gap:8px; }
+  #view .acts>.bt { flex:1 1 auto; white-space:normal; }
+  #view .ws-head>.acts { width:100%; }
+  #view :is(.fr,.pform,.pgrid,.recording-form) { min-width:0; width:100%; max-width:100%; }
+  #view .pgrid { grid-template-columns:minmax(0,1fr); }
+  #view :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { font-size:16px; min-width:0; max-width:100%; }
+  #view .ws-filters { display:grid; grid-template-columns:minmax(0,1fr); padding:16px; }
+  #view .ws-filters>div { min-width:0; }
+  #view .ws-progress-summary { grid-template-columns:minmax(0,1fr); padding:8px 16px; }
+  #view .ws-progress-summary>div { padding:16px 0; border-right:0; border-bottom:1px solid var(--line); }
+  #view .ws-progress-summary>div:last-child { border:0; }
+  #view .ws-progress-summary span { font-size:13px; }
+  #view .ws-sort { flex-wrap:wrap; justify-content:flex-start; }
+  #view :is(.tw,.ws-table) { max-width:100%; overflow:auto; -webkit-overflow-scrolling:touch; }
+  #view :is(.ch,.cht,.ws-chart,.dh-chart,audio,video) { max-width:100%; }
+  #view .evaluation-toolbar { align-items:flex-start; }
+  #view :is(.evaluation-record,.evaluation-toolbar .vbt,.vwh,.vbt) { flex-wrap:wrap; gap:8px; }
+  #view .vst { min-height:180px; padding:8px; }
+  #view .psetup .rg { width:180px; height:180px; }
+  #view .settings-nav { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); width:100%; }
+  #view .settings-nav button { white-space:normal; }
+  #view .settings-identity { flex-wrap:wrap; }
+  #view .settings-identity>div { min-width:0; }
+  #view .settings-save { flex-direction:column; align-items:stretch; }
+  #view .settings-save button { width:100%; }
+  /* Welcome: vertically stacked actions instead of overlapping the robot. */
+  html .land { padding:16px 16px 32px; gap:24px; }
+  .land .lt { gap:8px; }
+  .land .lt>b { max-width:40%; overflow-wrap:anywhere; }
+  .land .lt>.sp { display:none; }
+  .land .lt>.logo { flex-basis:100%; margin-bottom:8px; }
+  .land .lt>.bt { margin-left:auto; }
+  html .welcome-stage,html #bot.welcome { width:220px; height:220px; max-width:100%; }
+  html .welcome-ready .welcome-stage { transform:none; }
+  html .welcome-ready #leval { position:static; width:100%; min-width:0; animation:none; }
+  html .welcome-actions { width:100%; min-height:0; gap:12px; }
+  html .lh .welcome-intro { min-height:0; margin:16px 0; font-size:16px; }
+  html .welcome-hero h1 { font-size:30px; line-height:1.2; }
+  html .lfoot { position:static; height:auto; min-height:48px; padding:16px 0; background:transparent; flex-wrap:wrap; }
+  html .lf { grid-template-columns:minmax(0,1fr); }
+  html .shell { padding:12px; gap:16px; }
+  html .auth .card { padding:20px; }
+  html .hero { padding:24px 20px; }
+  .auth .row { gap:16px; align-items:flex-start; }
+  .modal { padding:12px; }
+  html .modal>.mc { width:100%; max-height:calc(100dvh - 24px); padding:20px; }
+}
+@media (max-width:374px) {
+  #view :is(.dh-stats,.ws-stats,.er-metrics,.g-perf,.g-perf.five,.dh-tool-grid,.qg) { grid-template-columns:minmax(0,1fr)!important; }
+  #view .dh-stat { flex-direction:row; }
+  html .social { grid-template-columns:minmax(0,1fr); }
+  #view .kv { grid-template-columns:minmax(0,1fr); }
+}
+/* Landscape phones: keep the conversation beside its closing bubble. */
+@media (max-height:500px) and (max-width:950px) {
+  html #bot .tracy-voice { left:12px; right:208px; bottom:12px; width:auto; max-height:calc(100dvh - 24px); }
+  html #top>.srch { grid-column:auto; grid-row:auto; }
+}

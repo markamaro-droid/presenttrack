@@ -1,6 +1,6 @@
 // Local regression check: start tools/dev.mjs first. Uses installed Chrome, no dependencies.
 import {spawn} from 'node:child_process';
-import {mkdtemp,rm} from 'node:fs/promises';
+import {mkdtemp,rm,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
@@ -37,5 +37,21 @@ try {
     count++;
   }
   assert.deepEqual(errors,[]);console.log(`Passed ${count} viewport/theme combinations: panel bounds, conversation toggle hit target, bot bounds, bubble hit targets, and Escape focus restoration.`);
+  let layouts=0;
+  for(const width of [320,360,390,412,767,1440]){
+    await call('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<768});
+    await call('Emulation.setTouchEmulationEnabled',{enabled:width<768});
+    await evaluate(`document.getElementById('bot').hidden=true;document.documentElement.dataset.theme='light';`);
+    for(const view of ['dash','eval','decks','perf','prog','hist','note','set','goals','prac','rec','create']){
+      await evaluate(`podium.ext.go('${view}')`);
+      const layout=await evaluate(`(()=>{const main=document.getElementById('mainc'),top=document.getElementById('top');return {page:document.documentElement.scrollWidth>innerWidth+1,main:main.scrollWidth>main.clientWidth+1,header:top.scrollWidth>top.clientWidth+1,content:document.getElementById('view').textContent.length}})()`);
+      assert.ok(!layout.page&&!layout.main&&!layout.header&&layout.content>0,JSON.stringify({view,width,layout}));layouts++;
+      if(process.env.UI_SCREENSHOT&&view==='dash'&&width===390){await new Promise(r=>setTimeout(r,700));const shot=await call('Page.captureScreenshot');await writeFile(process.env.UI_SCREENSHOT,Buffer.from(shot.data,'base64'));}
+    }
+    await evaluate(`document.getElementById('app').hidden=true;document.querySelector('.shell').hidden=false`);
+    assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth+1'),false,'Authentication overflow at '+width);
+    await evaluate(`document.getElementById('app').hidden=false;document.querySelector('.shell').hidden=true`);
+  }
+  assert.deepEqual(errors,[]);console.log(`Passed ${layouts} page/viewport layout checks plus authentication at six widths.`);
   await call('Browser.close');
 } finally { ws?.close();chrome.kill();await new Promise(r=>setTimeout(r,500));await rm(profile,{recursive:true,force:true,maxRetries:3}); }
