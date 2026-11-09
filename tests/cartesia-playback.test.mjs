@@ -75,3 +75,18 @@ test('animation callbacks follow actual playback, buffering, resume and end', as
   assert.deepEqual(events.slice(-2), ['paused','ended']);
   assert.equal(s.clips[0].onplaying, null);
 });
+
+test('login gesture primes audio without a provider request, then greeting reuses that element', async () => {
+  const s = setup();
+  assert.equal(await s.audio.unlock(), true);
+  assert.equal(s.requests.length, 0);
+  assert.equal(s.clips.length, 1);
+  assert.match(s.clips[0].src, /^data:audio\/wav/);
+  let started = 0;
+  s.audio.speak('Welcome to PresentTrack!', { onstart: () => started++ });
+  await flush();
+  assert.equal(s.clips.length, 1);
+  assert.equal(s.clips[0].src, 'blob:test');
+  assert.equal(started, 1);
+  s.audio.cancel();
+});

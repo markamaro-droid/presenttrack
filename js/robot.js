@@ -48,7 +48,7 @@ podium.robotIntroduce=(text,done,onstart)=>{
 };
 podium.robotPoint=()=>set('point',0,'');
 podium.robotReady=()=>ready&&W>0;
-podium.robotWelcomeWave=()=>set('wave',0,'');
+podium.robotWelcomeWave=()=>set('wave',1800,'');
 function set(n,dur,txt,spoken){st.n=n;st.t0=sec();st.until=dur?st.t0+dur:0;say(txt===undefined?(TXT[n]||''):txt);if(spoken)speak(spoken)}
 podium.emit=ev=>{const n=EV[ev];if(!n)return;stopVoice();clearAll();set(n,n==='wave'?2000:n==='celebrate'?2600:0)};
 

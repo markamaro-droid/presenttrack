@@ -40,6 +40,7 @@ lf.onsubmit=e=>{
   if(!emailRe.test(em))ok=bad('le','Enter a valid email address.');
   if(!pw)ok=bad('lp','Enter your password.');
   if(!ok)return;
+  window.TracyAudio?.unlock();
   if(cloudOn()){busy(lf,true);PTCloud.signIn(em,pw).then(r=>{busy(lf,false);
     if(r.error)return bad('lp',r.error);
     podium.newUser=false;done(r.name)}).catch(err=>{busy(lf,false);bad('lp',err.message||'Network error. Try again.')});return}
@@ -56,6 +57,7 @@ rf.onsubmit=e=>{
   if(score(pw)<3||pw.length<8)ok=bad('rp','Use 8+ characters with a capital letter and a number.');
   if(!$('terms').checked){$('terms-e').textContent='Accept the Terms to create an account.';ok=false}
   if(!ok)return;
+  window.TracyAudio?.unlock();
   if(cloudOn()){busy(rf,true);PTCloud.signUp(n,em,pw).then(r=>{busy(rf,false);
     if(r.error)return bad('re',r.error);
     if(r.confirm){setTab('login');$('le').value=em;$('le-e').style.color='var(--ok)';$('le-e').textContent='Account created. Check your email and click the confirmation link, then log in.';return}

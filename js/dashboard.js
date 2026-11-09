@@ -591,6 +591,7 @@ function renderLand(){
   $('leval').onclick=e=>toApp('eval',ctr(e.currentTarget));$('llo').onclick=e=>signOut(ctr(e.currentTarget));
 }
 podium.enter=(name,email)=>{S.u.name=name.replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());S.u.email=email;podium.name=S.u.name.split(' ')[0];podium.account(email,!!podium.newUser);try{podium.assessInit&&podium.assessInit()}catch(e){console.warn(e)}
+  podium.welcomePrepare?.();
   transition(ctr(document.querySelector('#authView form:not([hidden]) .btn')),showLand)};
 $('lo').onclick=e=>signOut(ctr(e.currentTarget));
 const hm=document.querySelector('.sl');hm.tabIndex=0;hm.setAttribute('role','button');hm.title='Back to welcome page';hm.style.cursor='pointer';

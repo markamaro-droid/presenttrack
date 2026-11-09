@@ -15,7 +15,8 @@ function setup(){
 test('welcome waits for audio, allows slow loading, and points only after playback ends',()=>{
   const s=setup();
   assert.equal(s.get('welcome-stage').dataset.phase,'preparing');
-  assert.match(s.get('welcome-intro').textContent,/Preparing/);
+  assert.match(s.get('welcome-intro').textContent,/Welcome to PresentTrack/);
+  assert.equal(s.get('leval').hidden,false);
   assert.deepEqual([...s.timers.values()].map(t=>t.ms),[45000]);
   s.speech.start();
   assert.equal(s.get('welcome-stage').dataset.phase,'introducing');

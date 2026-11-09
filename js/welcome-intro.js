@@ -1,14 +1,16 @@
 /* Post-login introduction: prepare Cartesia audio during the robot arrival. */
 (() => {
   const $ = id => document.getElementById(id);
-  const copy = "Hi, I’m Tracy, your presentation coach! I’ll guide you through PresentTrack, help you practice your delivery, and explain your feedback. Let’s start with a short speaking evaluation.";
+  const copy = "Hi! I am Tracy, your presentation coach. Welcome to PresentTrack! Let us start with a short speaking evaluation.";
+  podium.welcomePrepare = () => podium.prepareNarration?.(copy);
   let cleanup = null;
   podium.welcomeStop = () => { cleanup?.(); cleanup = null; };
   podium.welcomeStart = () => {
     podium.welcomeStop();
     const stage = $('welcome-stage'), bot = $('bot'), button = $('leval'), caption = $('welcome-intro');
     if (!stage || !bot || !button) return;
-    podium.prepareNarration?.(copy);
+    podium.welcomePrepare();
+    caption.textContent = copy; button.hidden = false;
     const skip = $('welcome-skip'), replay = $('welcome-replay');
     const hero = stage.closest('.welcome-hero');
     hero.classList.remove('welcome-ready');
@@ -30,7 +32,7 @@
       if (stopped) return;
       const current = ++generation;
       stage.dataset.phase = 'preparing';
-      caption.textContent = 'Preparing Tracy’s voice…';
+      caption.textContent = copy;
       let played = false;
       const speechStarted = () => {
         if (stopped || current !== generation) return;
@@ -62,6 +64,7 @@
     const arrive = () => {
       dock();
       stage.dataset.phase = 'arriving';
+      podium.robotWelcomeWave?.();
       if (!reducedMotion && bot.animate) {
         arrival = bot.animate([
           { opacity: 0, transform: 'translateY(16px) scale(.88)' },

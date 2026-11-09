@@ -1,6 +1,18 @@
 /* One fixed server-selected voice. Audio stays in memory; no browser-voice fallback. */
 (() => {
   let current = null;
+  let loginAudio = null, unlocking = null;
+  // Prime the same media element inside the user's login gesture. No speech or
+  // provider request occurs until authentication has completed.
+  function unlock() {
+    if (current || unlocking) return unlocking || Promise.resolve(false);
+    loginAudio ||= new Audio();
+    loginAudio.src = 'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQIAAAAAAA==';
+    const attempt = loginAudio.play().then(() => true, () => false);
+    unlocking = attempt;
+    attempt.finally(() => { if (unlocking === attempt) unlocking = null; });
+    return attempt;
+  }
   const cache = new Map(); let cacheOwner = null;
   const pending = new Map();
   async function load(text, language = 'en-US') {
@@ -53,6 +65,8 @@
     const fail = () => { if (active()) { cancel(); options.onerror?.(); } };
     run.timer = setTimeout(fail, 120000);
     (async () => {
+      if (unlocking) await unlocking;
+      if (!active()) return;
       const cloud = globalThis.PTCloud;
       const { data, error } = await cloud?.client?.auth.getSession() || {};
       if (!active()) return;
@@ -68,7 +82,8 @@
         if (!sameOwner()) { cancel(); return; }
         const bytes = Uint8Array.from(atob(value.audio), c => c.charCodeAt(0));
         run.url = URL.createObjectURL(new Blob([bytes], { type: 'audio/wav' }));
-        run.audio = new Audio(run.url);
+        run.audio = loginAudio || new Audio(run.url);
+        if (loginAudio) run.audio.src = run.url;
         await new Promise((resolve, reject) => {
           run.release = resolve; run.audio.onended = () => { if (active()) options.onpause?.(); resolve(); }; run.audio.onerror = reject;
           run.audio.onplaying = () => { if (active()) options.onstart?.(); };
@@ -88,6 +103,6 @@
     run.paused = paused;
     if (paused) run.audio?.pause(); else run.audio?.play().catch(run.reject);
   }
-  globalThis.TracyAudio = { speak, cancel, pause, prepare };
+  globalThis.TracyAudio = { speak, cancel, pause, prepare, unlock };
   addEventListener('pagehide', cancel);
 })();
