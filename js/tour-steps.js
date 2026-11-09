@@ -91,10 +91,10 @@ window.PTTourSteps = [
   {
     "nav": "decks",
     "view": "prac",
-    "target": "#pgo",
+    "target": "#vfs",
     "title": "Start",
-    "description": "Read the audio consent, then select Start when you are ready to record.",
-    "voiceLine": "Read the audio consent, then select Start when you are ready to record."
+    "description": "Read the audio consent, then select Start under Your slides to open full screen and record.",
+    "voiceLine": "Read the audio consent, then select Start under Your slides to open full screen and record."
   },
   {
     "nav": "decks",

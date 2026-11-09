@@ -27,8 +27,11 @@ try{
  window.reviewInputs=[];PTPracticeAudio.analyze=async(blob,target,signal,status,presentation)=>{reviewInputs.push(presentation);return{score:80,metrics:{totalDurationSec:30,wpm:120,fillerCount:2,pauseCount:1},quality:{level:'ok',warnings:[]},feedback:{strengths:['Steady pace.'],improvements:['Reduce fillers.'],recommendations:['Pause after your key finding.']},comments:{summary:'Connect the research finding to your conclusion.',strengths:['Clear finding.'],improvements:['Explain the implication.'],recommendations:['Practice a transition.']},contextStatus:'reviewed',transcript:'Research findings'}};
  const now=performance.now.bind(performance);window.previewShift=0;performance.now=()=>now()+previewShift;
  })()`);
- await evaluate(`podium.ext.go('decks');window.pick=(id,files)=>{const dt=new DataTransfer();files.forEach(f=>dt.items.add(f));const input=document.getElementById(id);input.files=dt.files;input.dispatchEvent(new Event('change'))};pick('f',[new File(['word'],'not-allowed.docx')])`);
- assert.match(await evaluate(`document.getElementById('toast').textContent`),/PDF or PowerPoint/);
+ await evaluate(`podium.ext.go('decks');window.pick=(id,files)=>{const dt=new DataTransfer();files.forEach(f=>dt.items.add(f));const input=document.getElementById(id);input.files=dt.files;input.dispatchEvent(new Event('change'))};pick('f',[new File(['pdf'],'old-selection.pdf')]);pick('f',[new File(['word'],'not-allowed.docx')])`);
+ assert.match(await evaluate(`document.getElementById('toast').textContent`),/Rejected: only/);
+ await evaluate(`document.getElementById('ut').value='Rejected document';document.getElementById('ua').click()`);
+ assert.equal(await evaluate('podium.ext.S.pres.length'),0);assert.equal(await evaluate('uploads.length'),0);
+ assert.equal(await evaluate(`document.getElementById('f').files.length`),0);
  await evaluate(`pick('f',[new File(['ORIGINAL POWERPOINT BYTES'],'research.pptx')]);document.getElementById('ut').value='Research';document.getElementById('ua').click()`);
  assert.equal(await evaluate('podium.ext.S.pres.length'),0);
  assert.match(await evaluate(`document.getElementById('toast').textContent`),/Attach a PDF/);
@@ -42,6 +45,7 @@ try{
   await evaluate(`podium.ext.go('prac',${deckId})`);
   for(let i=0;i<40;i++){if(await evaluate(`!document.getElementById('vfs').disabled`))break;await new Promise(r=>setTimeout(r,50));}
   assert.equal(await evaluate(`document.getElementById('vfs').textContent`),'Start');
+  assert.equal(await evaluate(`document.getElementById('pgo')===null`),true);
   const before=await evaluate('recordStarts');
   await evaluate(`document.getElementById('vfs').click()`);assert.equal(await evaluate('recordStarts'),before);
   await evaluate(`document.getElementById('pconsent').checked=true;document.getElementById('vfs').click()`);
