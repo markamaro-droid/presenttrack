@@ -61,18 +61,18 @@ try {
     for(let step=0;step<35;step++){
       if(!await evaluate('podium.tourOn()'))break;
       await new Promise(r=>setTimeout(r,60));
-      const result=await evaluate(`(()=>{const dock=document.getElementById('tour'),bot=document.getElementById('bot'),r=dock.getBoundingClientRect(),b=bot.getBoundingClientRect();const hit=el=>{const q=el.getBoundingClientRect();return el.contains(document.elementFromPoint(q.x+q.width/2,q.y+q.height/2))};return {fits:r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight,overflow:dock.scrollWidth>dock.clientWidth+1,overlap:r.right>b.left&&r.bottom>b.top,duplicate:getComputedStyle(document.querySelector('.spot>b')).display!=='none',buttons:[...dock.querySelectorAll('button')].filter(el=>!el.disabled&&getComputedStyle(el).display!=='none').map(el=>({action:el.dataset.tact,hit:hit(el)}))}})()`);
+      const result=await evaluate(`(()=>{const dock=document.getElementById('tour'),bot=document.getElementById('bot'),r=dock.getBoundingClientRect(),b=bot.getBoundingClientRect();const hit=el=>{if(el.closest('.tbt'))el.scrollIntoView({block:'nearest',inline:'center',behavior:'instant'});const q=el.getBoundingClientRect();return el.contains(document.elementFromPoint(q.x+q.width/2,q.y+q.height/2))};return {fits:r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight,overflow:dock.scrollWidth>dock.clientWidth+1,overlap:r.right>b.left&&r.left<b.right&&r.bottom>b.top&&r.top<b.bottom,duplicate:getComputedStyle(document.querySelector('.spot>b')).display!=='none',buttons:[...dock.querySelectorAll('button')].filter(el=>!el.disabled&&getComputedStyle(el).display!=='none').map(el=>({action:el.dataset.tact,hit:hit(el)}))}})()`);
       if(result.buttons.some(b=>!b.hit)&&process.env.UI_SCREENSHOT){const shot=await call('Page.captureScreenshot');await writeFile(process.env.UI_SCREENSHOT+'.failure.png',Buffer.from(shot.data,'base64'));}
       assert.ok(result.fits&&!result.overflow&&!result.overlap&&!result.duplicate&&result.buttons.every(b=>b.hit),JSON.stringify({width,height,theme,step,result}));tourChecks++;
       if(step===0){
-        if(process.env.UI_SCREENSHOT&&width===390&&theme==='dark'){const shot=await call('Page.captureScreenshot');await writeFile(process.env.UI_SCREENSHOT+'.tour.png',Buffer.from(shot.data,'base64'));}
+        if(process.env.UI_SCREENSHOT&&width===390&&theme==='dark'){await evaluate("document.querySelector('.tbt').scrollLeft=0");const shot=await call('Page.captureScreenshot');await writeFile(process.env.UI_SCREENSHOT+'.tour.png',Buffer.from(shot.data,'base64'));}
         await evaluate(`document.querySelector('[data-tact=tcol]').click()`);
         assert.equal(await evaluate(`getComputedStyle(document.querySelector('.tour-mobile-copy')).display==='none'&&document.querySelector('.tcolb').getAttribute('aria-expanded')==='false'`),true);
         await evaluate(`document.querySelector('[data-tact=tcol]').click();document.querySelector('[data-tact=tplay]').click();podium.tourPause()`);
       }
       await evaluate(`document.querySelector('[data-tact=tnext]').click();podium.tourPause()`);
     }
-    await evaluate(`podium.startTour();document.querySelector('.tour-stop').click()`);
+    await evaluate(`podium.startTour();document.querySelector('[data-tact=tskip]').click()`);
     assert.equal(await evaluate('podium.tourOn()'),false);
   }
   assert.deepEqual(errors,[]);console.log(`Passed ${tourChecks} live tour-step layouts, plus collapse, playback controls and End tour on five phone sizes in both themes.`);

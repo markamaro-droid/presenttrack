@@ -86,39 +86,47 @@
   html #top>.srch { grid-column:auto; grid-row:auto; }
 }
 
-/* One mobile tour dock: description and navigation together, Tracy beside it.
-   Explicit selectors replace the older competing tour !important rules. */
+/* Slim tour bar: pinned step label and collapse button, scrollable actions. */
 @media (max-width:767px), (max-height:500px) and (max-width:950px) {
-  html #bot.app { right:max(4px,env(safe-area-inset-right)); bottom:max(4px,env(safe-area-inset-bottom)); }
+  html #bot.app { right:max(4px,env(safe-area-inset-right));bottom:max(4px,env(safe-area-inset-bottom)); }
   html body.touring #bot.app,html body.tourcol #bot.app {
-    width:104px;height:124px;right:max(4px,env(safe-area-inset-right));bottom:max(4px,env(safe-area-inset-bottom))!important;
+    width:104px;height:124px;right:max(4px,env(safe-area-inset-right));bottom:max(78px,calc(env(safe-area-inset-bottom) + 74px))!important;
   }
   html body.touring #bot.tourmode #tour {
-    position:fixed!important;left:max(8px,env(safe-area-inset-left))!important;right:max(112px,calc(env(safe-area-inset-right) + 108px))!important;
+    position:fixed!important;left:max(8px,env(safe-area-inset-left))!important;right:max(8px,env(safe-area-inset-right))!important;
     top:auto!important;bottom:max(8px,env(safe-area-inset-bottom))!important;width:auto!important;max-width:none!important;
-    display:grid!important;grid-template-columns:minmax(0,1fr) 44px!important;gap:8px!important;padding:12px!important;
-    max-height:min(300px,48dvh);overflow:auto;border-radius:16px!important;align-items:center;
-    box-shadow:0 6px 24px rgb(0 0 0 / .2);border:1px solid var(--line);background:var(--panel);
+    display:grid!important;grid-template-columns:minmax(76px,104px) minmax(0,1fr) 40px!important;
+    gap:6px!important;padding:8px 8px 12px!important;min-height:64px;max-height:none;overflow:visible;border-radius:20px!important;align-items:center;
+    border:1px solid var(--line);background:var(--panel);box-shadow:0 6px 24px rgb(0 0 0 / .16);
   }
-  html body.touring #bot #tour .tp1 { grid-column:1;grid-row:1;min-width:0; }
+  html body.touring #bot #tour .tp1 { grid-column:1;grid-row:1;min-width:0;margin:0!important;padding-left:4px; }
   html body.touring #bot #tour .tp1 b { font-size:10px; }
-  html body.touring #bot #tour .tp1 span { font-size:13px; }
-  html body.touring #bot #tour .tcolb { grid-column:2;grid-row:1;width:44px;height:44px; }
-  html body.touring #bot #tour .tour-mobile-copy { display:block;grid-column:1/-1;grid-row:2;margin:0;font-size:13px;line-height:1.5;color:var(--ink);max-height:78px;overflow:auto; }
-  html body.touring #bot #tour .tbt { display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-column:1/-1;grid-row:3;gap:4px; }
-  html body.touring #bot #tour .tbt button { min-width:0;min-height:48px;padding:10px 4px;font-size:12px; }
-  html body.touring #bot #tour .tbt .wide { grid-column:1/-1; }
-  html body.touring #bot #tour .tbt :is(.skip,[data-tact=tcc]),html body.touring #bot #tour .tsegs { display:none!important; }
-  html body.touring #bot #tour .tour-stop { display:block!important;grid-column:1/-1;grid-row:4;min-height:44px;padding:10px 12px;font-size:12px;border:0;background:transparent;color:var(--muted); }
-  html body.touring #tcap,html body.touring .spot>b { display:none!important; }
+  html body.touring #bot #tour .tp1 span { font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+  html body.touring #bot #tour .tcolb { grid-column:3;grid-row:1;width:40px;height:44px; }
+  html body.touring #bot #tour .tbt {
+    display:flex!important;grid-column:2;grid-row:1;gap:4px;flex-wrap:nowrap;min-width:0;
+    overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent;
+    -webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;
+  }
+  html body.touring #bot #tour .tbt button {
+    flex:0 0 auto;min-width:48px;min-height:44px;padding:10px 8px;font-size:12px;line-height:1.3;white-space:nowrap;scroll-snap-align:start;touch-action:manipulation;
+  }
+  html body.touring #bot #tour .tbt .wide { grid-column:auto; }
+  html body.touring #bot #tour .tsegs {
+    display:flex!important;position:absolute;left:16px;right:16px;bottom:5px;height:3px;gap:3px;margin:0!important;
+  }
+  html body.touring #bot #tour .tsegs i { height:3px!important; }
+  html body.touring #bot #tour .tour-stop,html body.touring #bot #tour .tour-mobile-copy,html body.touring .spot>b { display:none!important; }
+  html body.touring #tcap {
+    left:8px;right:120px;bottom:max(82px,calc(env(safe-area-inset-bottom) + 78px));transform:none;width:auto;max-height:96px;overflow:auto;padding:10px 12px;
+  }
+  html body.touring #tcap p { font-size:13px;line-height:1.5; }
   html body.touring .spot { border-radius:12px;box-shadow:0 0 0 2px var(--brand);animation:none; }
-  html body.touring #mainc { padding-bottom:320px!important;scroll-padding-bottom:300px;scroll-padding-top:12px; }
-  html body.tourcol #bot.tcol #tour { grid-template-columns:minmax(0,1fr) 44px!important;padding:8px!important; }
-  html body.tourcol #bot.tcol #tour .tour-stop { grid-column:1;grid-row:1;min-height:44px; }
-  html body.tourcol #bot.tcol #tour .tcolb { grid-column:2;grid-row:1; }
-  html body.tourcol #bot.tcol #tour :is(.tp1,.tour-mobile-copy,.tbt) { display:none!important; }
+  html body.touring #mainc { padding-bottom:220px!important;scroll-padding-bottom:200px;scroll-padding-top:12px; }
+  html body.tourcol #bot.tcol #tour {
+    left:auto!important;right:8px!important;grid-template-columns:44px!important;padding:6px!important;min-height:0;
+  }
+  html body.tourcol #bot.tcol #tour .tcolb { grid-column:1;grid-row:1; }
+  html body.tourcol #bot.tcol #tour :is(.tp1,.tour-mobile-copy,.tbt,.tsegs,.tour-stop) { display:none!important; }
   html body.touring #bot .bbar { display:none!important; }
-}
-@media (max-height:500px) and (max-width:950px) {
-  html body.touring #bot.tourmode #tour { max-height:calc(100dvh - 24px); }
 }
