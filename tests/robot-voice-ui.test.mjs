@@ -62,3 +62,22 @@ test('captions use textContent and microphone light reflects mute state', async 
   app.session.options.onState({ state: 'listening', active: true, micMuted: false, message: 'Listening' });
   assert.equal(app.el('tracy-voice').dataset.mic, 'on');
 });
+
+test('opening reveals the close control, Escape closes and restores robot focus', () => {
+  const app = setup();
+  app.ui.open();
+  assert.equal(app.el('tracy-voice').hidden, false);
+  assert.equal(app.el('tracy-voice').scrollTop, 0);
+  assert.equal(app.el('tracy-close').focused, true);
+  app.el('tracy-voice').events.keydown({ key: 'Escape', stopPropagation() {} });
+  assert.equal(app.el('tracy-voice').hidden, true);
+  assert.equal(app.el('bc').focused, true);
+  assert.equal(app.el('bvoice').attrs['aria-expanded'], 'false');
+});
+
+test('minimizing closes an idle conversation so it cannot reappear unexpectedly', () => {
+  const app = setup(); app.ui.open(); app.el('bot').hidden = true;
+  app.mutation();
+  assert.equal(app.el('tracy-voice').hidden, true);
+  assert.equal(app.el('bvoice').attrs['aria-expanded'], 'false');
+});

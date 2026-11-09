@@ -68,7 +68,7 @@ html .lvl,html .cbadge { background:var(--gold); color:var(--navy); box-shadow:n
 html .ai,html .kv div { background:var(--field); border:1px solid var(--line); border-radius:10px; box-shadow:none; }
 html .coach,html .acard { background:var(--panel)!important; border-top:3px solid var(--gold); }
 /* App frame and navigation */
-html .app { gap:16px; padding:16px; }
+html #app { gap:16px; padding:16px; }
 html .side { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:24px 12px 16px; box-shadow:var(--shadow); backdrop-filter:none; }
 .side .logo { margin:0 8px 24px; font-size:21px; letter-spacing:-.8px; }
 .logo i { border-radius:10px; }
@@ -140,9 +140,9 @@ html #bot[data-voice-state=error] #bc { filter:drop-shadow(0 0 8px var(--err)); 
 .tracy-voice[data-state=listening] .tracy-mic-status::before { animation:voice-pulse 1.5s ease-in-out infinite; }
 .tracy-voice[data-state=thinking] #tracy-status { border-left:3px solid var(--gold); padding-left:12px; }
 @keyframes voice-pulse { 50% { box-shadow:0 0 0 5px color-mix(in srgb,var(--brand) 18%,transparent); } }
-@media(min-width:1440px) { html .app { grid-template-columns:256px minmax(0,1fr); padding:24px; gap:24px; } }
+@media(min-width:1440px) { html #app { grid-template-columns:256px minmax(0,1fr); padding:24px; gap:24px; } }
 @media(max-width:860px) {
-  html .app { padding:8px; gap:8px; grid-template-columns:minmax(0,1fr); }
+  html #app { padding:8px; gap:8px; grid-template-columns:minmax(0,1fr); }
   html .side { border-radius:0 16px 16px 0; }
   html #top { padding:8px 12px; min-height:64px; }
   html .main { padding:16px 8px 120px!important; }

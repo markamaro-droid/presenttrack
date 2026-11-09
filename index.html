@@ -146,9 +146,9 @@
   <div class="tour" id="tour" hidden role="region" aria-label="Guided tour"></div>
   <canvas id="bc" role="button" tabindex="0" aria-label="Tracy, your AI presentation coach. Open voice controls." title="Talk with Tracy"></canvas>
   <div class="bbar"><button class="bmute" id="bmute" type="button" aria-label="Mute Tracy's voice" aria-pressed="false" title="Mute Tracy's voice">&#128266;</button><button class="bvoice" id="bvoice" type="button" aria-controls="tracy-voice" aria-expanded="false">Talk</button><button class="bguide" id="bguide" type="button" hidden>Guide me</button><button class="bmin" id="bmin" type="button">Minimize</button></div>
-  <section class="tracy-voice" id="tracy-voice" hidden aria-label="Talk with Tracy" data-state="idle">
+  <section class="tracy-voice" id="tracy-voice" hidden role="dialog" aria-label="Talk with Tracy" data-state="idle">
     <header><strong>Tracy</strong><button id="tracy-close" type="button" aria-label="End and close voice conversation">&#215;</button></header>
-    <p class="tracy-note">Your AI presentation coach, with a synthetic Cartesia voice. Tracy?s reply text is sent to Cartesia to generate audio. Generated voice clips are saved privately to your account for reuse. Your browser’s speech service may process microphone audio online. Recognized words and recent conversation are sent to Groq, or Google Gemini when configured as a backup. PresentTrack does not save recordings or captions. Speak, then pause for Tracy’s reply.</p>
+    <p>Speak, then pause for a reply.</p><details class="tracy-privacy"><summary>Voice and privacy details</summary><p class="tracy-note">Your AI presentation coach, with a synthetic Cartesia voice. Tracy's reply text is sent to Cartesia to generate audio. Generated voice clips are saved privately to your account for reuse. Your browser’s speech service may process microphone audio online. Recognized words and recent conversation are sent to Groq, or Google Gemini when configured as a backup. PresentTrack does not save recordings or captions. Speak, then pause for Tracy’s reply.</p></details>
     <p class="tracy-mic-status" id="tracy-mic-status">Microphone off</p>
     <p id="tracy-status" role="status" aria-live="polite">Ready when you are</p>
     <button id="tracy-start" type="button">Start conversation</button>

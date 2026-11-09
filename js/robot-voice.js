@@ -32,7 +32,7 @@
     },
     onCaption: (who, text) => { $(who === 'user' ? 'tracy-user-caption' : 'tracy-reply-caption').textContent = text ? (who === 'user' ? 'You: ' : 'Tracy: ') + text : ''; const lines = $('tracy-caption-lines'); lines.scrollTop = lines.scrollHeight; }
   });
-  function open() { panel.hidden = false; $('bvoice').setAttribute('aria-expanded', 'true'); window.podium?.tourPause?.(); }
+  function open() { panel.hidden = false; panel.scrollTop = 0; $('bvoice').setAttribute('aria-expanded', 'true'); window.podium?.tourPause?.(); $('tracy-close').focus(); }
   async function begin() {
     open();
     if (['eval', 'assess'].includes(window.podium?.ext?.S.view)) { status.textContent = 'Finish your evaluation and open another page to talk with Tracy.'; return; }
@@ -61,5 +61,5 @@
   window.PTCloud?.client?.auth.onAuthStateChange((_event, auth) => {
     if (session.active && (!auth?.user?.id || auth.user.id !== requestedOwner)) close();
   });
-  new MutationObserver(() => { if (bot.hidden && session.active) close(); }).observe(bot, { attributes: true, attributeFilter: ['hidden'] });
+  new MutationObserver(() => { if (bot.hidden && !panel.hidden) close(); }).observe(bot, { attributes: true, attributeFilter: ['hidden'] });
 })();

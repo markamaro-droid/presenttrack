@@ -29,7 +29,7 @@
   syncMute(); setOpen(false);
   trigger.addEventListener('click', () => setOpen(!open));
   trigger.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(!open, !open); } });
-  buttons.forEach(b => b.addEventListener('click', () => { if (b === mute) { syncMute(); return; } setOpen(false); if (b === talk) document.getElementById('tracy-start').focus(); }));
+  buttons.forEach(b => b.addEventListener('click', () => { if (b === mute) { syncMute(); return; } setOpen(false); if (b === talk) document.getElementById('tracy-close').focus(); }));
   document.addEventListener('pointerdown', e => { if (!bot.contains(e.target)) setOpen(false); });
   bot.addEventListener('keydown', e => { if (e.key === 'Escape' && open) { e.preventDefault(); e.stopPropagation(); setOpen(false); trigger.focus(); } });
   bar.addEventListener('keydown', e => { if (!['ArrowRight','ArrowLeft','ArrowDown','ArrowUp','Home','End'].includes(e.key)) return;
