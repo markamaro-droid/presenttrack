@@ -4,10 +4,13 @@ import { classify } from '../supabase/functions/_shared/classify.js';
 import { ruleBasedFeedback } from '../supabase/functions/_shared/feedback.js';
 import { assessQuality } from '../supabase/functions/_shared/quality.js';
 import { CRITERIA } from '../supabase/functions/_shared/criteria.js';
+import { presentationFeedback } from './presentation-feedback.mjs';
 
 export function createPracticeService({ env = process.env, fetchImpl = fetch, access = createAccess({ env, fetchImpl, requiredKey: 'GROQ_API_KEY' }) } = {}) {
   return async (authorization, input) => {
     const identity = await access.authenticate(authorization);
+    const context=input?.presentation;
+    if(context!==undefined&&(!context||typeof context.title!=='string'||context.title.length>160||typeof context.text!=='string'||context.text.length>20000))throw new ChatError(400,'invalid_presentation','Presentation text exceeds the context limit.');
     const stored = typeof input?.storagePath === 'string';
     const validSource = stored
       ? input.audio === undefined && input.storagePath.startsWith(identity.userId + '/') && /^[0-9a-f-]+\/[0-9a-f-]+$/.test(input.storagePath)
@@ -54,7 +57,16 @@ export function createPracticeService({ env = process.env, fetchImpl = fetch, ac
     const feedback = ruleBasedFeedback(metrics, result);
     // Shared baseline feedback assumes a 2–3 minute task; use the selected practice target instead.
     for (const key of ['strengths','improvements','recommendations']) feedback[key] = feedback[key].map(t => t.replace(/2-3 minute/g, `${Math.round(input.target / 60)} minute`));
-    return { ...result, metrics, quality, feedback, criteria, provider: 'groq', source: 'recorded-audio', transcript: String(data.text || '').slice(0, 20000) };
+    const transcript=String(data.text||'').slice(0,20000);
+    let comments=null,contextStatus=context?.text.trim()?'unavailable':'not-provided';
+    if(context?.text.trim()) {
+      try {
+        await access.quota(identity,'chat');
+        comments=await presentationFeedback({env,fetchImpl,context,transcript,metrics,feedback});
+        contextStatus='reviewed';
+      } catch { /* Preserve measured results when AI feedback is unavailable. */ }
+    }
+    return { ...result, metrics, quality, feedback, comments, contextStatus, criteria, provider: 'groq', source: 'recorded-audio', transcript };
     } finally {
       if (stored) {
         try {

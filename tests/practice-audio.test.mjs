@@ -32,7 +32,7 @@ function uploadSetup({ fail = false, signal } = {}) {
   vm.runInNewContext(code, { window, Blob, Uint8Array, crypto: { randomUUID: () => 'unique' }, btoa: s => Buffer.from(s, 'binary').toString('base64'), addEventListener() {},
     fetch: async (url, options) => { calls.push(['request', JSON.parse(options.body)]); if (fail) throw new Error('offline'); return { ok: true, json: async () => ({ score: 80 }) }; }
   });
-  return { calls, analyze: blob => window.PTPracticeAudio.analyze(blob, 120, signal) };
+  return { calls, analyze: (blob,presentation) => window.PTPracticeAudio.analyze(blob, 120, signal,undefined,presentation) };
 }
 test('large browser uploads send a storage reference and clean up on success and failure', async () => {
   for (const fail of [false, true]) {
@@ -50,4 +50,9 @@ test('small recordings stay inline; oversized and cancelled files do not upload'
   const large = uploadSetup(); await assert.rejects(large.analyze({ size: 25000001 }), /25 MB/); assert.equal(large.calls.length, 0);
   const cancelled = uploadSetup({ signal: AbortSignal.abort() });
   await assert.rejects(cancelled.analyze(new Blob(['audio'], { type: 'audio/webm' }))); assert.equal(cancelled.calls.length, 0);
+});
+
+test('recording analysis includes bounded slide text, never the source presentation file',async()=>{
+ const s=uploadSetup();await s.analyze(new Blob(['audio'],{type:'audio/webm'}),{title:'A'.repeat(180),text:'B'.repeat(25000),file:'must not send'});
+ const input=s.calls[0][1];assert.equal(input.presentation.title.length,160);assert.equal(input.presentation.text.length,20000);assert.equal(input.presentation.file,undefined);
 });

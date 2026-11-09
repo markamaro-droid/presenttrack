@@ -135,7 +135,7 @@
   <div class="tcap" id="tcap" hidden aria-live="off"><p id="tsub"></p></div>
   <div class="spot" id="spot" hidden aria-hidden="true"><b></b></div>
   <div class="modal" id="hm" hidden><div class="mc" role="dialog" aria-label="Help"><h2>Help</h2>
-    <ul><li>Complete Evaluation for your starting baseline, then add your own presentation.</li><li>In Practice, choose a target, consent to audio processing and start the microphone. Use full screen to rehearse with your slides.</li><li>Finish to transcribe the recording and generate a report. Audio is sent to Groq; the transcript and results are saved, but raw audio is not retained.</li><li>Use Performance to compare attempts, Progress to view trends and Goals to set measurable targets.</li><li>History includes saved reports and CSV export. Speech measurements are estimates, not an assessment of overall ability.</li></ul>
+    <ul><li>Complete Evaluation for your starting baseline, then upload a PDF or PowerPoint. PowerPoint needs a PDF export of the same slides for display; original files stay unchanged.</li><li>In Practice, choose a target, consent to audio and presentation-text processing, then choose Start under Your slides to enter full screen and record.</li><li>Choose Finish on any slide to transcribe the recording and generate a report. Audio and extracted slide text are sent to Groq. Reports include measured delivery feedback and, when available, AI presentation comments.</li><li>Use Performance to compare attempts, Progress to view trends and Goals to set measurable targets.</li><li>History includes saved reports and CSV export. Speech measurements are estimates, not an assessment of overall ability.</li></ul>
     <div class="acts"><button class="bt gh" id="hrt" type="button">Replay guided tour</button><button class="bt" id="hx" type="button">Got it</button></div></div></div>
   <div class="toast" id="toast" role="status"></div>
 </div>
@@ -176,6 +176,7 @@
 <script src="js/hero-tour-demo.js"></script>
 <script src="js/practice-audio.js"></script>
 <script src="js/workspace-model.js"></script>
+<script src="js/presentation-content.js"></script>
 <script src="js/tour-steps.js"></script>
 <script src="js/tour-spotlight.js"></script>
 <script src="js/dashboard.js"></script>

@@ -136,7 +136,7 @@ function endTour(spoken){
 podium.tourStop=()=>{T.on=false;clearTimeout(T.advanceTimer);T.generation=(T.generation||0)+1;spotOff();clearInterval(T.timer);tourEl().hidden=true;$('tcap').hidden=true;document.body.classList.remove('touring','tourcol');$('bot').classList.remove('tourhl','tourmode','tcol');syncGuide()};podium.tourPause=()=>tourPlay(false);podium.startTour=startTour;podium.tourOn=()=>T.on;
 /* ---------- robot guide: navigate by voice/text and explain each page ---------- */
 const GUIDE={dash:'This is your dashboard. At the top you see your next presentation and how ready you are. Below are your performance numbers, your progress chart, my coaching tip and recent practice.',
- decks:'This is My Presentations. The practice toolkit gives you shortcuts to upload slides, practice, analyze recordings, reports and goals. Type your own title, drop in a PDF, Word or PowerPoint file, then press Add Presentation. You can then practice, rename or open details for each one.',
+ decks:'This is My Presentations. The practice toolkit gives you shortcuts to upload slides, practice, analyze recordings, reports and goals. Type your own title, drop in a PDF or PowerPoint file, then press Add Presentation. You can then practice, rename or open details for each one.',
  prac:'This is Practice. Pick a presentation and a target time, press Start and speak out loud, then press Finish to get your score and tips.',
  rep:'Reports lists every practice session. Press View Report on any row to see the numbers and my feedback.',
  perf:'Performance shows your speaking pace, filler words, long pauses and score, and compares your first and latest attempts.',
@@ -279,27 +279,25 @@ async function delPres(id){
   if(!await confirmDlg({title:'Delete presentation?',text:'Are you sure you want to delete this presentation? This action cannot be undone.',yes:'Delete'}))return;
   const cloud=window.PTCloud&&PTCloud.enabled;S.deleting=p.id;render();
   const fail=m=>{S.deleting=null;render();toast(m)};
-  if(cloud&&p.path){const r=await PTCloud.remove([p.path]);if(r.error)return fail('Could not delete the file. Nothing was removed. Please try again.')}
+  if(cloud&&p.path){const r=await PTCloud.remove([p.path,p.slidePath].filter(Boolean));if(r.error)return fail('Could not delete the file. Nothing was removed. Please try again.')}
   const i=S.pres.indexOf(p);if(i>=0)S.pres.splice(i,1);
   if(cloud){const r=await PTCloud.saveNow(podium.snapshot());if(r.error){S.pres.splice(i,0,p);return fail('Could not delete this presentation. Please try again.')}}
   else podium.save();
-  delete FILES[p.id];S.deleting=null;if(S.ren===p.id)S.ren=null;render();flash('Presentation deleted.','success');toast('Presentation deleted');
+  delete FILES[p.id];delete SLIDE_FILES[p.id];S.deleting=null;if(S.ren===p.id)S.ren=null;render();flash('Presentation deleted.','success');toast('Presentation deleted');
 }
-/* small preview saved with the presentation: a JPEG for PDFs, the first slide's text for PPTX / DOCX */
+/* Thumbnail is rendered from the display PDF, never reconstructed from slide text. */
 async function makePreview(file){
   try{
     if(/\.pdf$/i.test(file.name)){const d=await pdfDeck(file),h=document.createElement('div');h.style.cssText='position:absolute;left:-9999px;top:0;width:360px';document.body.appendChild(h);
       try{const c=await d.show(0,h,220),o=document.createElement('canvas'),w=320;o.width=w;o.height=Math.round(w*c.height/c.width);o.getContext('2d').drawImage(c,0,0,o.width,o.height);return{thumb:o.toDataURL('image/jpeg',.6)}}finally{h.remove()}}
-    if(/\.pptx$/i.test(file.name)){const d=await pptxDeck(file),e=await d.show(0);return{preview:{title:(e.querySelector('h4')||{}).textContent||'',lines:[...e.querySelectorAll('li')].slice(0,3).map(x=>x.textContent.slice(0,80))}}}
-    if(/\.docx$/i.test(file.name)){const d=await docxDeck(file),e=await d.show(0),L=e.textContent.trim().split(/\n+/).filter(Boolean);return{preview:{title:(L[0]||'').slice(0,80),lines:[]}}}
   }catch(e){}
   return{}}
 const V={
 dash:()=>S.loading?skeleton():(podium.assessBanner?podium.assessBanner():'')+(podium.baselineBanner?podium.baselineBanner():'')+dashHTML(),
-decks:()=>page('My Presentations','Upload a PDF, Word or PowerPoint file and type your own title.',(pendingEval()?sec('EVALUATION FIRST',1,`<div class="fr" style="max-width:600px;margin:0 auto;text-align:center"><p class="sub" style="margin:0">Before you upload a presentation, take the short speaking evaluation (about 3 minutes). It measures your speaking speed, filler words and long pauses, so we know how to analyze your presentations.</p><div class="acts" style="justify-content:center"><button class="bt" data-go="eval" type="button">START EVALUATION</button></div></div>`):sec('UPLOAD A PRESENTATION',1,`<div class="fr" style="max-width:600px;margin:0 auto"><div><label for="ut" style="text-align:center">Presentation title</label><input type="text" id="ut" style="text-align:center" placeholder="Type your own title" maxlength="80" autocomplete="off"></div><label class="drop" id="dz" for="f"><b>Drop your file here or select one</b><span id="fn">PDF, DOCX or PowerPoint (PPT, PPTX)</span></label><input type="file" id="f" accept=".pdf,.doc,.docx,.ppt,.pptx" hidden><div class="acts" style="justify-content:center"><button class="bt" id="ua" type="button">ADD PRESENTATION</button></div></div>`))+deckList()),
+decks:()=>page('My Presentations','Upload a PDF or PowerPoint file. Your original file is kept unchanged.',(pendingEval()?sec('EVALUATION FIRST',1,`<div class="fr" style="max-width:600px;margin:0 auto;text-align:center"><p class="sub" style="margin:0">Before you upload a presentation, take the short speaking evaluation (about 3 minutes). It measures your speaking speed, filler words and long pauses, so we know how to analyze your presentations.</p><div class="acts" style="justify-content:center"><button class="bt" data-go="eval" type="button">START EVALUATION</button></div></div>`):sec('UPLOAD A PRESENTATION',1,`<div class="fr" style="max-width:600px;margin:0 auto"><div><label for="ut" style="text-align:center">Presentation title</label><input type="text" id="ut" style="text-align:center" placeholder="Type your own title" maxlength="80" autocomplete="off"></div><label class="drop" id="dz" for="f"><b>Drop your file here or select one</b><span id="fn">PDF or PowerPoint (PPT, PPTX)</span></label><input type="file" id="f" accept=".pdf,.ppt,.pptx" hidden><div id="slide-pdf-field" hidden><label for="slide-pdf">PDF exported from this PowerPoint</label><input id="slide-pdf" type="file" accept=".pdf"><p class="hint">Export your slides as PDF in PowerPoint and attach it here. This preserves slide layout, fonts and images. Your PowerPoint file remains unchanged.</p></div><div class="acts" style="justify-content:center"><button class="bt" id="ua" type="button">ADD PRESENTATION</button></div></div>`))+deckList()),
 pdet:a=>{const p=find(a);if(!p)return V.decks();const l=S.ses.filter(x=>x.deck===p.short);return page(esc(p.t),(p.file?esc(p.file.name)+' · '+fsize(p.file.size):'')+(p.left!=null?' · '+p.date+' · '+p.time+' · '+p.left+' days left':''),`<div class="g-next">${sec('OVERVIEW',1,`<dl class="kv"><div><dt>Target Duration</dt><dd>${Math.round(p.target/60)} minutes</dd></div><div><dt>Practice Sessions</dt><dd>${l.length} completed</dd></div><div><dt>Readiness</dt><dd>${readiness(p)}%</dd></div></dl><div class="acts"><button class="bt" data-go="prac" data-a="${p.id}" type="button">PRACTICE NOW</button><button class="bt gh" data-go="up" type="button">UPLOAD PPT</button></div>`)}${sec('READINESS',2,chkHTML(p)+`<div class="acts"><button class="bt gh" data-go="ready" data-a="${p.id}" type="button">VIEW CHECKLIST</button></div>`)}</div>`+sec('PRACTICE SESSIONS',3,recentRows(l.slice().reverse(),false)))},
 ready:a=>{const p=find(a);if(!p)return V.decks();return page('Presentation Readiness',esc(p.t),`<div class="g-next">${sec('OVERALL',1,`<div class="rd0">${ring(readiness(p),150,'Ready')}<p class="sub" style="margin:0">${p.final?'Final rehearsal recorded. Readiness reflects preparation activities, not a guarantee of performance.':'Complete the checklist to document your preparation.'}</p></div>`)}${sec('CHECKLIST',2,chkHTML(p)+`<div class="acts"><button class="bt" data-go="prac" data-a="${p.id}" type="button">START FINAL REHEARSAL</button></div>`)}</div>`)},
-rec:()=>gated()?gatePage('Upload Recording'):page('Upload Recording','Get a full analysis of a rehearsal you recorded.',sec('ANALYZE RECORDING',1,`<div class="fr recording-form"><div><label for="rs">1. Choose a presentation</label><select id="rs">${S.pres.map(p=>`<option value="${p.id}">${esc(p.t)}</option>`).join('')||'<option value="">Create a presentation first</option>'}</select></div><label class="drop" id="dz" for="f"><span class="recording-upload-icon" aria-hidden="true">${ic(I.up)}</span><b>2. Choose or drop your recording</b><span id="fn">MP3, M4A, WAV, OGG, WebM or MP4</span></label><input type="file" id="f" accept=".mp3,.m4a,.wav,.ogg,.webm,.mp4" hidden><div class="bar2" id="rb" hidden><i style="width:0%"></i></div><p class="sub" id="rt" style="margin:0" role="status"></p><label class="hint recording-consent"><input type="checkbox" id="rconsent"> Send audio to Groq for transcription and save the report to my account. Up to 25 MB / 10 minutes. Larger files use private temporary storage and are deleted after processing; interrupted cleanup may leave a temporary copy. MP3, M4A, WAV, OGG, WebM or MP4.</label><button class="bt" id="ra" type="button">ANALYZE RECORDING</button></div>`)),
+rec:()=>gated()?gatePage('Upload Recording'):page('Upload Recording','Get a full analysis of a rehearsal you recorded.',sec('ANALYZE RECORDING',1,`<div class="fr recording-form"><div><label for="rs">1. Choose a presentation</label><select id="rs">${S.pres.map(p=>`<option value="${p.id}">${esc(p.t)}</option>`).join('')||'<option value="">Create a presentation first</option>'}</select></div><label class="drop" id="dz" for="f"><span class="recording-upload-icon" aria-hidden="true">${ic(I.up)}</span><b>2. Choose or drop your recording</b><span id="fn">MP3, M4A, WAV, OGG, WebM or MP4</span></label><input type="file" id="f" accept=".mp3,.m4a,.wav,.ogg,.webm,.mp4" hidden><div class="bar2" id="rb" hidden><i style="width:0%"></i></div><p class="sub" id="rt" style="margin:0" role="status"></p><label class="hint recording-consent"><input type="checkbox" id="rconsent"> Send audio and extracted presentation text to Groq for transcription and feedback, and save the report to my account. Up to 25 MB / 10 minutes. Larger files use private temporary storage and are deleted after processing; interrupted cleanup may leave a temporary copy. MP3, M4A, WAV, OGG, WebM or MP4.</label><button class="bt" id="ra" type="button">ANALYZE RECORDING</button></div>`)),
 prac:a=>practiceHTML(a,false),weak:a=>practiceHTML(a,true),
 rep:()=>page('Reports','Open any session for a full breakdown.',sec('SESSION REPORTS',1,recentRows(S.ses.slice().reverse(),false))),
 rdet:a=>{const x=sesById(a);if(!x)return V.rep();return page('Report: '+esc(x.deck),x.d+' · '+fmt(x.dur)+' of '+fmt(x.tg),`<div class="g-perf">${[['Speaking Pace',x.wpm+' WPM'],['Filler Words',x.fill],['Long Pauses',x.pau],['Performance Score',x.score+'%']].map(([n,v])=>`<article class="mc"><h4>${n}</h4><p class="mv">${v}</p></article>`).join('')}</div>`+sec('AUTOMATED FEEDBACK',2,`<ul class="tp">${tips(x).map(t=>`<li>${esc(t)}</li>`).join('')}</ul>${x.analysis?`<details><summary>Transcript and measurement quality</summary><p>${esc(x.analysis.transcript)}</p><p>${esc((x.analysis.quality.warnings||[]).join(' '))}</p><p>Pace uses recognized words divided by recording length. Filler counts are estimates; transcription may omit fillers.</p></details>`:'<p class="basis">Legacy session: measurement provenance is unavailable.</p>'}<div class="acts"><button class="bt" data-act="pdf" data-a="${x.id}" type="button">DOWNLOAD PDF</button>${x.assess&&S.ev?'<button class="bt gh" data-go="evres" type="button">EVALUATION DETAILS</button>':'<button class="bt gh" data-go="prac" type="button">PRACTICE AGAIN</button>'}<button class="bt gh" data-go="hist" type="button">Back to history</button></div>`))},
@@ -323,43 +321,25 @@ function practiceHTML(a,weak){
  <div class="pform"><div class="pgrid"><div class="pf"><label for="pd">Presentation</label><select id="pd">${S.pres.map(x=>`<option value="${x.id}"${p&&x.id===p.id?' selected':''}>${esc(x.t)}</option>`).join('')||'<option value="0">Quick practice</option>'}</select></div>
  <div class="pf"><label for="pdur">Target duration (minutes)</label><div class="dur"><input type="text" id="pdur" inputmode="numeric" maxlength="3" autocomplete="off" value="${mins}" aria-describedby="pmh"><span class="pill2">min</span></div></div></div>
  <div class="pf"><span class="plb" id="pql">Quick durations</span><div class="chips" id="pq" role="group" aria-labelledby="pql">${[3,5,10,15,20].map(m=>`<button class="chip2" data-m="${m}" type="button" aria-pressed="${m===mins}">${m} min</button>`).join('')}</div><p class="hint" id="pmh">Any whole number from 1 to 240.</p></div>
- <label class="hint"><input type="checkbox" id="pconsent"> I agree to send this recording to Groq for transcription. The report and transcript are saved to my account; larger recordings use private temporary storage with deletion after processing (interrupted cleanup may leave a temporary copy). Maximum 10 minutes / 25 MB.</label><div class="acts pacts"><button class="bt" id="pgo" type="button">Start</button><button class="bt gh" id="pfin" type="button">Finish</button><button class="bt gh" id="prs" type="button">Reset</button></div></div></div>
- <div id="pres"></div></div><section class="pn rise" id="vw" style="--i:2"><div class="vwh"><h3 class="sh">YOUR SLIDES</h3><span id="vc"></span></div><div class="vst" id="vst" aria-live="polite"></div><div class="vctl" id="vctl"><div class="vtm" id="vtmw" hidden aria-label="Elapsed time"><b id="vtm">0:00</b><small id="vtl"></small></div><div class="vbt" role="group" aria-label="Presentation controls"><button class="bt gh sm vic" id="vb" type="button" aria-label="Previous slide" data-tip="Previous slide"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><button class="bt sm vic" id="vn" type="button" aria-label="Next slide" data-tip="Next slide"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button><button class="bt gh sm" id="vfs" type="button">Full screen</button><button class="bt gh sm" id="vpr" type="button" hidden>Pause</button><button class="bt sm vfin" id="vfin" type="button" hidden>Finish</button></div><p class="vnote" id="vnote" role="status"></p></div><p class="basis tip" style="margin:10px 0 0;text-align:center">Tip: use the ← → keys or swipe to change slides.</p></section>`)}
-/* ---- slide viewer: shows the uploaded file during practice (PDF, PPTX, DOCX). Files stay in memory only. ---- */
-const FILES={},LIB={pdfgen:'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',pdf:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',zip:'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',doc:'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js'};
+ <label class="hint"><input type="checkbox" id="pconsent"> I agree to send this recording and extracted presentation text to Groq for transcription and presentation feedback. The report and transcript are saved to my account; larger recordings use private temporary storage with deletion after processing (interrupted cleanup may leave a temporary copy). Maximum 10 minutes / 25 MB.</label><div class="acts pacts"><button class="bt" id="pgo" type="button">Start</button><button class="bt gh" id="pfin" type="button">Finish</button><button class="bt gh" id="prs" type="button">Reset</button></div></div></div>
+ <div id="pres"></div></div><section class="pn rise" id="vw" style="--i:2"><div class="vwh"><h3 class="sh">YOUR SLIDES</h3><span id="vc"></span></div><div class="vst" id="vst" aria-live="polite"></div><div class="vctl" id="vctl"><div class="vtm" id="vtmw" hidden aria-label="Elapsed time"><b id="vtm">0:00</b><small id="vtl"></small></div><div class="vbt" role="group" aria-label="Presentation controls"><button class="bt gh sm vic" id="vb" type="button" aria-label="Previous slide" data-tip="Previous slide"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><button class="bt sm vic" id="vn" type="button" aria-label="Next slide" data-tip="Next slide"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button><button class="bt gh sm" id="vfs" type="button">Start</button><button class="bt gh sm" id="vpr" type="button" hidden>Pause</button><button class="bt sm vfin" id="vfin" type="button" hidden>Finish</button></div><p class="vnote" id="vnote" role="status"></p></div><p class="basis tip" style="margin:10px 0 0;text-align:center">Tip: use the ← → keys or swipe to change slides.</p></section>`)}
+/* Read-only PDF viewer. PowerPoint originals use their attached PDF export. */
+const FILES={},SLIDE_FILES={},LIB={pdfgen:'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',pdf:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',zip:'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',doc:'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js'};
 const lib=k=>LIB[k+'p']||(LIB[k+'p']=new Promise((ok,no)=>{const s=document.createElement('script');s.src=LIB[k];s.onload=ok;s.onerror=()=>{LIB[k+'p']=0;no(new Error('Could not load the viewer. Check your internet connection.'))};document.head.appendChild(s)}));
 async function pdfDeck(file){await lib('pdf');pdfjsLib.GlobalWorkerOptions.workerSrc=LIB.pdf.replace('pdf.min.js','pdf.worker.min.js');
   const doc=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
   return{n:doc.numPages,async show(i,host,mh){const pg=await doc.getPage(i+1),v0=pg.getViewport({scale:1}),r=devicePixelRatio||1,cs=getComputedStyle(host),s=Math.min(Math.max(host.clientWidth-(parseFloat(cs.paddingLeft)||0)-(parseFloat(cs.paddingRight)||0),200)/v0.width,mh/v0.height),v=pg.getViewport({scale:s*r}),c=document.createElement('canvas');
     c.width=v.width;c.height=v.height;c.style.width=v.width/r+'px';c.style.height=v.height/r+'px';await pg.render({canvasContext:c.getContext('2d'),viewport:v}).promise;return c}}}
-async function pptxDeck(file){await lib('zip');const z=await JSZip.loadAsync(await file.arrayBuffer()),P=new DOMParser(),slides=[];
-  const names=Object.keys(z.files).filter(n=>/^ppt\/slides\/slide\d+\.xml$/.test(n)).sort((a,b)=>a.match(/\d+/)[0]-b.match(/\d+/)[0]);
-  if(!names.length)throw new Error('No slides found in this PowerPoint file.');
-  for(const n of names){const xml=P.parseFromString(await z.file(n).async('string'),'application/xml'),imgs=[];
-    const paras=[...xml.getElementsByTagName('a:p')].map(p=>[...p.getElementsByTagName('a:t')].map(t=>t.textContent).join('')).filter(Boolean);
-    const rf=z.file(n.replace('slides/','slides/_rels/')+'.rels');
-    if(rf){const rx=P.parseFromString(await rf.async('string'),'application/xml'),map={};[...rx.getElementsByTagName('Relationship')].forEach(r=>map[r.getAttribute('Id')]=r.getAttribute('Target'));
-      for(const b of xml.getElementsByTagName('a:blip')){const t=map[b.getAttribute('r:embed')];if(!t)continue;const path='ppt/'+t.replace(/^\.\.\//,''),f=z.file(path);
-        if(f&&/\.(png|jpe?g|gif|webp)$/i.test(path)){const e=path.split('.').pop().toLowerCase();imgs.push(URL.createObjectURL(new Blob([await f.async('uint8array')],{type:'image/'+(e==='jpg'?'jpeg':e)})))}}}
-    slides.push({paras,imgs})}
-  return{n:slides.length,async show(i){const s=slides[i],d=document.createElement('div');d.className='sld';const h=document.createElement('h4');h.textContent=s.paras[0]||(s.imgs.length?'':'Slide '+(i+1));if(h.textContent)d.appendChild(h);
-    if(s.paras.length>1){const u=document.createElement('ul');s.paras.slice(1).forEach(t=>{const l=document.createElement('li');l.textContent=t;u.appendChild(l)});d.appendChild(u)}
-    if(s.imgs.length){const g=document.createElement('div');g.className='sim';s.imgs.forEach(u=>{const m=document.createElement('img');m.src=u;m.alt='';g.appendChild(m)});d.appendChild(g)}
-    if(!s.paras.length&&!s.imgs.length){const e=document.createElement('p');e.className='em';e.textContent='(No text or images on this slide)';d.appendChild(e)}return d}}}
-async function docxDeck(file){await lib('doc');const r=await mammoth.convertToHtml({arrayBuffer:await file.arrayBuffer()}),box=document.createElement('div');box.innerHTML=r.value;
-  const pages=[];let cur=[],len=0;[...box.children].forEach(el=>{const L=el.textContent.length;if(cur.length&&(len+L>900||/^H[12]$/.test(el.tagName))){pages.push(cur);cur=[];len=0}cur.push(el);len+=L});if(cur.length)pages.push(cur);
-  if(!pages.length)throw new Error('This document has no readable text.');
-  return{n:pages.length,async show(i){const d=document.createElement('div');d.className='sld doc';pages[i].forEach(e=>d.appendChild(e.cloneNode(true)));return d}}}
 let VD=null,VI=0,VT=0,VS=0,PR=null;
 const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement;
 const inFS=()=>{const v=$('vw');return !!v&&v.classList.contains('fs')};
 const vnote=m=>{const n=$('vnote');if(!n)return;n.textContent=m;clearTimeout(n._t);n._t=setTimeout(()=>{n.textContent=''},2800)};
 /* one place that decides which presentation buttons are visible/enabled */
 function vui(){const vw=$('vw');if(!vw)return;const fs=inFS(),n=VD?VD.n:0,last=n>0&&VI>=n-1;
-  $('vb').disabled=!n||VI<=0;$('vn').disabled=!n||last;$('vfs').disabled=!n;$('vfs').textContent=fs?'Exit full screen':'Full screen';
-  $('vtmw').hidden=!fs;$('vpr').hidden=!fs;$('vfin').hidden=!(fs&&last);
+  $('vb').disabled=!n||VI<=0;$('vn').disabled=!n||last;$('vfs').disabled=!n;$('vfs').textContent=fs?'Exit full screen':'Start';
+  $('vtmw').hidden=!fs;$('vpr').hidden=!fs;$('vfin').hidden=!fs;
   if(PR){PR.sync();PR.draw()}}
-function fsChanged(){vui();if(inFS()&&PR)PR.autostart();vui();clearTimeout(window.__vr);window.__vr=setTimeout(vshow,80)}
+function fsChanged(){vui();clearTimeout(window.__vr);window.__vr=setTimeout(vshow,80)}
 /* fallback for browsers without the Fullscreen API (e.g. iPhone Safari): fill the window instead */
 function fsFallback(on){const vw=$('vw');if(!vw)return;vw.classList.toggle('fs',on);vw.classList.toggle('fsx',on);document.body.classList.toggle('vfsx',on);fsChanged()}
 function setFS(on){const vw=$('vw');if(!vw)return;
@@ -372,8 +352,9 @@ async function vshow(){const d=VD,host=$('vst');if(!d||!host)return;const my=++V
   try{const el=await d.show(VI,host,mh);if(my===VS)host.replaceChildren(el)}catch(e){if(my===VS)host.textContent='Could not draw this slide.'}}
 const vgo=k=>{if(VD){VI+=k;vshow()}};
 async function viewer(){const host=$('vst');if(!host)return;const my=++VT;VD=null;VI=0;VS++;document.body.classList.remove('vfsx');
+  document.querySelectorAll('#vw .slide-context').forEach(el=>el.remove());
   const msg=t=>{host.replaceChildren();const e=document.createElement('p');e.className='em';e.textContent=t;host.appendChild(e);$('vc').textContent='';vui()};
-  $('vb').onclick=()=>vgo(-1);$('vn').onclick=()=>vgo(1);$('vfs').onclick=()=>setFS(!inFS());
+  $('vb').onclick=()=>vgo(-1);$('vn').onclick=()=>vgo(1);$('vfs').onclick=()=>{if(inFS())return setFS(false);if(!$('pconsent').checked){toast('Agree to audio processing above before starting.');$('pconsent').focus();return}setFS(true);PR?.autostart()};
   $('vpr').onclick=()=>PR&&PR.toggle();$('vfin').onclick=()=>PR&&PR.finish();
   let sx=null;host.ontouchstart=e=>{sx=e.touches[0].clientX};host.ontouchend=e=>{if(sx===null)return;const dx=e.changedTouches[0].clientX-sx;sx=null;if(Math.abs(dx)>50)vgo(dx<0?1:-1)};
   if(!window.__vk){window.__vk=1;
@@ -384,25 +365,50 @@ async function viewer(){const host=$('vst');if(!host)return;const my=++VT;VD=nul
     const onFS=()=>{const vw=$('vw');if(!vw)return;if(!vw.classList.contains('fsx'))vw.classList.toggle('fs',fsEl()===vw);fsChanged()};
     document.addEventListener('fullscreenchange',onFS);document.addEventListener('webkitfullscreenchange',onFS);
     addEventListener('resize',()=>{clearTimeout(window.__vr);window.__vr=setTimeout(vshow,200)})}
-  const p=S.pres.find(x=>x.id==$('pd').value);let f=p&&FILES[p.id];
-  if(!f&&p&&p.path&&window.PTCloud&&PTCloud.enabled){msg('Loading '+p.file.name+'\u2026');const r=await PTCloud.download(p.path);if(my!==VT)return;if(r.error)return msg('Could not load this file. '+r.error);f=FILES[p.id]=new File([r.blob],p.file.name)}
+  const p=S.pres.find(x=>x.id==$('pd').value);let f=p&&(p.slideFile?SLIDE_FILES[p.id]:FILES[p.id]);
+  if(!f&&p&&(p.slidePath||p.path)&&window.PTCloud&&PTCloud.enabled){msg('Loading '+p.file.name+'\u2026');const r=await PTCloud.download(p.slidePath||p.path);if(my!==VT)return;if(r.error)return msg('Could not load this file. '+r.error);f=new File([r.blob],(p.slideFile||p.file).name);if(p.slideFile)SLIDE_FILES[p.id]=f;else FILES[p.id]=f}
   if(!f)return msg(p&&p.file?'The file for this presentation isn\u2019t loaded in this session. Upload it again in My Presentations to see it here.':'No file attached to this presentation yet.');
-  if(!/\.(pdf|pptx|docx)$/i.test(f.name))return msg('Preview works for PDF, PPTX and DOCX files. Older .ppt and .doc files can\u2019t be shown here.');
+  if(!/\.pdf$/i.test(f.name)){
+    msg('Your original file is unchanged. Attach a PDF exported from this presentation to display its layout.');
+    const label=document.createElement('label');label.className='bt gh';label.textContent='Attach slide PDF';
+    const input=document.createElement('input');input.type='file';input.accept='.pdf';input.hidden=true;label.appendChild(input);host.appendChild(label);
+    input.onchange=async()=>{
+      const pdf=input.files[0];if(!pdf)return;
+      if(!/\.pdf$/i.test(pdf.name)||pdf.size>50000000){toast('Choose a PDF up to 50 MB.');return}
+      input.disabled=true;
+      try{
+        await lib('pdf');pdfjsLib.GlobalWorkerOptions.workerSrc=LIB.pdf.replace('pdf.min.js','pdf.worker.min.js');
+        const context=await PTPresentationContent.scan(pdf,{pdf:pdfjsLib});if(my!==VT)return;
+        let slidePath=null;
+        if(window.PTCloud?.enabled){slidePath=PTCloud.user.id+'/uploads/'+crypto.randomUUID()+'.slides.pdf';const saved=await PTCloud.upload(slidePath,pdf);if(saved.error)throw Error('Could not upload the slide PDF.');}
+        p.slidePath=slidePath;p.slideFile={name:pdf.name,size:pdf.size};p.context=context;SLIDE_FILES[p.id]=pdf;podium.save();
+        if(my===VT)viewer();
+      }catch(e){toast(e.message||'Could not attach this PDF.');input.disabled=false}
+    };return;
+  }
   msg('Loading '+f.name+'\u2026');
-  try{const d=/\.pdf$/i.test(f.name)?await pdfDeck(f):/\.pptx$/i.test(f.name)?await pptxDeck(f):await docxDeck(f);if(my!==VT)return;VD=d;vshow()}catch(e){if(my===VT)msg(e.message||'Could not open this file.')}}
+  try{const d=await pdfDeck(f);if(my!==VT)return;
+    if(p&&!p.context){const context=await PTPresentationContent.scan(f,{pdf:pdfjsLib});if(my===VT){p.context=context;podium.save()}}
+    if(my!==VT)return;VD=d;vshow();
+    if(my===VT&&p){const notice=document.createElement('p');notice.className='basis slide-context';notice.textContent=p.context?.text?'Presentation text is ready for feedback. The displayed PDF is unchanged.':'No readable slide text was found. Your slides are unchanged; feedback will cover delivery only.';$('vw').appendChild(notice)}
+  }catch(e){if(my===VT)msg(e.message||'Could not open this file.')}}
 const B={
-decks:()=>{if(!$('f')){const r=$('rtitle');if(r){r.focus();r.select();r.onkeydown=e=>{if(e.key==='Enter')$('rs2').click();if(e.key==='Escape'){S.ren=null;render()}}}return}let file=null;const f=$('f'),dz=$('dz'),ok=/\.(pdf|docx?|pptx?)$/i;
-  const pk=x=>{if(!ok.test(x.name)){toast('Please choose a PDF, Word or PowerPoint file');return}file=x;$('fn').textContent=x.name+' · '+fsize(x.size);if(!$('ut').value.trim())$('ut').value=x.name.replace(/\.[^.]+$/,'')};
+decks:()=>{if(!$('f')){const r=$('rtitle');if(r){r.focus();r.select();r.onkeydown=e=>{if(e.key==='Enter')$('rs2').click();if(e.key==='Escape'){S.ren=null;render()}}}return}let file=null;const f=$('f'),dz=$('dz'),ok=/\.(pdf|pptx?)$/i;
+  const pk=x=>{if(!ok.test(x.name)){toast('Please choose a PDF or PowerPoint file');return}if(x.size>50000000){toast('Choose a presentation up to 50 MB.');return}file=x;$('slide-pdf-field').hidden=!/\.pptx?$/i.test(x.name);$('fn').textContent=x.name+' · '+fsize(x.size);if(!$('ut').value.trim())$('ut').value=x.name.replace(/\.[^.]+$/,'')};
   f.onchange=()=>f.files[0]&&pk(f.files[0]);dz.ondragover=e=>{e.preventDefault();dz.classList.add('hv')};dz.ondragleave=()=>dz.classList.remove('hv');dz.ondrop=e=>{e.preventDefault();dz.classList.remove('hv');e.dataTransfer.files[0]&&pk(e.dataTransfer.files[0])};
-  $('ua').onclick=async()=>{if(pendingEval()){toast('Take the short speaking evaluation first.');go('eval');return}let t=$('ut').value.trim();if(S.uploading)return;if(!file){toast('Choose a PDF, Word or PowerPoint file first');return}if(t.length<2){toast('Type a title for your presentation');return}
+  $('ua').onclick=async()=>{if(pendingEval()){toast('Take the short speaking evaluation first.');go('eval');return}let t=$('ut').value.trim();if(S.uploading)return;if(!file){toast('Choose a PDF or PowerPoint file first');return}if(t.length<2){toast('Type a title for your presentation');return}
     if(S.pres.some(p=>p.short===t))t+=' (2)';
-    const cloud=window.PTCloud&&PTCloud.enabled,nid=S.nid++,btn=$('ua');let path=null;
-    if(cloud){S.uploading=true;btn.disabled=true;btn.textContent='UPLOADING…';
+    const slideFile=/\.pptx?$/i.test(file.name)?$('slide-pdf').files[0]:null;if(/\.pptx?$/i.test(file.name)&&(!slideFile||!/\.pdf$/i.test(slideFile.name))){toast('Attach a PDF exported from your PowerPoint to preserve the original slide layout.');return}if(slideFile?.size>50000000){toast('Choose a PDF up to 50 MB.');return}
+    const cloud=window.PTCloud&&PTCloud.enabled,nid=S.nid++,btn=$('ua'),owner=PTCloud?.user?.id;let path=null,slidePath=null,context=null;S.uploading=true;btn.disabled=true;btn.textContent='READING SLIDES...';
+    try{const source=slideFile||file;await lib('pdf');pdfjsLib.GlobalWorkerOptions.workerSrc=LIB.pdf.replace('pdf.min.js','pdf.worker.min.js');context=await PTPresentationContent.scan(source,{pdf:pdfjsLib});}catch(e){S.uploading=false;btn.disabled=false;btn.textContent='ADD PRESENTATION';toast(e.message||'Could not read this PDF. Use an unencrypted PDF.');return}
+    if($('ua')!==btn||(cloud&&PTCloud.user?.id!==owner)){S.uploading=false;return}
+    if(cloud){btn.textContent='UPLOADING…';
       path=PTCloud.user.id+'/uploads/'+nid+'-'+file.name.replace(/[^\w.\-]+/g,'_');
-      const r=await PTCloud.upload(path,file);S.uploading=false;
-      if(r.error){toast('Upload failed. '+r.error);if($('ua')===btn){btn.disabled=false;btn.textContent='ADD PRESENTATION'}return}}
-    FILES[nid]=file;const pv=await makePreview(file);
-    S.pres.push(Object.assign({id:nid,t,short:t,file:{name:file.name,size:file.size},path,created:new Date().toISOString(),date:'Not scheduled',time:'',target:600,ready:20,ppt:true,rq:false,sp:true,final:false,left:null},pv));
+      let r;try{r=await PTCloud.upload(path,file);if(!r.error&&slideFile){slidePath=path+'.slides.pdf';const uploaded=await PTCloud.upload(slidePath,slideFile);if(uploaded.error){await PTCloud.remove([path]);r.error=uploaded.error}}}catch(e){r={error:'Check your connection and retry.'}}
+      if(r.error){S.uploading=false;toast('Upload failed. '+r.error);if($('ua')===btn){btn.disabled=false;btn.textContent='ADD PRESENTATION'}return}
+      if(PTCloud.user?.id!==owner){S.uploading=false;return}}
+    FILES[nid]=file;if(slideFile)SLIDE_FILES[nid]=slideFile;const pv=await makePreview(slideFile||file);S.uploading=false;
+    S.pres.push(Object.assign({id:nid,t,short:t,file:{name:file.name,size:file.size},path,slidePath,slideFile:slideFile?{name:slideFile.name,size:slideFile.size}:null,context,created:new Date().toISOString(),date:'Not scheduled',time:'',target:600,ready:20,ppt:true,rq:false,sp:true,final:false,left:null},pv));
     notify('📄','Presentation added','"'+t+'" was uploaded.');flash('Presentation uploaded successfully!','success','Your file is in. Nice work!');toast('Presentation uploaded');go('decks')};
   const r=$('rtitle');if(r){r.focus();r.select();r.onkeydown=e=>{if(e.key==='Enter')$('rs2').click();if(e.key==='Escape'){S.ren=null;render()}}}},
 rec:()=>{if(!$('ra'))return;let file=null;const f=$('f'),dz=$('dz'),pk=x=>{file=x;$('fn').textContent=x.name+' · '+(x.size/1048576).toFixed(1)+' MB'};
@@ -410,7 +416,7 @@ rec:()=>{if(!$('ra'))return;let file=null;const f=$('f'),dz=$('dz'),pk=x=>{file=
   const controller=new AbortController();let disposed=false;podium.practiceCleanup=()=>{disposed=true;controller.abort()};
   $('ra').onclick=async()=>{const p=find($('rs').value);if(!p||!file){toast('Select a presentation and recording first.');return}if(!$('rconsent').checked){toast('Please consent to audio processing first.');return}
     $('ra').disabled=true;$('rt').textContent='Transcribing and analyzing your recording...';
-    try{const result=await PTPracticeAudio.analyze(file,p.target,controller.signal,message=>{if(!disposed)$('rt').textContent=message});if(disposed)return;const m=result.metrics;
+    try{const result=await PTPracticeAudio.analyze(file,p.target,controller.signal,message=>{if(!disposed)$('rt').textContent=message},{title:p.t,text:p.context?.text||''});if(disposed)return;const m=result.metrics;
       const x={id:S.nid++,deckId:p.id,deck:p.short,d:today(),at:new Date().toISOString(),dur:Math.round(m.totalDurationSec),wpm:m.wpm,fill:m.fillerCount,pau:m.pauseCount,score:result.score,tg:p.target,analysis:result,source:'recorded-audio'};
       S.ses.push(x);p.rq=result.quality.level==='ok';p.ready=readiness(p);if(PTCloud.enabled){const saved=await PTCloud.saveNow(podium.snapshot());if(saved.error)toast('Cloud save failed. Keep this page open.')}else podium.save();go('rdet',x.id)
     }catch(e){if(!disposed){$('rt').textContent=e.message;$('ra').disabled=false}}}},
@@ -418,7 +424,7 @@ rec:()=>{if(!$('ra'))return;let file=null;const f=$('f'),dz=$('dz'),pk=x=>{file=
 goals:()=>{$('ga').onclick=()=>{const t=$('gn').value.trim();if(!t){toast('Describe your goal first');return}S.goals.push({t,p:0});toast('Goal added');go('goals')}},
 set:()=>{$('rv').onchange=e=>podium.setVoice&&podium.setVoice(e.target.checked);$('cp').onclick=()=>$('pic').click();$('st').onclick=()=>$('theme').click();
   $('ss').onclick=()=>{const n=$('sn').value.trim(),e=$('se').value.trim();if(n.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)){toast('Enter a valid name and email');return}S.u.name=n;S.u.email=e;podium.name=n.split(' ')[0];renderShell();toast('Settings saved')}},
-prac:()=>{if(!$('pdur'))return;let el=0,run=false,last=0,c={};let capture=new PTPracticeAudio.Capture(),busy=false,disposed=false;const controller=new AbortController();podium.practiceCleanup=()=>{disposed=true;controller.abort();capture.dispose();clearInterval(tm)};
+prac:()=>{if(!$('pdur'))return;let el=0,run=false,last=0,c={};let capture=new PTPracticeAudio.Capture(),busy=false,disposed=false;const controller=new AbortController();podium.practiceCleanup=()=>{disposed=true;controller.abort();capture.dispose();clearInterval(tm);VT++;VS++;VD=null;PR=null;document.body.classList.remove('vfsx')};
   const parse=v=>{const s=String(v).trim();if(!/^\d{1,3}$/.test(s))return null;const n=+s;return n>=1&&n<=240?n:null};
   let T0=(parse($('pdur').value)||5)*60;const tg=()=>T0,pick=()=>S.pres.find(x=>x.id==$('pd').value);
   const fillN=()=>Object.keys(c).filter(k=>k!=='__pause').reduce((s,k)=>s+c[k],0);
@@ -426,11 +432,11 @@ prac:()=>{if(!$('pdur'))return;let el=0,run=false,last=0,c={};let capture=new PT
     if($('pc')){$('pc').textContent=fmt(el);$('pl').textContent=over?'+'+fmt(el-tg())+' over':'of '+fmt(tg());$('pg').style.strokeDashoffset=339.3*(1-f);$('pg').style.stroke=over?'var(--err)':'var(--brand)'}
     const t=$('vtm');if(t){t.textContent=fmt(el);$('vtmw').classList.toggle('over',over);$('vtmw').classList.toggle('paused',!run);
       $('vtl').textContent=(!run&&el?'Paused \u00b7 ':'')+(over?'+'+fmt(el-tg())+' over':'of '+fmt(tg()))}};
-  const syncRun=()=>{if($('pgo'))$('pgo').textContent=run?'Pause':el?'Resume':'Start';if($('vpr'))$('vpr').textContent=run?'Pause':'Resume'};
+  const syncRun=()=>{if($('pgo')){$('pgo').textContent=run?'Pause':el?'Resume':'Start';$('pgo').disabled=busy}if($('vpr')){$('vpr').textContent=run?'Pause':'Resume';$('vpr').disabled=busy}if($('vfin'))$('vfin').disabled=busy;};
   const tick=()=>{if(!$('pc')){clearInterval(tm);run=false;return}const n=performance.now();el+=(n-last)/1000;last=n;draw()};
   const stop=()=>{capture.pause();if(run)el+=(performance.now()-last)/1000;run=false;clearInterval(tm);syncRun();draw()};
   const start=async()=>{if(run||busy)return;if(capture.blob){toast('Reset before starting a new recording.');return}if(!$('pconsent').checked){toast('Please consent to audio processing first.');return}busy=true;
-    try{window.PTVoice?.active&&PTVoice.stop();podium.hushNow?.();await capture.start();if(disposed)return;run=true;last=performance.now();$('pd').disabled=$('pdur').disabled=true;$('pres').innerHTML='';clearInterval(tm);tm=setInterval(()=>{tick();if(el>=600)finish()},200);syncRun();draw()}catch(e){toast(e.message||'Microphone access was blocked.')}finally{busy=false}};
+    syncRun();try{window.PTVoice?.active&&PTVoice.stop();podium.hushNow?.();await capture.start();if(disposed)return;run=true;last=performance.now();$('pd').disabled=$('pdur').disabled=true;$('pres').innerHTML='';vnote('Recording. Speak naturally, then choose Finish.');clearInterval(tm);tm=setInterval(()=>{tick();if(el>=600)finish()},200);draw()}catch(e){toast(e.message||'Microphone access was blocked.');vnote(e.message||'Microphone access was blocked.')}finally{busy=false;if(!disposed)syncRun()}};
   const toggle=()=>run?stop():start();
   /* target duration: any whole number of minutes (1-240), saved on the presentation */
   const marks=()=>$$('#pq .chip2').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.m*60===T0)));
@@ -443,15 +449,15 @@ prac:()=>{if(!$('pdur'))return;let el=0,run=false,last=0,c={};let capture=new PT
   $('pgo').onclick=toggle;
   $('prs').onclick=()=>{if(busy)return;stop();capture.dispose();capture=new PTPracticeAudio.Capture();$('pd').disabled=$('pdur').disabled=false;el=0;c={};$('pres').innerHTML='';syncRun();draw()};
   const finish=async()=>{if(busy||disposed)return;if(el<20){toast('Practice for at least 20 seconds first.');return}stop();busy=true;
-    $('pres').textContent='Transcribing and analyzing your recording...';
-    try{const blob=await capture.finish();const analysis=await PTPracticeAudio.analyze(blob,tg(),controller.signal);if(disposed)return;
+    $('pres').textContent='Transcribing and analyzing your recording...';vnote('Transcribing and reviewing your presentation...');syncRun();
+    try{const blob=await capture.finish();const analysis=await PTPracticeAudio.analyze(blob,tg(),controller.signal,undefined,{title:pick()?.t||'Quick practice',text:pick()?.context?.text||''});if(disposed)return;
       const p=pick(),m=analysis.metrics,x={id:S.nid++,deckId:p?.id,deck:p?p.short:'Quick practice',d:today(),at:new Date().toISOString(),dur:Math.round(m.totalDurationSec),wpm:m.wpm,fill:m.fillerCount,pau:m.pauseCount,score:analysis.score,tg:tg(),analysis,source:'recorded-audio'};
       S.ses.push(x);if(p){p.rq=analysis.quality.level==='ok';p.ready=readiness(p)}
       if(PTCloud.enabled){const saved=await PTCloud.saveNow(podium.snapshot());if(saved.error)toast('Report is in this session; cloud save failed. Keep this page open.')}else podium.save();
       capture.dispose();if(inFS())setFS(false);go('rdet',x.id);
-    }catch(e){if(!disposed){$('pres').textContent=e.message+' Press Finish to retry the same recording.';toast('No report generated. Your recording is available to retry.')}}finally{busy=false}};
+    }catch(e){if(!disposed){$('pres').textContent=e.message+' Press Finish to retry the same recording.';vnote('Analysis could not finish. Choose Finish to retry.');toast('No report generated. Your recording is available to retry.')}}finally{busy=false;if(!disposed)syncRun()}};
   $('pfin').onclick=finish;
-  PR={sync:syncRun,draw,toggle,finish,autostart:()=>{if(!run&&!el)start()}};
+  PR={sync:syncRun,draw,toggle,finish,autostart:()=>{if(!run)start()}};
   viewer();marks();syncRun();draw()}
 };
 B.create=B.up=B.decks;B.weak=B.prac;
@@ -478,6 +484,9 @@ async function downloadPdf(id){
     y+=6;doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(11,37,64);doc.text('Feedback',M,y);y+=7;
     tips(x).forEach(t=>{need(10);doc.setFillColor(21,112,208);doc.circle(M+1.5,y-1.2,.9,'F');doc.setFont('helvetica','normal');doc.setFontSize(11);doc.setTextColor(11,37,64);
       doc.splitTextToSize(pdfTxt(t),CW-6).forEach(l=>{need(6);doc.text(l,M+6,y);y+=5.5});y+=2});
+    if(x.analysis?.comments){const comments=x.analysis.comments;need(24);y+=6;text('Comments on your presentation',12,true);text(comments.summary,11,false);
+      for(const [heading,items] of [['What worked',comments.strengths],['What to improve',comments.improvements],['Try next',comments.recommendations]]){need(16);text(heading,11,true);items.forEach(item=>text('- '+item,10,false))}
+      text('AI comments use the transcript and extracted slide text, which may be incomplete. Measured scores are calculated separately.',9,false,[72,101,127]);}
     y+=4;text(x.analysis?'This report uses recorded-audio transcription and code-based measurements. Transcription may miss fillers or misestimate pauses. It is practice feedback, not a judgment of overall speaking ability.':x.assess?'This pre-evaluation uses browser speech recognition. Its measurements are estimates.':'This legacy report has unverified measurement provenance.',9,false,[72,101,127],0);
     doc.setFontSize(8);doc.text('Generated by PresentTrack on '+new Date().toLocaleDateString('en',{year:'numeric',month:'long',day:'numeric'}),M,290);
     const name='PresentTrack-Report-'+pdfTxt(x.deck).replace(/[^\w]+/g,'-').replace(/^-|-$/g,'').slice(0,40)+'-'+String(x.d||'').replace(/[^\w]+/g,'-')+'.pdf';
@@ -603,5 +612,5 @@ podium.enter=(name,email)=>{S.u.name=name.replace(/[._-]+/g,' ').replace(/\b\w/g
 $('lo').onclick=e=>signOut(ctr(e.currentTarget));
 const hm=document.querySelector('.sl');hm.tabIndex=0;hm.setAttribute('role','button');hm.title='Back to welcome page';hm.style.cursor='pointer';
 hm.onclick=()=>transition(ctr(hm),showLand);hm.onkeydown=e=>{if(e.key==='Enter')hm.click()};
-podium.ext={PARENT,pendingEval,S,V,B,go,render,toast,esc,page,sec,nodata,fmt,ring,flash,robot,notify,pptxDeck,FILES,today,nav,renderTop,confirmDlg,gated,find,ic,I};
+podium.ext={PARENT,pendingEval,S,V,B,go,render,toast,esc,page,sec,nodata,fmt,ring,flash,robot,notify,FILES,today,nav,renderTop,confirmDlg,gated,find,ic,I};
 })();

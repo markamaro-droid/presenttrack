@@ -57,3 +57,24 @@ test('provider failures and oversized downloads still delete temporary audio', a
     if (options.oversize) assert.equal(s.calls.length, 2);
   }
 });
+
+test('slide context produces separate AI comments without changing measured scores',async()=>{
+ const requests=[];
+ const service=createPracticeService({env:{GROQ_API_KEY:'server-key'},access:{authenticate:async()=>({userId:'alice'}),quota:async()=>{}},fetchImpl:async(url,options)=>{
+   requests.push({url,options});
+   return url.endsWith('/transcriptions')?new Response(JSON.stringify(sample)):new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({summary:'Explain how your example supports the slide.',strengths:['Clear pacing.'],improvements:['Link the example to your conclusion.'],recommendations:['Rehearse the transition aloud.'],score:100})}}]}));
+ }});
+ const baseline=await setup().service('Bearer test',request);
+ const result=await service('Bearer test',{...request,presentation:{title:'My study',text:'Slide 1: Research question and conclusion'}});
+ assert.equal(result.metrics.wpm,baseline.metrics.wpm);assert.equal(result.score,baseline.score);
+ assert.equal(result.contextStatus,'reviewed');assert.match(result.comments.summary,/example/);assert.equal(result.comments.score,undefined);
+ const sent=JSON.parse(requests[1].options.body);assert.match(sent.messages[0].content,/untrusted/);
+ assert.equal(JSON.parse(sent.messages[1].content).presentation.title,'My study');
+});
+
+test('malformed context is rejected and unavailable AI comments retain the measured report',async()=>{
+ const s=setup();await assert.rejects(s.service('Bearer test',{...request,presentation:{title:'x',text:'x'.repeat(20001)}}));assert.deepEqual(s.calls,['auth']);
+ const service=createPracticeService({env:{GROQ_API_KEY:'server-key'},access:{authenticate:async()=>({userId:'alice'}),quota:async()=>{}},fetchImpl:async url=>url.endsWith('/transcriptions')?new Response(JSON.stringify(sample)):new Response('{}',{status:503})});
+ const result=await service('Bearer test',{...request,presentation:{title:'Study',text:'Original slides'}});
+ assert.equal(result.metrics.wpm,120);assert.equal(result.contextStatus,'unavailable');assert.equal(result.comments,null);assert.ok(result.feedback.recommendations.length);
+});

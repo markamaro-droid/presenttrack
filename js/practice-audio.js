@@ -25,7 +25,7 @@
     }
     dispose() { this.cancelled = true; if (this.recorder?.state !== 'inactive') { try { this.recorder?.stop(); } catch {} } this.stream?.getTracks().forEach(t => t.stop()); this.chunks = []; this.blob = null; }
   }
-  async function analyze(blob, target, signal, onStatus = () => {}) {
+  async function analyze(blob, target, signal, onStatus = () => {}, presentation) {
     if (!blob.size || blob.size > 25000000) throw new Error('Choose a nonempty recording up to 25 MB and 10 minutes.');
     const session = await window.PTCloud?.client?.auth.getSession();
     if (!session?.data?.session) throw new Error('Sign in to analyze practice recordings.');
@@ -37,6 +37,7 @@
     try {
     signal?.throwIfAborted();
     const payload = { mime, target, consent:true };
+    if (presentation?.text) payload.presentation = {title:String(presentation.title||'').slice(0,160),text:String(presentation.text).slice(0,20000)};
     if (blob.size > 3000000) {
       if (!bucket) throw new Error('Large uploads are not configured yet.');
       storagePath = session.data.session.user.id + '/' + crypto.randomUUID();
