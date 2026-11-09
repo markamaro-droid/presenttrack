@@ -24,9 +24,10 @@ try {
   for(const [width,height] of [[1440,900],[1024,768],[768,1024],[390,844],[320,568],[844,390]])for(const theme of ['light','dark']){
     await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
     await evaluate(`document.documentElement.dataset.theme='${theme}';PTVoice.open();document.querySelector('.tracy-privacy').open=true;`);
-    const result=await evaluate(`(()=>{const p=document.getElementById('tracy-voice'),b=document.getElementById('bot'),c=document.getElementById('tracy-close');p.scrollTop=p.scrollHeight;const r=c.getBoundingClientRect(),pr=p.getBoundingClientRect(),br=b.getBoundingClientRect();return {closeVisible:r.top>=0&&r.bottom<=innerHeight&&c.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)),panelFits:pr.left>=0&&pr.right<=innerWidth&&pr.top>=0&&pr.bottom<=innerHeight,botFits:br.left>=0&&br.right<=innerWidth&&br.bottom<=innerHeight,padding:getComputedStyle(b).padding,overflow:document.documentElement.scrollWidth>innerWidth}})()`);
+    await new Promise(r=>setTimeout(r,400));
+    const result=await evaluate(`(()=>{const p=document.getElementById('tracy-voice'),b=document.getElementById('bot'),c=document.getElementById('bvoice');p.scrollTop=p.scrollHeight;const r=c.getBoundingClientRect(),pr=p.getBoundingClientRect(),br=b.getBoundingClientRect();return {closeVisible:r.top>=0&&r.bottom<=innerHeight&&c.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)),panelFits:pr.left>=0&&pr.right<=innerWidth&&pr.top>=0&&pr.bottom<=innerHeight,botFits:br.left>=0&&br.right<=innerWidth&&br.bottom<=innerHeight,padding:getComputedStyle(b).padding,overflow:document.documentElement.scrollWidth>innerWidth}})()`);
     assert.equal(result.closeVisible,true,JSON.stringify({width,height,theme,result}));assert.equal(result.panelFits,true);assert.equal(result.botFits,true);assert.equal(result.padding,'0px');assert.equal(result.overflow,false);
-    await evaluate(`document.getElementById('tracy-close').click();document.getElementById('bc').click()`);
+    await evaluate(`document.getElementById('bvoice').click()`);
     await new Promise(r=>setTimeout(r,400));
     const bubbles=await evaluate(`Array.from(document.querySelectorAll('.robot-bubble')).filter(b=>!b.hidden).map(b=>{const r=b.getBoundingClientRect();return {fits:r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight,hit:b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))}})`);
     assert.ok(bubbles.every(b=>b.fits&&b.hit),JSON.stringify({width,height,bubbles}));
@@ -35,6 +36,6 @@ try {
     assert.equal(await evaluate(`document.getElementById('tracy-voice').hidden && document.activeElement.id==='bc'`),true);
     count++;
   }
-  assert.deepEqual(errors,[]);console.log(`Passed ${count} viewport/theme combinations: panel bounds, sticky close hit target, bot bounds, bubble hit targets, and Escape focus restoration.`);
+  assert.deepEqual(errors,[]);console.log(`Passed ${count} viewport/theme combinations: panel bounds, conversation toggle hit target, bot bounds, bubble hit targets, and Escape focus restoration.`);
   await call('Browser.close');
 } finally { ws?.close();chrome.kill();await new Promise(r=>setTimeout(r,500));await rm(profile,{recursive:true,force:true,maxRetries:3}); }

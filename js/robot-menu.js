@@ -1,7 +1,7 @@
 /* Bubble shortcuts reuse Tracy's existing conversation, tour, minimize and mute actions. */
 (() => {
   const bot = document.getElementById('bot'), trigger = document.getElementById('bc');
-  const bar = bot.querySelector('.bbar');
+  const bar = bot.querySelector('.bbar'), panel = document.getElementById('tracy-voice');
   const paths = {
     talk: 'M4 4h16v12H9l-5 4V4zM8 8h8M8 12h5',
     tour: 'M12 3l8 4v10l-8 4-8-4V7l8-4zM15 9l-2 4-4 2 2-4 4-2z',
@@ -19,6 +19,7 @@
   trigger.setAttribute('aria-controls', bar.id); trigger.setAttribute('aria-label', 'Tracy. Show or hide shortcuts'); trigger.title = 'Tracy shortcuts';
   let open = false;
   function setOpen(value, focus = false) {
+    if (!panel.hidden && !bot.hidden && !bot.classList.contains('welcome') && !bot.classList.contains('tourmode')) value = true;
     open = value; bot.classList.toggle('menu', value); bar.inert = !value;
     bar.setAttribute('aria-hidden', String(!value)); trigger.setAttribute('aria-expanded', String(value));
     if (value && focus) talk.focus();
@@ -29,9 +30,10 @@
   syncMute(); setOpen(false);
   trigger.addEventListener('click', () => setOpen(!open));
   trigger.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(!open, !open); } });
-  buttons.forEach(b => b.addEventListener('click', () => { if (b === mute) { syncMute(); return; } setOpen(false); if (b === talk) document.getElementById('tracy-close').focus(); }));
+  buttons.forEach(b => b.addEventListener('click', () => { if (b === mute) { syncMute(); return; } if (b === talk) { setOpen(true); talk.focus(); return; } setOpen(false); }));
   document.addEventListener('pointerdown', e => { if (!bot.contains(e.target)) setOpen(false); });
-  bot.addEventListener('keydown', e => { if (e.key === 'Escape' && open) { e.preventDefault(); e.stopPropagation(); setOpen(false); trigger.focus(); } });
+  bot.addEventListener('keydown', e => { if (e.key === 'Escape' && open) { e.preventDefault(); e.stopPropagation(); if (!panel.hidden) window.PTVoice.close(); setOpen(false); trigger.focus(); } });
+  new MutationObserver(() => { label(talk, 'talk', panel.hidden ? 'Open conversation' : 'Close conversation'); if (!panel.hidden) setOpen(true); }).observe(panel, { attributes: true, attributeFilter: ['hidden'] });
   bar.addEventListener('keydown', e => { if (!['ArrowRight','ArrowLeft','ArrowDown','ArrowUp','Home','End'].includes(e.key)) return;
     const visible = buttons.filter(b => !b.hidden && getComputedStyle(b).display !== 'none'); if (!visible.length) return;
     e.preventDefault(); const index = visible.indexOf(document.activeElement), delta = ['ArrowLeft','ArrowUp'].includes(e.key) ? -1 : 1;

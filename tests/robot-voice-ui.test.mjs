@@ -63,16 +63,31 @@ test('captions use textContent and microphone light reflects mute state', async 
   assert.equal(app.el('tracy-voice').dataset.mic, 'on');
 });
 
-test('opening reveals the close control, Escape closes and restores robot focus', () => {
+test('opening focuses the panel, Escape closes and restores robot focus', () => {
   const app = setup();
   app.ui.open();
   assert.equal(app.el('tracy-voice').hidden, false);
   assert.equal(app.el('tracy-voice').scrollTop, 0);
-  assert.equal(app.el('tracy-close').focused, true);
+  assert.equal(app.el('tracy-voice').focused, true);
   app.el('tracy-voice').events.keydown({ key: 'Escape', stopPropagation() {} });
   assert.equal(app.el('tracy-voice').hidden, true);
   assert.equal(app.el('bc').focused, true);
   assert.equal(app.el('bvoice').attrs['aria-expanded'], 'false');
+});
+
+test('conversation bubble toggles closed and stops active capture on the second click', async () => {
+  const app = setup();
+  app.el('bvoice').events.click();
+  assert.equal(app.el('tracy-voice').hidden, false);
+  assert.equal(app.el('bvoice').attrs['aria-expanded'], 'true');
+  await app.ui.start();
+  app.el('bvoice').events.click();
+  assert.equal(app.el('tracy-voice').hidden, true);
+  assert.equal(app.session.active, false);
+  assert.equal(app.el('bvoice').attrs['aria-expanded'], 'false');
+  app.el('bvoice').events.click();
+  assert.equal(app.el('tracy-voice').hidden, false);
+  assert.equal(app.session.active, false);
 });
 
 test('minimizing closes an idle conversation so it cannot reappear unexpectedly', () => {

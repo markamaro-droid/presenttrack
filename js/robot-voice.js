@@ -32,7 +32,9 @@
     },
     onCaption: (who, text) => { $(who === 'user' ? 'tracy-user-caption' : 'tracy-reply-caption').textContent = text ? (who === 'user' ? 'You: ' : 'Tracy: ') + text : ''; const lines = $('tracy-caption-lines'); lines.scrollTop = lines.scrollHeight; }
   });
-  function open() { panel.hidden = false; panel.scrollTop = 0; $('bvoice').setAttribute('aria-expanded', 'true'); window.podium?.tourPause?.(); $('tracy-close').focus(); }
+  function open() { panel.hidden = false; panel.scrollTop = 0; $('bvoice').setAttribute('aria-expanded', 'true'); window.podium?.tourPause?.(); panel.focus(); }
+  function close() { stop(); panel.hidden = true; $('bvoice').setAttribute('aria-expanded', 'false'); }
+  function toggle() { if (panel.hidden) open(); else close(); }
   async function begin() {
     open();
     if (['eval', 'assess'].includes(window.podium?.ext?.S.view)) { status.textContent = 'Finish your evaluation and open another page to talk with Tracy.'; return; }
@@ -40,20 +42,18 @@
   }
   function stop(message) { session.stop(message); }
   window.PTVoice = {
-    start: begin, open, stop, interrupt: () => session.interrupt(),
+    start: begin, open, close, toggle, stop, interrupt: () => session.interrupt(),
     setSpeaker: on => session.muteSpeaker(!on),
     setHooks: value => { hooks = value; hooks.state?.(lastState); },
     get active() { return session.active; }, get state() { return session.state; }
   };
   start.addEventListener('click', begin);
-  $('bvoice').addEventListener('click', open);
+  $('bvoice').addEventListener('click', toggle);
   end.addEventListener('click', () => stop());
   mic.addEventListener('click', () => session.muteMicrophone(!lastState.micMuted));
   interrupt.addEventListener('click', () => session.interrupt());
   playback.addEventListener('click', () => session.enablePlayback());
   captions.addEventListener('change', () => { $('tracy-caption-lines').hidden = !captions.checked; });
-  const close = () => { stop(); panel.hidden = true; $('bvoice').setAttribute('aria-expanded', 'false'); };
-  $('tracy-close').addEventListener('click', () => { close(); $('bc').focus(); });
   panel.addEventListener('keydown', event => { if (event.key === 'Escape') { event.stopPropagation(); close(); $('bc').focus(); } });
   window.addEventListener('offline', () => { if (session.active) session.fail('You are offline. Reconnect and start a new conversation.'); });
   window.addEventListener('pagehide', () => { if (session.active) stop(); });

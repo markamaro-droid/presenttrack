@@ -181,11 +181,10 @@ html #bot .tracy-privacy {
   background:color-mix(in srgb,var(--brand) 6%,transparent);
   border-color:color-mix(in srgb,var(--ink) 16%,transparent);
 }
-html #bot .tracy-voice :is(#tracy-close,.tracy-controls button) {
+html #bot .tracy-voice .tracy-controls button {
   background:color-mix(in srgb,var(--panel) 55%,transparent);
   border-color:color-mix(in srgb,var(--ink) 20%,transparent);
 }
-html #bot .tracy-voice #tracy-close:hover { background:var(--field); }
 @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) {
   html #bot .tracy-voice {
     background:linear-gradient(135deg,rgb(255 255 255 / .09),transparent 55%),color-mix(in srgb,var(--panel) 78%,transparent);
