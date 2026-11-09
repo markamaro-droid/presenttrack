@@ -72,7 +72,8 @@ P.submitAssessment=(blob,name,durationSec)=>{const f=new FormData();f.append('au
 const BUCKET='presentations';
 P.upload=async(path,file)=>{
   if(!/\.(pdf|pptx)$/i.test(file?.name||'')||!/\.(pdf|pptx)$/i.test(path)||/wordprocessingml|msword/i.test(file?.type||''))return{error:'Only PPTX and PDF presentation files are allowed.'};
-  const {error}=await sb.storage.from(BUCKET).upload(path,file,{upsert:false,contentType:file.type||undefined});return error?{error:error.message}:{}
+  const contentType=/\.pdf$/i.test(file.name)?'application/pdf':'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+  const {error}=await sb.storage.from(BUCKET).upload(path,file,{upsert:false,contentType});return error?{error:error.message}:{}
 };
 P.download=async path=>{const {data,error}=await sb.storage.from(BUCKET).download(path);return error?{error:error.message}:{blob:data}};
 P.remove=async paths=>{const {error}=await sb.storage.from(BUCKET).remove(paths);return error?{error:error.message}:{}};

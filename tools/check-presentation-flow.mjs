@@ -33,6 +33,14 @@ try{
  await evaluate(`document.getElementById('ut').value='Rejected document';document.getElementById('ua').click()`);
  assert.equal(await evaluate('podium.ext.S.pres.length'),0);assert.equal(await evaluate('uploads.length'),0);
  assert.equal(await evaluate(`document.getElementById('f').files.length`),0);
+ if(process.env.BLOCKED_DOCX_PATH){
+   const {root}=await call('DOM.getDocument');const {nodeId}=await call('DOM.querySelector',{nodeId:root.nodeId,selector:'#f'});
+   await call('DOM.setFileInputFiles',{nodeId,files:[path.resolve(process.env.BLOCKED_DOCX_PATH)]});
+   await evaluate(`document.getElementById('ua').click()`);
+   assert.equal(await evaluate('uploads.length'),0);assert.equal(await evaluate('podium.ext.S.pres.length'),0);
+   assert.equal(await evaluate(`document.getElementById('f').files.length`),0);
+   console.log('Attached DOCX fixture rejected without any upload or presentation record.');
+ }
  assert.equal(await evaluate(`document.getElementById('f').accept`),'.pdf,.pptx');
  for(const name of ['legacy.ppt','report.doc','report.docx','image.png','archive.zip','program.exe']){
    await evaluate(`pick('f',[new File(['rejected'],${JSON.stringify(name)})]);document.getElementById('ua').click()`);
