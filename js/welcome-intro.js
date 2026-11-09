@@ -64,14 +64,16 @@
     const arrive = () => {
       dock();
       stage.dataset.phase = 'arriving';
-      podium.robotWelcomeWave?.();
+      // Stay relaxed during the entrance; robotIntroduce owns the single
+      // greeting wave and starts it only when the voice is actually playing.
       if (!reducedMotion && bot.animate) {
         arrival = bot.animate([
-          { opacity: 0, transform: 'translateY(16px) scale(.88)' },
+          { opacity: 0, transform: 'translateY(32px) scale(.92)' },
+          { opacity: .75, transform: 'translateY(8px) scale(.98)', offset: .65 },
           { opacity: 1, transform: 'translateY(0) scale(1)' }
-        ], { duration: 700, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'none' });
+        ], { duration: 1800, easing: 'cubic-bezier(.22,.61,.36,1)', fill: 'none' });
         arrival.onfinish = greet;
-        timer = setTimeout(greet, 800);
+        timer = setTimeout(greet, 1900);
       } else greet();
     };
     // Dock before waiting so Tracy never flashes in the lower-right corner.
