@@ -16,7 +16,7 @@
   #bot #tour .tbt .wide{grid-column:span 2}
   #bot #tour .tsegs{display:none}
   #bot #tour .tcolb{width:44px;height:44px;grid-column:3;grid-row:1}
-  #bot #tour .tour-stop{display:block;grid-column:2;grid-row:1;min-height:44px;border:1px solid var(--line);border-radius:12px;padding:8px 12px;background:var(--cs);color:var(--ink);font:600 13px 'DM Sans',sans-serif;cursor:pointer}
+  #bot #tour .tour-stop{display:block;grid-column:2;grid-row:1;min-height:44px;border:1px solid var(--line);border-radius:12px;padding:8px 12px;background:var(--cs);color:var(--ink);font:600 13px Inter,sans-serif;cursor:pointer}
   #bot.tcol #tour>:not(.tcolb):not(.tour-stop){display:none!important}
   #bot.tcol #tour .tour-stop{display:block!important}
   #bot.tcol #tour{left:auto!important;right:max(12px,env(safe-area-inset-right))!important;bottom:max(12px,env(safe-area-inset-bottom))!important;grid-template-columns:auto auto;gap:8px!important;border-radius:18px!important;padding:8px!important}

@@ -17,5 +17,5 @@
 .dot{flex:none;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-weight:700;background:#fff;color:var(--hero2)}
 @keyframes drop{from{opacity:0;transform:translateY(-24px) scale(.96)}}
 .stats{display:flex;gap:32px;font-size:14px;color:#DAD2FF}
-.stats strong{display:block;font-family:Sora,sans-serif;font-size:22px;color:#fff}
+.stats strong{display:block;font-family:Inter,sans-serif;font-size:22px;color:#fff}
  

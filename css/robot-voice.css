@@ -1,9 +1,9 @@
 /* Voice controls use the existing robot's position and theme. */
 #bot .bbar { flex-wrap:wrap; }
-#bot .bvoice { border:0;border-radius:999px;padding:6px 10px;background:var(--brand);color:#fff;font:600 11px "DM Sans",sans-serif;cursor:pointer; }
-#bot .tracy-voice { position:absolute;right:0;bottom:calc(100% + 8px);width:min(310px,calc(100vw - 36px));max-height:calc(100dvh - 260px);overflow-y:auto;padding:14px;border-radius:20px;background:var(--cs,var(--panel));color:var(--ink);box-shadow:var(--clay-sh,0 8px 32px #18244730);user-select:text;z-index:6;font:14px/1.5 "DM Sans",sans-serif; }
+#bot .bvoice { border:0;border-radius:999px;padding:6px 10px;background:var(--brand);color:#fff;font:600 11px Inter,sans-serif;cursor:pointer; }
+#bot .tracy-voice { position:absolute;right:0;bottom:calc(100% + 8px);width:min(310px,calc(100vw - 36px));max-height:calc(100dvh - 260px);overflow-y:auto;padding:14px;border-radius:20px;background:var(--cs,var(--panel));color:var(--ink);box-shadow:var(--clay-sh,0 8px 32px #18244730);user-select:text;z-index:6;font:14px/1.5 Inter,sans-serif; }
 .tracy-voice header { display:flex;align-items:center;gap:8px; }
-.tracy-voice header strong { flex:1;font:700 17px Sora,sans-serif; }
+.tracy-voice header strong { flex:1;font:700 17px Inter,sans-serif; }
 .tracy-voice button,.tracy-voice select { font:inherit;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);padding:8px 10px;cursor:pointer; }
 .tracy-voice button:disabled,.tracy-voice select:disabled { opacity:.55;cursor:default; }
 .tracy-voice #tracy-start,.tracy-voice #tracy-play { background:var(--brand);color:#fff;border:0;width:100%;margin-top:8px; }
