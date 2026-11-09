@@ -1,13 +1,8 @@
-/* Post-login introduction: device speech avoids a network wait for the greeting. */
+/* Preload the natural greeting during login and synchronize gestures with playback. */
 (() => {
   const $ = id => document.getElementById(id);
-  const copy = "Hi! I am Tracy, your presentation coach. Welcome to PresentTrack! Let us start with a short speaking evaluation.";
-  podium.welcomePrepare = () => {
-    // Prime the device voice list during login; cloud preparation is only a
-    // compatibility fallback on browsers without speech synthesis.
-    if (window.speechSynthesis && window.SpeechSynthesisUtterance) window.speechSynthesis.getVoices();
-    else podium.prepareNarration?.(copy);
-  };
+  const copy = globalThis.PTGreeting.text;
+  podium.welcomePrepare = () => podium.prepareNarration?.(copy);
   let cleanup = null;
   podium.welcomeStop = () => { cleanup?.(); cleanup = null; };
   podium.welcomeStart = () => {

@@ -16,6 +16,12 @@ export function createSpeechService({ env = process.env, fetchImpl = fetch, acce
     const payload = { model_id: env.CARTESIA_MODEL?.trim() || 'sonic-3.6-2026-08-27', transcript: body.text.trim(),
       voice: env.CARTESIA_VOICE_ID.trim(), language: body.language,
       output_format: { container: 'wav', encoding: 'pcm_s16le', sample_rate: 16000 } };
+    // Emotion guidance is English-only. Other replies keep the model's
+    // context-sensitive delivery, rather than forcing cheerful feedback.
+    if (body.language === 'en' && /^sonic-3/.test(payload.model_id)
+        && /^Hi there! I'm Tracy, your presentation coach\./.test(payload.transcript)) {
+      payload.generation_config = { emotion: 'happy' };
+    }
     const key = createHash('sha256').update(identity.userId + 'speech-v1:2026-08-14:' + JSON.stringify(payload)).digest('hex');
     const cached = cache.get(key);
     if (cached && cached.expires > Date.now()) return cached.result;

@@ -39,3 +39,14 @@ test('provider failure is safe and is not cached', async () => {
   for (let i = 0; i < 2; i++) await assert.rejects(f.service('alice', request), { code: 'speech_unavailable' });
   assert.equal(f.calls.length, 4);
 });
+
+test('welcome gets happy delivery while ordinary feedback and Filipino retain contextual tone', async () => {
+  const f = fixture();
+  const greeting = "Hi there! I'm Tracy, your presentation coach. Welcome to PresentTrack!";
+  await f.service('alice', { text: greeting, language: 'en' });
+  assert.deepEqual(f.calls[1].body.generation_config, { emotion: 'happy' });
+  await f.service('alice', request);
+  assert.equal(f.calls[3].body.generation_config, undefined);
+  await f.service('alice', { text: greeting, language: 'tl' });
+  assert.equal(f.calls[5].body.generation_config, undefined);
+});
