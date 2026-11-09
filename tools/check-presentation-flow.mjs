@@ -22,7 +22,8 @@ try{
  document.querySelector('.shell').hidden=true;document.getElementById('app').hidden=false;document.documentElement.classList.add('clay');podium.save=()=>{};
  window.uploads=[];window.PTCloud={enabled:true,user:{id:'preview'},assessmentDone:true,upload:async(path,file)=>{uploads.push({path,name:file.name,bytes:await file.text()});return{}},saveNow:async()=>({}),remove:async()=>({})};
  window.pdfjsLib={GlobalWorkerOptions:{},getDocument:()=>({promise:Promise.resolve({numPages:2,getPage:async i=>({getTextContent:async()=>({items:[{str:'Original slide '+i+' research findings'}]}),getViewport:({scale})=>({width:960*scale,height:540*scale}),render:({canvasContext})=>{canvasContext.fillStyle='#fff';canvasContext.fillRect(0,0,960,540);return{promise:Promise.resolve()} }}),destroy:async()=>{}})})};
- const append=document.head.appendChild.bind(document.head);document.head.appendChild=el=>{if(el.src?.includes('/pdf.min.js')){queueMicrotask(()=>el.onload());return el;}return append(el)};
+ window.JSZip={loadAsync:async()=>({files:{'ppt/slides/slide1.xml':{}},file:()=>({async:async()=>'<p:sld xmlns:p="urn:p" xmlns:a="urn:a"><a:p><a:t>Original slide research findings</a:t></a:p></p:sld>'})})};
+ const append=document.head.appendChild.bind(document.head);document.head.appendChild=el=>{if(el.src?.includes('/pdf.min.js')||el.src?.includes('/jszip.min.js')){queueMicrotask(()=>el.onload());return el;}return append(el)};
  window.recordStarts=0;PTPracticeAudio.Capture=class{async start(){recordStarts++}pause(){}dispose(){}async finish(){return new Blob(['audio'],{type:'audio/webm'})}};
  window.reviewInputs=[];PTPracticeAudio.analyze=async(blob,target,signal,status,presentation)=>{reviewInputs.push(presentation);return{score:80,metrics:{totalDurationSec:30,wpm:120,fillerCount:2,pauseCount:1},quality:{level:'ok',warnings:[]},feedback:{strengths:['Steady pace.'],improvements:['Reduce fillers.'],recommendations:['Pause after your key finding.']},comments:{summary:'Connect the research finding to your conclusion.',strengths:['Clear finding.'],improvements:['Explain the implication.'],recommendations:['Practice a transition.']},contextStatus:'reviewed',transcript:'Research findings'}};
  const now=performance.now.bind(performance);window.previewShift=0;performance.now=()=>now()+previewShift;
@@ -32,9 +33,9 @@ try{
  await evaluate(`document.getElementById('ut').value='Rejected document';document.getElementById('ua').click()`);
  assert.equal(await evaluate('podium.ext.S.pres.length'),0);assert.equal(await evaluate('uploads.length'),0);
  assert.equal(await evaluate(`document.getElementById('f').files.length`),0);
- assert.equal(await evaluate(`document.getElementById('f').accept`),'.pdf,.pptx');
+ assert.equal(await evaluate(`document.getElementById('f').accept`),'.pdf,.ppt,.pptx');
  await evaluate(`pick('f',[new File(['old'],'legacy.ppt')])`);
- assert.match(await evaluate(`document.getElementById('toast').textContent`),/Rejected: only/);
+ assert.equal(await evaluate(`document.getElementById('slide-pdf-field').hidden`),false);
  await evaluate(`pick('f',[new File(['cancelled'],'cancelled.pptx')]);pick('slide-pdf',[new File(['pdf'],'cancelled.pdf')]);document.getElementById('ut').value='Cancelled draft';document.getElementById('uc').click()`);
  assert.deepEqual(await evaluate(`({title:document.getElementById('ut').value,original:document.getElementById('f').files.length,pdf:document.getElementById('slide-pdf').files.length,hidden:document.getElementById('slide-pdf-field').hidden})`),{title:'',original:0,pdf:0,hidden:true});
  await evaluate(`document.getElementById('ua').click()`);assert.equal(await evaluate('uploads.length'),0);
@@ -44,7 +45,7 @@ try{
  await evaluate(`pick('slide-pdf',[new File(['ORIGINAL PDF BYTES'],'research.pdf',{type:'application/pdf'})]);document.getElementById('ua').click()`);
  for(let i=0;i<40;i++){if(await evaluate('podium.ext.S.pres.length===1'))break;await new Promise(r=>setTimeout(r,50));}
  assert.deepEqual(await evaluate('uploads.map(x=>x.bytes)'),['ORIGINAL POWERPOINT BYTES','ORIGINAL PDF BYTES']);
- assert.match(await evaluate('podium.ext.S.pres[0].context.text'),/Original slide 1/);
+ assert.match(await evaluate('podium.ext.S.pres[0].context.text'),/Original slide research findings/);
  const deckId=await evaluate('podium.ext.S.pres[0].id');
  for(const [width,height] of [[1440,900],[390,844]]){
   await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<768});

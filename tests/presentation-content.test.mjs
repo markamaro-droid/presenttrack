@@ -5,8 +5,8 @@ import {readFile} from 'node:fs/promises';
 const source=await readFile(new URL('../js/presentation-content.js',import.meta.url),'utf8');
 const setup=()=>{const c={};vm.runInNewContext(source,c);return c.PTPresentationContent;};
 test('only PDFs and PowerPoint files are accepted',()=>{
- const scanner=setup();for(const name of ['talk.pdf','TALK.PPTX','talk.pptx'])assert.equal(scanner.supported(name),true);
- for(const name of ['report.docx','report.doc','talk.ppt','talk.pptx.exe','talk.pdf.html',''])assert.equal(scanner.supported(name),false);
+ const scanner=setup();for(const name of ['talk.pdf','TALK.PPTX','talk.pptx','talk.ppt'])assert.equal(scanner.supported(name),true);
+ for(const name of ['report.docx','report.doc','talk.pptx.exe','talk.pdf.html',''])assert.equal(scanner.supported(name),false);
 });
 test('PDF text scanning leaves original bytes untouched and does not rewrite page content',async()=>{
  const scanner=setup(),original=Buffer.from('%PDF original fonts and layout'),before=Buffer.from(original);let destroyed=false;
