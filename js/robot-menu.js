@@ -16,24 +16,24 @@
   label(talk, 'talk', 'Conversation'); label(tour, 'tour', 'Guided tour'); label(mini, 'minimize', 'Minimize Tracy');
   buttons.forEach((b, i) => { b.classList.add('robot-bubble'); b.dataset.bubble = String(i); });
   bar.id = 'tracy-shortcuts'; bar.setAttribute('role', 'group'); bar.setAttribute('aria-label', 'Tracy shortcuts');
-  trigger.setAttribute('aria-controls', bar.id); trigger.setAttribute('aria-label', 'Tracy. Show or hide shortcuts'); trigger.title = 'Tracy shortcuts';
+  trigger.setAttribute('aria-controls', panel.id); trigger.setAttribute('aria-label', 'Tracy. Open conversation. Press ArrowDown for shortcuts.'); trigger.title = 'Talk with Tracy';
   let open = false;
   function setOpen(value, focus = false) {
     if (!panel.hidden && !bot.hidden && !bot.classList.contains('welcome') && !bot.classList.contains('tourmode')) value = true;
     open = value; bot.classList.toggle('menu', value); bar.inert = !value;
-    bar.setAttribute('aria-hidden', String(!value)); trigger.setAttribute('aria-expanded', String(value));
+    bar.setAttribute('aria-hidden', String(!value)); trigger.setAttribute('aria-expanded', String(!panel.hidden));
     if (value && focus) talk.focus();
   }
   function syncMute() { label(mute, podium.voiceOn === false ? 'muted' : 'sound', podium.voiceOn === false ? 'Unmute Tracy' : 'Mute Tracy'); mute.setAttribute('aria-pressed', String(podium.voiceOn === false)); }
   const setVoice = podium.setVoice;
   if (setVoice) podium.setVoice = on => { setVoice(on); syncMute(); };
   syncMute(); setOpen(false);
-  trigger.addEventListener('click', () => setOpen(!open));
-  trigger.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(!open, !open); } });
+  trigger.addEventListener('click', () => { window.PTVoice.toggle(); setOpen(true); });
+  trigger.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.PTVoice.toggle(); setOpen(true); } else if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true, true); } });
   buttons.forEach(b => b.addEventListener('click', () => { if (b === mute) { syncMute(); return; } if (b === talk) { setOpen(true); talk.focus(); return; } setOpen(false); }));
   document.addEventListener('pointerdown', e => { if (!bot.contains(e.target)) setOpen(false); });
   bot.addEventListener('keydown', e => { if (e.key === 'Escape' && open) { e.preventDefault(); e.stopPropagation(); if (!panel.hidden) window.PTVoice.close(); setOpen(false); trigger.focus(); } });
-  new MutationObserver(() => { label(talk, 'talk', panel.hidden ? 'Open conversation' : 'Close conversation'); if (!panel.hidden) setOpen(true); }).observe(panel, { attributes: true, attributeFilter: ['hidden'] });
+  new MutationObserver(() => { label(talk, 'talk', panel.hidden ? 'Open conversation' : 'Close conversation'); trigger.setAttribute('aria-expanded', String(!panel.hidden)); if (!panel.hidden) setOpen(true); }).observe(panel, { attributes: true, attributeFilter: ['hidden'] });
   bar.addEventListener('keydown', e => { if (!['ArrowRight','ArrowLeft','ArrowDown','ArrowUp','Home','End'].includes(e.key)) return;
     const visible = buttons.filter(b => !b.hidden && getComputedStyle(b).display !== 'none'); if (!visible.length) return;
     e.preventDefault(); const index = visible.indexOf(document.activeElement), delta = ['ArrowLeft','ArrowUp'].includes(e.key) ? -1 : 1;

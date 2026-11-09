@@ -3,6 +3,16 @@ import assert from 'node:assert/strict';
 import { createCoachService } from '../server/coach.mjs';
 const env = { GROQ_API_KEY: 'groq-private', SUPABASE_URL: 'https://test.supabase.co', SUPABASE_ANON_KEY: 'public' };
 const json = (value, status = 200, headers = {}) => new Response(JSON.stringify(value), { status, headers });
+
+test('active coach passes selected page and slide context to Groq as untrusted user data', async () => {
+  const s = setup([json({ id: 'a' }), json({ allowed: true }), json({ choices: [{ message: { content: 'Here is your slide summary.' } }] })]);
+  await s.service('Bearer user-token', { message: 'Explain this slide', language: 'taglish', context: { page: 'prac', presentation: { title: 'Research', text: 'The measured finding is 42.', truncated: false } } });
+  const request = JSON.parse(s.calls[2].body);
+  assert.match(request.messages[0].content, /Never invent presentation scores/);
+  assert.match(request.messages.at(-1).content, /measured finding is 42/);
+  assert.match(request.messages.at(-1).content, /taglish/);
+  assert.equal(request.messages.at(-1).role, 'user');
+});
 function setup(responses, config = env) {
   const calls = [];
   const service = createCoachService({ env: config, fetchImpl: async (url, init) => { calls.push({ url, ...init }); assert.ok(responses.length, 'Unexpected request'); const next = responses.shift(); if (next instanceof Error) throw next; return next; } });

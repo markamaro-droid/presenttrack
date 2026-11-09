@@ -15,7 +15,7 @@ function setup(deferred=false){
   const window={MediaRecorder:Recorder};
   const context={window,MediaRecorder:Recorder,Blob,navigator:{mediaDevices:{getUserMedia:()=>deferred?new Promise(r=>grant=r):Promise.resolve(stream)}},addEventListener(){}};
   vm.runInNewContext(code,context);
-  return {capture:new window.PTPracticeAudio.Capture(),get stops(){return stops},grant:()=>grant(stream)};
+  return {capture:new window.PTPracticeAudio.Capture(),get capturing(){return window.PTPracticeAudio.capturing},get stops(){return stops},grant:()=>grant(stream)};
 }
 test('practice capture pauses, resumes, retains retry audio and stops the microphone',async()=>{
   const s=setup();await s.capture.start();s.capture.pause();assert.equal(s.capture.recorder.state,'paused');await s.capture.start();assert.equal(s.capture.recorder.state,'recording');
@@ -23,6 +23,15 @@ test('practice capture pauses, resumes, retains retry audio and stops the microp
 });
 test('navigation before microphone permission resolves releases the late stream',async()=>{
   const s=setup(true);const pending=s.capture.start();s.capture.dispose();s.grant();await assert.rejects(pending,/cancelled/);assert.equal(s.stops,1);
+});
+
+test('capture lock covers permission, recording and pause and releases on finish or navigation', async () => {
+  const s = setup(true), pending = s.capture.start();
+  assert.equal(s.capturing, true); s.grant(); await pending;
+  assert.equal(s.capturing, true); s.capture.pause(); assert.equal(s.capturing, true);
+  await s.capture.finish(); assert.equal(s.capturing, false);
+  const cancelled = setup(true), late = cancelled.capture.start(); cancelled.capture.dispose();
+  assert.equal(cancelled.capturing, false); cancelled.grant(); await assert.rejects(late);
 });
 
 function uploadSetup({ fail = false, signal } = {}) {

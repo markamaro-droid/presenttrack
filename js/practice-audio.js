@@ -1,29 +1,34 @@
 /* Large uploads use private temporary storage; reports are saved separately. */
 (() => {
+  const captures = new Set();
   class Capture {
     constructor() { this.chunks = []; this.cancelled = false; }
     async start() {
       if (this.recorder) { if (this.recorder.state === 'paused') this.recorder.resume(); return; }
       if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) throw new Error('Audio recording is unavailable in this browser.');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      captures.add(this);
+      window.PTVoice?.stop('Microphone off while practice recording is in use.');
+      let stream;
+      try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+      catch (error) { captures.delete(this); throw error; }
       if (this.cancelled) { stream.getTracks().forEach(t => t.stop()); throw new Error('Recording cancelled.'); }
       this.stream = stream;
       const mimeType = ['audio/webm;codecs=opus','audio/mp4','audio/ogg'].find(t => MediaRecorder.isTypeSupported(t));
       try { this.recorder = new MediaRecorder(stream, { ...(mimeType ? { mimeType } : {}), audioBitsPerSecond: 24000 }); }
       catch(e) { this.dispose(); throw e; }
       this.recorder.ondataavailable = e => { if (e.data.size) this.chunks.push(e.data); };
-      this.recorder.start(1000);
+      try { this.recorder.start(1000); } catch (error) { this.dispose(); throw error; }
     }
     pause() { if (this.recorder?.state === 'recording') this.recorder.pause(); }
     async finish() {
       if (this.blob) return this.blob;
       if (!this.recorder || this.recorder.state === 'inactive') throw new Error('Start recording first.');
       try { await new Promise((resolve, reject) => { this.recorder.onstop = resolve; this.recorder.onerror = () => reject(new Error('Recording failed.')); this.recorder.stop(); }); }
-      finally { this.stream.getTracks().forEach(t => t.stop()); }
+      finally { this.stream.getTracks().forEach(t => t.stop()); captures.delete(this); }
       this.blob = new Blob(this.chunks, { type: this.recorder.mimeType }); this.chunks = [];
       return this.blob;
     }
-    dispose() { this.cancelled = true; if (this.recorder?.state !== 'inactive') { try { this.recorder?.stop(); } catch {} } this.stream?.getTracks().forEach(t => t.stop()); this.chunks = []; this.blob = null; }
+    dispose() { this.cancelled = true; captures.delete(this); if (this.recorder?.state !== 'inactive') { try { this.recorder?.stop(); } catch {} } this.stream?.getTracks().forEach(t => t.stop()); this.chunks = []; this.blob = null; }
   }
   async function analyze(blob, target, signal, onStatus = () => {}, presentation) {
     if (!blob.size || blob.size > 25000000) throw new Error('Choose a nonempty recording up to 25 MB and 10 minutes.');
@@ -65,6 +70,6 @@
       }
     }
   }
-  window.PTPracticeAudio = { Capture, analyze };
+  window.PTPracticeAudio = { Capture, analyze, get capturing() { return captures.size > 0; } };
   addEventListener('pagehide', () => window.podium?.practiceCleanup?.());
 })();

@@ -17,7 +17,7 @@ function setup(options = {}) {
   const context = { AbortController, navigator: { onLine: true }, setTimeout: (fn, ms) => { timers.set(++count, { fn, ms }); return count; }, clearTimeout: id => timers.delete(id) };
   vm.createContext(context); vm.runInContext(source, context);
   let owner = 'a';
-  const session = new context.TracyBrowserVoiceSession({ tts: options.tts, Recognition, synth, Utterance: class { constructor(text) { this.text = text; } },
+  const session = new context.TracyBrowserVoiceSession({ tts: options.tts, Recognition, synth, canListen: options.canListen, getContext: options.getContext, Utterance: class { constructor(text) { this.text = text; } },
     getSession: async () => options.noAuth ? null : { user: { id: owner }, access_token: 'session-token' },
     fetchImpl: async (url, init) => { const body = JSON.parse(init.body); calls.push({ url, init, body }); return options.fetcher ? options.fetcher(body) : new Response(JSON.stringify(body.action ? { ready: true } : { reply: 'Try a clear opening.' })); },
     onState: state => states.push(state), onCaption: (who, text) => captions.push({ who, text }) });
@@ -34,6 +34,67 @@ test('browser voice alternates listening, authenticated Groq replies and synthes
   s.current().result('What comes next?'); await flush();
   assert.equal(s.calls[2].body.history.length, 2); assert.equal(s.session.state, 'speaking');
   s.session.stop(); assert.equal(s.session.active, false); assert.equal(s.timers.size, 0);
+});
+
+test('typed and spoken messages share bounded history across stop and restart; clear removes it', async () => {
+  const s = setup({ getContext: () => ({ page: 'perf', metric: 'wpm' }) });
+  s.session.muteSpeaker(true);
+  assert.equal(await s.session.sendText('What is WPM?'), true);
+  assert.equal(s.recognizers.length, 0);
+  assert.equal(s.session.active, false);
+  assert.equal(s.calls[0].body.context.page, 'perf');
+  assert.equal(s.session.messages.length, 2);
+  await s.session.start();
+  s.current().result('Explain that again'); await flush();
+  assert.equal(s.calls.at(-1).body.history.length, 2);
+  s.session.stop();
+  await s.session.sendText('And filler words?');
+  assert.equal(s.calls.at(-1).body.history.length, 4);
+  assert.equal(s.session.messages.length, 6);
+  s.session.clear(); assert.equal(s.session.messages.length, 0); assert.equal(s.session.history.length, 0);
+  assert.equal(s.timers.size, 0);
+});
+
+test('text chat works with no recognition or synthesis and selected device voice is honored', async () => {
+  const s = setup(); s.session.Recognition = null; s.session.synth = null; s.session.Utterance = null;
+  s.session.muteSpeaker(true); await s.session.sendText('Hello');
+  assert.equal(s.session.messages.length, 2); assert.equal(s.recognizers.length, 0);
+  const v = setup(); const selected = { voiceURI: 'device-1', lang: 'fil-PH' };
+  v.synth.getVoices = () => [selected]; v.session.setVoice('device-1');
+  await v.session.sendText('Kumusta?');
+  assert.equal(v.synth.utterance.voice, selected);
+  v.synth.utterance.onend(); assert.equal(v.session.active, false); assert.equal(v.recognizers.length, 0);
+});
+
+test('muting while natural voice loads cancels audio and ignores delayed playback callbacks', async () => {
+  let clip;
+  const s = setup({ tts: { speak(text, hooks) { return clip = { hooks, cancel() { this.cancelled = true; } }; } } });
+  await s.session.sendText('Hello');
+  assert.equal(s.session.state, 'thinking');
+  s.session.muteSpeaker(true);
+  assert.equal(clip.cancelled, true); assert.equal(s.session.active, false);
+  clip.hooks.onstart(); clip.hooks.onend();
+  assert.equal(s.session.state, 'idle'); assert.equal(s.recognizers.length, 0);
+});
+
+test('single-turn mode pauses after reply and capture lock prevents hands-free restart', async () => {
+  let allowed = true; const s = setup({ canListen: () => allowed });
+  s.session.setHandsFree(false); await s.session.start('taglish');
+  assert.equal(s.current().lang, 'fil-PH');
+  s.current().result('Kumusta'); await flush(); s.synth.utterance.onend();
+  assert.equal(s.session.state, 'muted'); assert.equal(s.current().running, false);
+  s.session.muteMicrophone(false); assert.equal(s.session.state, 'listening');
+  s.session.setHandsFree(true); s.current().result('Another question'); await flush();
+  allowed = false; s.synth.utterance.onend();
+  assert.equal(s.session.active, false); assert.equal(s.current().running, false);
+});
+
+test('cancelling typed requests ignores late answers and does not activate recognition', async () => {
+  let resolve; const s = setup({ fetcher: () => new Promise(r => { resolve = r; }) });
+  const pending = s.session.sendText('Hello'); await flush();
+  s.session.interrupt(); resolve(new Response('{"reply":"Too late"}')); await pending;
+  assert.equal(s.session.active, false); assert.equal(s.session.messages.length, 1);
+  assert.equal(s.recognizers.length, 0); assert.equal(s.timers.size, 0);
 });
 test('no sign-in means no microphone and no provider request', async () => {
   const s = setup({ noAuth: true }); await s.session.start();
@@ -81,6 +142,8 @@ test('Cartesia playback keeps microphone paused; interruption and failure never 
   const tts = { speak(text, hooks) { const clip = { hooks, cancelled: false, cancel() { this.cancelled = true; } }; clips.push(clip); return clip; } };
   const s = setup({ tts }); await s.session.start();
   s.current().result('Hello'); await flush();
+  assert.equal(s.session.state, 'thinking');
+  clips[0].hooks.onstart();
   assert.equal(s.session.state, 'speaking'); assert.equal(s.current().running, false);
   assert.equal(s.synth.utterance, undefined);
   s.session.interrupt(); assert.equal(clips[0].cancelled, true);

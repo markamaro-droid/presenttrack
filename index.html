@@ -25,6 +25,7 @@
 <link rel="stylesheet" href="css/responsive.css">
 <link rel="stylesheet" href="css/design-system.css">
 <link rel="stylesheet" href="css/mobile.css">
+<link rel="stylesheet" href="css/tracy-conversation.css">
 </head>
 <body>
 <canvas id="water" aria-hidden="true"></canvas>
@@ -148,22 +149,30 @@
   <canvas id="bc" role="button" tabindex="0" aria-label="Tracy, your AI presentation coach. Open voice controls." title="Talk with Tracy"></canvas>
   <div class="bbar"><button class="bmute" id="bmute" type="button" aria-label="Mute Tracy's voice" aria-pressed="false" title="Mute Tracy's voice">&#128266;</button><button class="bvoice" id="bvoice" type="button" aria-controls="tracy-voice" aria-expanded="false">Talk</button><button class="bguide" id="bguide" type="button" hidden>Guide me</button><button class="bmin" id="bmin" type="button">Minimize</button></div>
   <section class="tracy-voice" id="tracy-voice" hidden role="dialog" tabindex="-1" aria-label="Talk with Tracy" data-state="idle">
-    <header><strong>Tracy</strong></header>
-    <p>Speak, then pause for a reply.</p><details class="tracy-privacy"><summary>Voice and privacy details</summary><p class="tracy-note">Your AI presentation coach, with a synthetic Cartesia voice. Tracy's reply text is sent to Cartesia to generate audio. Generated voice clips are saved privately to your account for reuse. Your browser’s speech service may process microphone audio online. Recognized words and recent conversation are sent to Groq, or Google Gemini when configured as a backup. PresentTrack does not save recordings or captions. Speak, then pause for Tracy’s reply.</p></details>
-    <p class="tracy-mic-status" id="tracy-mic-status">Microphone off</p>
-    <p id="tracy-status" role="status" aria-live="polite">Ready when you are</p>
-    <button id="tracy-start" type="button">Start conversation</button>
+    <header><span class="tracy-avatar" aria-hidden="true"><svg viewBox="0 0 32 32"><rect x="4" y="6" width="24" height="21" rx="8" fill="#eaf2ff"/><rect x="8" y="11" width="16" height="10" rx="5" fill="#17243e"/><circle cx="12" cy="16" r="2" fill="#7fd0fa"/><circle cx="20" cy="16" r="2" fill="#7fd0fa"/></svg></span><div><strong>Tracy</strong><small>Your presentation companion</small></div><button id="tracy-close" type="button" aria-label="Close conversation" title="Close conversation">&#215;</button></header>
+    <div class="tracy-transcript" id="tracy-history" role="log" aria-label="Conversation with Tracy" aria-live="polite" aria-relevant="additions"><div class="tracy-empty" id="tracy-empty"><strong>Let's talk it through.</strong><p>Ask about your slides, understand a result, or just say hello.</p><span>Your conversation stays in this session.</span></div></div>
+    <div class="tracy-captions" id="tracy-caption-lines" aria-label="Current spoken turn"><p id="tracy-user-caption"></p><p id="tracy-reply-caption" hidden></p></div>
+    <div class="tracy-state-line"><span class="tracy-waves" aria-hidden="true"><i></i><i></i><i></i><i></i></span><p id="tracy-status" role="status" aria-live="polite">Type a message or turn on your microphone.</p></div>
+    <form id="tracy-form" class="tracy-composer"><label class="tracy-sr-only" for="tracy-input">Message Tracy</label><textarea id="tracy-input" rows="1" maxlength="2000" placeholder="Message Tracy…" enterkeyhint="send"></textarea><button id="tracy-send" type="submit" aria-label="Send message">Send</button></form>
+    <div class="tracy-voice-actions">
+    <button id="tracy-start" type="button">Turn on mic</button>
+    <button id="tracy-mic" type="button" hidden aria-pressed="false">Pause mic</button>
+    <button id="tracy-end" type="button" hidden>End voice</button>
+    <button id="tracy-speaker" type="button" aria-pressed="false">Mute voice</button>
+    <button id="tracy-interrupt" type="button" hidden>Stop speaking</button>
     <button id="tracy-play" type="button" hidden>Enable audio</button>
-    <div class="tracy-controls">
-      <button id="tracy-mic" type="button" hidden aria-pressed="false">Mute mic</button>
-      <button id="tracy-interrupt" type="button" hidden>Interrupt</button>
-      <button id="tracy-end" type="button" hidden>End conversation</button>
     </div>
-    <div class="tracy-preferences">
-      <label for="tracy-voice-select">Language <select id="tracy-voice-select"><option value="en-US">English</option><option value="fil-PH">Filipino</option></select></label>
+    <p class="tracy-mic-status" id="tracy-mic-status">Microphone off</p>
+    <details class="tracy-settings"><summary>Voice settings <span>Language, voice &amp; hands-free</span></summary><div class="tracy-preferences">
+      <label for="tracy-language">Language <select id="tracy-language"><option value="auto">Match my language</option><option value="en-US">English</option><option value="fil-PH">Filipino</option><option value="taglish">Taglish</option></select></label>
+      <p class="tracy-note">Automatic mode starts with English recognition. Select Filipino or Taglish for better recognition of those languages.</p>
+      <label for="tracy-voice-select">Voice <select id="tracy-voice-select"><option value="natural">Tracy · natural voice</option></select></label>
+      <label><input id="tracy-handsfree" type="checkbox" checked> Hands-free conversation</label>
+      <p class="tracy-note">Listen again after each reply. Turn off to speak one turn at a time. Use Stop speaking to interrupt.</p>
       <label><input id="tracy-captions" type="checkbox" checked> Captions</label>
-    </div>
-    <div class="tracy-captions" id="tracy-caption-lines" aria-label="Current spoken turn"><p id="tracy-user-caption"></p><p id="tracy-reply-caption"></p></div>
+      <button id="tracy-clear" type="button">Clear conversation</button>
+    </div></details>
+    <details class="tracy-privacy"><summary>Voice and privacy details</summary><p class="tracy-note">Turning on the mic asks your browser for permission. Its speech service may process audio online. Messages, recent conversation, selected slide text and available results are sent to Groq, or Gemini when configured as a backup. Tracy's synthetic natural voice sends reply text to Cartesia; generated voice clips are saved privately to your account for reuse. Device voices use your browser's speech service. PresentTrack keeps this conversation in memory and does not save microphone recordings. Closing the panel stops listening and speech. Clear conversation removes the session history.</p></details>
     <audio id="tracy-audio" autoplay playsinline hidden></audio>
   </section>
 </div>
@@ -193,6 +202,7 @@
 <script src="js/greeting-cache.js"></script>
 <script src="js/cartesia-speech.js"></script>
 <script src="js/browser-voice-session.js"></script>
+<script src="js/tracy-context.js"></script>
 <script src="js/robot-voice.js"></script>
 <script src="js/robot.js"></script>
 <script src="js/robot-menu.js"></script>
