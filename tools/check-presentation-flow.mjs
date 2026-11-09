@@ -33,9 +33,11 @@ try{
  await evaluate(`document.getElementById('ut').value='Rejected document';document.getElementById('ua').click()`);
  assert.equal(await evaluate('podium.ext.S.pres.length'),0);assert.equal(await evaluate('uploads.length'),0);
  assert.equal(await evaluate(`document.getElementById('f').files.length`),0);
- assert.equal(await evaluate(`document.getElementById('f').accept`),'.pdf,.ppt,.pptx');
- await evaluate(`pick('f',[new File(['old'],'legacy.ppt')])`);
- assert.equal(await evaluate(`document.getElementById('slide-pdf-field').hidden`),false);
+ assert.equal(await evaluate(`document.getElementById('f').accept`),'.pdf,.pptx');
+ for(const name of ['legacy.ppt','report.doc','report.docx','image.png','archive.zip','program.exe']){
+   await evaluate(`pick('f',[new File(['rejected'],${JSON.stringify(name)})]);document.getElementById('ua').click()`);
+   assert.equal(await evaluate('uploads.length'),0);assert.equal(await evaluate(`document.getElementById('f').files.length`),0);
+ }
  await evaluate(`pick('f',[new File(['cancelled'],'cancelled.pptx')]);pick('slide-pdf',[new File(['pdf'],'cancelled.pdf')]);document.getElementById('ut').value='Cancelled draft';document.getElementById('uc').click()`);
  assert.deepEqual(await evaluate(`({title:document.getElementById('ut').value,original:document.getElementById('f').files.length,pdf:document.getElementById('slide-pdf').files.length,hidden:document.getElementById('slide-pdf-field').hidden})`),{title:'',original:0,pdf:0,hidden:true});
  await evaluate(`document.getElementById('ua').click()`);assert.equal(await evaluate('uploads.length'),0);

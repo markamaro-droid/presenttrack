@@ -70,7 +70,10 @@ P.submitAssessment=(blob,name,durationSec)=>{const f=new FormData();f.append('au
 
 /* ---- file storage (private bucket, one folder per user, enforced by RLS) ---- */
 const BUCKET='presentations';
-P.upload=async(path,file)=>{const {error}=await sb.storage.from(BUCKET).upload(path,file,{upsert:false,contentType:file.type||undefined});return error?{error:error.message}:{}};
+P.upload=async(path,file)=>{
+  if(!/\.(pdf|pptx)$/i.test(file?.name||'')||!/\.(pdf|pptx)$/i.test(path)||/wordprocessingml|msword/i.test(file?.type||''))return{error:'Only PPTX and PDF presentation files are allowed.'};
+  const {error}=await sb.storage.from(BUCKET).upload(path,file,{upsert:false,contentType:file.type||undefined});return error?{error:error.message}:{}
+};
 P.download=async path=>{const {data,error}=await sb.storage.from(BUCKET).download(path);return error?{error:error.message}:{blob:data}};
 P.remove=async paths=>{const {error}=await sb.storage.from(BUCKET).remove(paths);return error?{error:error.message}:{}};
 /* save right now and report failure (used when deleting, so the user sees whether it really worked) */
