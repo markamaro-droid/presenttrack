@@ -18,16 +18,32 @@ function say(x){clearTimeout(rct);
   if(!x||bot.classList.contains('tourmode')||(window.speechSynthesis&&podium.voiceOn!==false)){rcap.hidden=true;return}
   rsub.textContent=x;rcap.hidden=false;rct=setTimeout(()=>{rcap.hidden=true},Math.min(14000,2500+x.length*60))}
 /* ---- robot voice (speech synthesis) ---- */
-const SY=window.speechSynthesis;let speaking=false;podium.voiceOn=true;
+const SY=window.speechSynthesis;let speaking=false,greetingUtterance=null;podium.voiceOn=true;
 function pickVoice(){const vs=(SY.getVoices()||[]).filter(v=>/^en/i.test(v.lang));return vs.find(v=>/Google US English|Samantha|Aria|Jenny|Zira|Karen|Moira|Serena|Female/i.test(v.name))||vs.find(v=>/en[-_]US/i.test(v.lang))||vs[0]||null}
 function clean(t){return String(t).replace(/[●“”]/g,'').replace(/…/g,'.').replace(/\bwpm\b/gi,'words per minute').replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu,'').replace(/\s+/g,' ').trim()}
-function hush(){globalThis.TracyAudio?.cancel();try{SY&&SY.cancel()}catch(e){}speaking=false}
+function hush(){globalThis.TracyAudio?.cancel();if(greetingUtterance){greetingUtterance.onstart=greetingUtterance.onresume=greetingUtterance.onpause=greetingUtterance.onend=greetingUtterance.onerror=null;greetingUtterance=null}try{SY&&SY.cancel()}catch(e){}speaking=false}
 let nar={started:false,ended:false,pos:0};
-function speak(text,done,playback={}){
+function speak(text,done,playback={},deviceGreeting=false){
   hush();const my=nar={started:false,ended:false,pos:0};
   const t=clean(text);
   if(!t||podium.voiceOn===false||V.on||document.hidden){my.ended=true;done?.();return}
   const fail=()=>{speaking=false;my.failed=true;my.ended=true;rsub.textContent=t;rcap.hidden=bot.classList.contains('tourmode');done?.()};
+  // The fixed login greeting must not wait for authenticated cloud synthesis.
+  // Prefer an installed English voice; keep Cartesia for all other narration.
+  if(deviceGreeting&&SY&&window.SpeechSynthesisUtterance){
+    const u=greetingUtterance=new window.SpeechSynthesisUtterance(t);
+    globalThis.TracySpeech?.configure(u,SY);
+    const local=(SY.getVoices?.()||[]).filter(v=>v.localService&&/^en\b/i.test(v.lang));
+    const preferred=local.find(v=>/Zira|Samantha|Karen|Moira|Aria|Jenny/i.test(v.name))||local[0];
+    if(preferred){u.voice=preferred;u.lang=preferred.lang}
+    const active=()=>greetingUtterance===u&&nar===my&&!my.ended;
+    u.onstart=u.onresume=()=>{if(active()){speaking=true;my.started=true;playback.onstart?.()}};
+    u.onpause=()=>{if(active()){speaking=false;playback.onpause?.()}};
+    u.onend=()=>{if(active()){greetingUtterance=null;speaking=false;my.ended=true;done?.()}};
+    u.onerror=()=>{if(active()){greetingUtterance=null;fail()}};
+    try{SY.resume();SY.speak(u)}catch(e){greetingUtterance=null;fail()}
+    return;
+  }
   if(!globalThis.TracyAudio){fail();return}
   TracyAudio.speak(t,{onstart:()=>{if(nar!==my)return;speaking=true;my.started=true;playback.onstart?.()},onpause:()=>{if(nar!==my)return;speaking=false;playback.onpause?.()},onend:()=>{if(nar!==my)return;speaking=false;my.ended=true;done?.()},onerror:fail});
 }
@@ -44,7 +60,7 @@ podium.robotIntroduce=(text,done,onstart)=>{
   speak(text,()=>{clearAll();set('idle',0,'');done?.()},{
     onstart:()=>{clearAll();if(!greeted){greeted=true;set('wave',0,'');later(()=>{if(speaking)set('talking',0,'')},1100)}else set('talking',0,'');onstart?.()},
     onpause:()=>{clearAll();set('idle',0,'')}
-  });
+  },true);
 };
 podium.robotPoint=()=>set('point',0,'');
 podium.robotReady=()=>ready&&W>0;

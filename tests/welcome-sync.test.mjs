@@ -9,7 +9,7 @@ function setup(reducedMotion=true){
   const get=id=>{if(!elements.has(id))elements.set(id,{hidden:true,dataset:{},classList:{add(){},remove(){}},setAttribute(){},removeAttribute(){},closest:()=>get('hero'),appendChild(el){el.parentElement=this;}});return elements.get(id);};
   get('bot').animate=(frames,options)=>(arrival={frames,options,cancel(){}});
   const podium={prepareNarration(){},hushNow(){hushed++;},robotPoint(){},robotWelcomeWave(){waves++;},robotReady:()=>true,robotIntroduce(text,done,start){introductions++;speech={text,done,start};}};
-  vm.runInNewContext(welcome,{podium,document:{getElementById:get,addEventListener(){},removeEventListener(){},body:get('body')},matchMedia:()=>({matches:reducedMotion}),performance:{now:()=>0},setTimeout(fn,ms){timers.set(++next,{fn,ms});return next;},clearTimeout:id=>timers.delete(id),requestAnimationFrame:fn=>{frame=fn;return 1;},cancelAnimationFrame(){}});
+  vm.runInNewContext(welcome,{window:{},podium,document:{getElementById:get,addEventListener(){},removeEventListener(){},body:get('body')},matchMedia:()=>({matches:reducedMotion}),performance:{now:()=>0},setTimeout(fn,ms){timers.set(++next,{fn,ms});return next;},clearTimeout:id=>timers.delete(id),requestAnimationFrame:fn=>{frame=fn;return 1;},cancelAnimationFrame(){}});
   podium.welcomeStart();frame();
   return {podium,get,timers,get speech(){return speech;},get hushed(){return hushed;},get arrival(){return arrival;},get waves(){return waves;},get introductions(){return introductions;}};
 }
@@ -64,4 +64,23 @@ test('robot stays idle during loading, waves on playback, and rests during buffe
   callbacks.onpause();assert.equal(states.at(-1),'idle');assert.equal(later,null);
   callbacks.onstart();assert.equal(states.at(-1),'talking');
   done();assert.equal(states.at(-1),'idle');
+});
+
+test('login greeting uses installed speech immediately and cancels stale animation callbacks',()=>{
+  let utterance,cloudCalls=0,started=0,ended=0;
+  const local={name:'Microsoft Zira',lang:'en-US',localService:true};
+  const SY={getVoices:()=>[local],resume(){},cancel(){},speak:u=>{utterance=u;}};
+  const context={SY,window:{SpeechSynthesisUtterance:class {constructor(text){this.text=text;}}},
+    podium:{voiceOn:true},V:{on:false},document:{hidden:false},clean:t=>t,
+    bot:{classList:{contains:()=>false}},rsub:{},rcap:{},
+    TracyAudio:{cancel(){},speak(){cloudCalls++;}}};
+  vm.createContext(context);
+  vm.runInContext('let speaking=false,greetingUtterance=null;'+robot.slice(robot.indexOf('function hush(){'),robot.indexOf("const mute=$('bmute');")),context);
+  context.speak('Welcome!',()=>ended++,{onstart:()=>started++},true);
+  assert.equal(utterance.text,'Welcome!');assert.equal(utterance.voice,local);
+  assert.equal(cloudCalls,0);assert.equal(started,0);
+  utterance.onstart();assert.equal(started,1);
+  const stale=utterance.onstart;context.hush();stale();
+  assert.equal(started,1);assert.equal(ended,0);assert.equal(utterance.onend,null);
+  context.speak('A conversation reply.');assert.equal(cloudCalls,1);
 });
