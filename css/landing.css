@@ -38,6 +38,7 @@
 .welcome-actions{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;min-height:96px}
 .welcome-skip{border:0;background:transparent;color:var(--muted);font:inherit;font-size:13px;text-decoration:underline;text-underline-offset:4px;cursor:pointer;padding:6px}
 #leval{min-width:220px;min-height:52px;padding:15px 28px;border:1px solid color-mix(in srgb,white 18%,transparent);border-radius:16px;font-weight:650;letter-spacing:.01em;box-shadow:0 6px 18px color-mix(in srgb,var(--brand) 20%,transparent);animation:welcome-action .5s ease both;transition:background .18s ease,box-shadow .18s ease}
+.welcome-hero:not(.welcome-ready) #leval,#leval[hidden]{display:none!important}
 #leval:hover{box-shadow:0 8px 24px color-mix(in srgb,var(--brand) 32%,transparent)}
 #leval:focus-visible{outline:3px solid var(--text);outline-offset:4px}
 @keyframes welcome-action{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}

@@ -9,8 +9,7 @@
     podium.welcomeStop();
     const stage = $('welcome-stage'), bot = $('bot'), button = $('leval'), caption = $('welcome-intro');
     if (!stage || !bot || !button) return;
-    podium.welcomePrepare();
-    caption.textContent = copy; button.hidden = false;
+    caption.textContent = copy; button.hidden = true;
     const skip = $('welcome-skip'), replay = $('welcome-replay');
     const hero = stage.closest('.welcome-hero');
     hero.classList.remove('welcome-ready');
@@ -28,6 +27,14 @@
       hero.classList.add('welcome-ready');
       stage.dataset.phase = 'pointing';
     };
+    const unavailable = () => {
+      if (stopped) return;
+      clearTimeout(timer); cancelAnimationFrame(waiting); generation++;
+      podium.hushNow?.();
+      stage.dataset.phase = 'ready';
+      caption.textContent = copy; button.hidden = true;
+      skip.hidden = false; replay.hidden = false; replay.textContent = 'Play introduction';
+    };
     const introduce = () => {
       if (stopped) return;
       const current = ++generation;
@@ -38,19 +45,19 @@
         if (stopped || current !== generation) return;
         played = true; stage.dataset.phase = 'introducing'; caption.textContent = copy;
         // Playback, not network latency, determines the introduction's duration.
-        clearTimeout(timer); timer = setTimeout(finish, 120000);
+        clearTimeout(timer); timer = setTimeout(unavailable, 120000);
       };
       const speechDone = () => {
         if (stopped || current !== generation) return;
         // If playback is blocked or unavailable, keep the transcript and replay action usable.
         clearTimeout(timer);
         if (played) finish();
-        else { caption.textContent = copy; finish(); replay.textContent = 'Play introduction'; }
+        else unavailable();
       };
       // Always reveal the action even if device speech never emits an end event.
-      clearTimeout(timer); timer = setTimeout(finish, 45000);
+      clearTimeout(timer); timer = setTimeout(unavailable, 45000);
       if (podium.robotIntroduce) podium.robotIntroduce(copy, speechDone, speechStarted);
-      else { clearTimeout(timer); timer = setTimeout(finish, 7000); }
+      else unavailable();
     };
     function dock() {
       bot.classList.remove('app', 'menu'); bot.classList.add('welcome'); stage.appendChild(bot);
@@ -89,6 +96,7 @@
       arrive();
     };
     waiting = requestAnimationFrame(waitForScene);
+    podium.welcomePrepare();
     skip.onclick = () => { arrival?.cancel(); finish(); };
     replay.textContent = 'Replay introduction';
     replay.onclick = () => {
@@ -98,7 +106,7 @@
       stage.classList.remove('introduced'); caption.textContent = 'Tracy is getting ready to say hello…';
       podium.welcomeStart();
     };
-    const onVisibility = () => { if (document.hidden) { arrival?.cancel(); finish(); } };
+    const onVisibility = () => { if (document.hidden) { arrival?.cancel(); unavailable(); } };
     document.addEventListener('visibilitychange', onVisibility);
     cleanup = () => {
       stopped = true; generation++; clearTimeout(timer); cancelAnimationFrame(waiting); arrival?.cancel();

@@ -23,9 +23,9 @@
   #view .dh-stat { flex-direction:column; gap:12px; }
   #view :is(.dh-stat h3,.ws-stat h3,.er-metric h3) { font-size:13px; }
   #view :is(.dh-stat p,.ws-stat p,.dh-tool small,.dh-step small,.dh-session small,.settings-row span,.settings-page .settings-hint,.ws-caption) { font-size:12px; }
-  #view :is(.bt,.chip2,.settings-nav button,.settings-text,.settings-themes button) { min-height:44px; font-size:14px; }
+  #view :is(.bt,.chip2,.settings-nav button,.settings-text,.settings-themes button) { min-height:48px; padding:12px 16px; font-size:14px; line-height:1.4; }
   #view .acts { gap:8px; }
-  #view .acts>.bt { flex:1 1 auto; white-space:normal; }
+  #view .acts>.bt { flex:1 1 auto; white-space:normal; text-align:center; touch-action:manipulation; }
   #view .ws-head>.acts { width:100%; }
   #view :is(.fr,.pform,.pgrid,.recording-form) { min-width:0; width:100%; max-width:100%; }
   #view .pgrid { grid-template-columns:minmax(0,1fr); }
@@ -58,8 +58,11 @@
   .land .lt>.bt { margin-left:auto; }
   html .welcome-stage,html #bot.welcome { width:220px; height:220px; max-width:100%; }
   html .welcome-ready .welcome-stage { transform:none; }
-  html .welcome-ready #leval { position:static; width:100%; min-width:0; animation:none; }
-  html .welcome-actions { width:100%; min-height:0; gap:12px; }
+  html .welcome-ready #leval { position:static; width:100%; min-width:0; min-height:52px; padding:16px 24px; line-height:1.4; white-space:normal; animation:none; }
+  html .welcome-actions { width:100%; min-height:0; gap:12px; padding:8px 0 max(16px,env(safe-area-inset-bottom)); }
+  html .welcome-actions .welcome-skip { min-height:48px; padding:12px 20px; line-height:1.5; }
+  html .welcome-actions>button { max-width:100%; touch-action:manipulation; }
+  html #leval[hidden] { display:none!important; }
   html .lh .welcome-intro { min-height:0; margin:16px 0; font-size:16px; }
   html .welcome-hero h1 { font-size:30px; line-height:1.2; }
   html .lfoot { position:static; height:auto; min-height:48px; padding:16px 0; background:transparent; flex-wrap:wrap; }
@@ -103,10 +106,10 @@
   html body.touring #bot #tour .tcolb { grid-column:2;grid-row:1;width:44px;height:44px; }
   html body.touring #bot #tour .tour-mobile-copy { display:block;grid-column:1/-1;grid-row:2;margin:0;font-size:13px;line-height:1.5;color:var(--ink);max-height:78px;overflow:auto; }
   html body.touring #bot #tour .tbt { display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-column:1/-1;grid-row:3;gap:4px; }
-  html body.touring #bot #tour .tbt button { min-width:0;min-height:44px;padding:6px 2px;font-size:12px; }
+  html body.touring #bot #tour .tbt button { min-width:0;min-height:48px;padding:10px 4px;font-size:12px; }
   html body.touring #bot #tour .tbt .wide { grid-column:1/-1; }
   html body.touring #bot #tour .tbt :is(.skip,[data-tact=tcc]),html body.touring #bot #tour .tsegs { display:none!important; }
-  html body.touring #bot #tour .tour-stop { display:block!important;grid-column:1/-1;grid-row:4;min-height:36px;padding:4px 8px;font-size:12px;border:0;background:transparent;color:var(--muted); }
+  html body.touring #bot #tour .tour-stop { display:block!important;grid-column:1/-1;grid-row:4;min-height:44px;padding:10px 12px;font-size:12px;border:0;background:transparent;color:var(--muted); }
   html body.touring #tcap,html body.touring .spot>b { display:none!important; }
   html body.touring .spot { border-radius:12px;box-shadow:0 0 0 2px var(--brand);animation:none; }
   html body.touring #mainc { padding-bottom:320px!important;scroll-padding-bottom:300px;scroll-padding-top:12px; }

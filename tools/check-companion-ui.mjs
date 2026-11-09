@@ -76,5 +76,22 @@ try {
     assert.equal(await evaluate('podium.tourOn()'),false);
   }
   assert.deepEqual(errors,[]);console.log(`Passed ${tourChecks} live tour-step layouts, plus collapse, playback controls and End tour on five phone sizes in both themes.`);
+  await call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+  await evaluate(`podium.robotReady=()=>true;podium.robotIntroduce=(text,done,start)=>{window.previewGreeting={done,start}};podium.robotPoint=()=>{};podium.robotShow=()=>{};document.querySelector('.sl').click()`);
+  for(const width of [320,390,412,1440]){
+    await call('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<768});
+    await evaluate('podium.welcomeStart()');
+    await new Promise(r=>setTimeout(r,100));
+    assert.equal(await evaluate(`document.getElementById('leval').hidden`),true);
+    await evaluate('window.previewGreeting.start()');
+    assert.equal(await evaluate(`document.getElementById('leval').hidden`),true);
+    await evaluate('window.previewGreeting.done()');
+    const welcome=await evaluate(`(()=>{const b=document.getElementById('leval');b.scrollIntoView({block:'center'});const r=b.getBoundingClientRect();return {hidden:b.hidden,height:r.height,left:r.left,right:r.right,pointing:document.getElementById('welcome-stage').dataset.phase==='pointing'}})()`);
+    assert.ok(!welcome.hidden&&welcome.pointing&&welcome.height>=48&&welcome.left>=0&&welcome.right<=width,JSON.stringify({width,welcome}));
+    await evaluate('podium.welcomeStart()');await new Promise(r=>setTimeout(r,100));
+    await evaluate(`document.getElementById('welcome-skip').click()`);
+    assert.equal(await evaluate(`document.getElementById('leval').hidden`),false);
+  }
+  assert.deepEqual(errors,[]);console.log('Welcome button remains hidden during greeting and becomes accessible after completion or Skip at four widths.');
   await call('Browser.close');
 } finally { ws?.close();chrome.kill();await new Promise(r=>setTimeout(r,500));await rm(profile,{recursive:true,force:true,maxRetries:3}); }

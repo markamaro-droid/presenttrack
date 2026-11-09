@@ -20,6 +20,7 @@ test('slow entrance does not wave early or introduce twice when the fallback fir
   assert.equal(s.arrival.options.duration,1800);
   assert.equal(s.waves,0);
   assert.equal(s.introductions,0);
+  assert.equal(s.get('leval').hidden,true);
   const fallback=[...s.timers.values()][0].fn;
   s.arrival.onfinish();fallback();
   assert.equal(s.introductions,1);
@@ -31,14 +32,16 @@ test('skipping the entrance prevents a late animation completion from starting s
   s.get('welcome-skip').onclick();s.arrival.onfinish();
   assert.equal(s.introductions,0);
   assert.equal(s.get('welcome-stage').dataset.phase,'pointing');
+  assert.equal(s.get('leval').hidden,false);
 });
 test('welcome waits for audio, allows slow loading, and points only after playback ends',()=>{
   const s=setup();
   assert.equal(s.get('welcome-stage').dataset.phase,'preparing');
   assert.match(s.get('welcome-intro').textContent,/Welcome to PresentTrack/);
-  assert.equal(s.get('leval').hidden,false);
+  assert.equal(s.get('leval').hidden,true);
   assert.deepEqual([...s.timers.values()].map(t=>t.ms),[45000]);
   s.speech.start();
+  assert.equal(s.get('leval').hidden,true);
   assert.equal(s.get('welcome-stage').dataset.phase,'introducing');
   assert.deepEqual([...s.timers.values()].map(t=>t.ms),[120000]);
   s.speech.done();
@@ -50,10 +53,23 @@ test('blocked audio offers replay, while skip ignores stale playback callbacks',
   const failed=setup();failed.speech.done();
   assert.equal(failed.get('welcome-replay').textContent,'Play introduction');
   assert.equal(failed.get('welcome-replay').hidden,false);
+  assert.equal(failed.get('leval').hidden,true);
+  assert.equal(failed.get('welcome-skip').hidden,false);
   const skipped=setup();skipped.get('welcome-skip').onclick();
   skipped.speech.start();skipped.speech.done();
   assert.equal(skipped.get('welcome-stage').dataset.phase,'pointing');
   assert.equal(skipped.timers.size,0);
+});
+
+test('a speech timeout cannot reveal evaluation before Skip or completed narration',()=>{
+  const s=setup();
+  [...s.timers.values()][0].fn();
+  assert.equal(s.get('leval').hidden,true);
+  assert.equal(s.get('welcome-stage').dataset.phase,'ready');
+  s.speech.start();s.speech.done();
+  assert.equal(s.get('leval').hidden,true);
+  s.get('welcome-skip').onclick();
+  assert.equal(s.get('leval').hidden,false);
 });
 test('robot stays idle during loading, waves on playback, and rests during buffering',()=>{
   let callbacks,done,later;const states=[];
