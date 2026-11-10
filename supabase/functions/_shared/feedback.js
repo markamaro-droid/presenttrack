@@ -37,11 +37,37 @@ export function ruleBasedFeedback(metrics, result) {
   else if (dims.pace?.direction === 'slower') { improvements.push('Your estimated pace is below the reference range. Missed words and pauses can lower this estimate; this does not prove your delivery was too slow.'); recommendations.push('Check the recognized transcript for missed words, then ask a listener whether the pace feels clear before changing your speed.'); }
   else { improvements.push('Your estimated pace is above the reference range. Check whether a listener can follow your key points.'); recommendations.push('Mark key phrases in your notes and pause briefly after each one.'); }
 
-  if (pts('fillers') === 2) strengths.push('Few possible filler words were detected.');
-  else { improvements.push('Possible filler words (such as "um" or "uh") showed up fairly often. Automatic detection is imperfect, so this is an estimate.'); recommendations.push('Replace a filler with a calm, short silent pause while you think.'); }
+  // Wording is derived from the measured counts, never only from the score tier,
+  // so the feedback cannot contradict the "N detected" cards shown beside it.
+  const count = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : null);
+  const fc = count(m.fillerCount);
+  const pc = count(m.pauseCount);
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const verb = (n) => (n === 1 ? 'was' : 'were');
+  const perMin = Number.isFinite(Number(m.fillersPerMin)) && m.fillersPerMin !== null ? ` (about ${m.fillersPerMin} per minute)` : '';
 
-  if (pts('pauses') === 2) strengths.push('Your delivery flowed without many long pauses.');
-  else { improvements.push('There were several long pauses (2 seconds or more).'); recommendations.push('Rehearse your transitions between slides so the next point comes to mind quickly.'); }
+  if (pts('fillers') === 2) {
+    if (fc === 0) strengths.push('No filler words were detected. Automatic detection can miss some, so treat this as an estimate.');
+    else if (fc === null) strengths.push('Few possible filler words were detected.');
+    else strengths.push(`Only ${plural(fc, 'possible filler word', 'possible filler words')} ${verb(fc)} detected${perMin}.`);
+  } else {
+    improvements.push(fc === null
+      ? 'Possible filler words (such as "um" or "uh") showed up fairly often. Automatic detection is imperfect, so this is an estimate.'
+      : `${plural(fc, 'possible filler word', 'possible filler words')} (such as "um" or "uh") ${verb(fc)} detected${perMin}. Automatic detection is imperfect, so this is an estimate.`);
+    recommendations.push('Replace a filler with a calm, short silent pause while you think.');
+  }
+
+  if (pts('pauses') === 2) {
+    if (pc === 0) strengths.push('No long pauses (2 seconds or more) were detected.');
+    else if (pc === null) strengths.push('Your delivery flowed without many long pauses.');
+    else strengths.push(`Only ${plural(pc, 'long pause', 'long pauses')} (2 seconds or more) ${verb(pc)} detected, so your delivery mostly flowed.`);
+  } else {
+    const longest = Number.isFinite(Number(m.longestPause)) && Number(m.longestPause) > 0 ? `; the longest was ${m.longestPause} seconds` : '';
+    improvements.push(pc === null
+      ? 'There were several long pauses (2 seconds or more).'
+      : `${plural(pc, 'long pause', 'long pauses')} of 2 seconds or more ${verb(pc)} detected${longest}.`);
+    recommendations.push('Rehearse your transitions between slides so the next point comes to mind quickly.');
+  }
 
   const ds = result && result.durationAssessment && result.durationAssessment.status;
   if (ds === 'within_range') strengths.push('Your talk length was within the 2-3 minute target.');

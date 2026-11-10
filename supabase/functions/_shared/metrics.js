@@ -8,6 +8,8 @@
 //  * wpm = words / (speakingDurationSec / 60).
 //  * overallWpm = words / (totalDurationSec / 60), i.e. over the whole recording.
 //  * Rates per minute (fillers, long pauses) use spanSec = last end - first start.
+//  * Fillers come from the separate verbatim transcript when given (untimed), topped up with any
+//    extra fillers the timestamped transcript heard (timed). Counts are estimates, never exact.
 //  * "like" is a filler only by heuristic (not after pronouns/verbs, not before "to"), so
 //    those counts are POSSIBLE fillers. "you know" is skipped after do/did/if/as.
 import { CRITERIA } from './criteria.js';
@@ -51,25 +53,42 @@ export function computeMetrics(input = {}, criteria = CRITERIA) {
   const likeBlockPrev = new Set(criteria.fillers.likeBlockedPrev);
   const likeBlockNext = new Set(criteria.fillers.likeBlockedNext);
   const ykBlockPrev = new Set(criteria.fillers.youKnowBlockedPrev);
-  const fillers = [];
-  const fillerWords = typeof input.fillerTranscript === 'string'
-    ? (input.fillerTranscript.match(/[\p{L}\p{N}]+(?:'[\p{L}]+)?/gu) || []).map(word => ({ word: normalizeToken(word), start: null })) : words;
-  const at = i => fillerWords[i].start === null ? null : r2(fillerWords[i].start);
-  for (let i = 0; i < fillerWords.length; i++) {
-    const w = fillerWords[i].word;
-    const prev = i > 0 ? fillerWords[i - 1].word : null;
-    const next = i + 1 < fillerWords.length ? fillerWords[i + 1].word : null;
-    if (single.has(w) || /^(?:u+m+|u+h+m*|e+r+m*)$/.test(w)) {
-      fillers.push({ word: w, t: at(i) });
-    } else if (w === 'you' && next === 'know' && !(prev && ykBlockPrev.has(prev))) {
-      fillers.push({ word: 'you know', t: at(i) });
-      i++; // consume "know"
-    } else if (criteria.fillers.ambiguous.includes(w)) {
-      if (!(prev && likeBlockPrev.has(prev)) && !(next && likeBlockNext.has(next))) {
-        fillers.push({ word: w, t: at(i), heuristic: true });
+  const scanFillers = (list) => {
+    const found = [];
+    const at = i => list[i].start === null ? null : r2(list[i].start);
+    for (let i = 0; i < list.length; i++) {
+      const w = list[i].word;
+      const prev = i > 0 ? list[i - 1].word : null;
+      const next = i + 1 < list.length ? list[i + 1].word : null;
+      if (single.has(w) || /^(?:u+m+|u+h+m*|e+r+m*|a+h+m*|e+h+|h+m+|m{2,})$/.test(w)) {
+        found.push({ word: w, t: at(i) });
+      } else if (w === 'you' && next === 'know' && !(prev && ykBlockPrev.has(prev))) {
+        found.push({ word: 'you know', t: at(i) });
+        i++; // consume "know"
+      } else if (criteria.fillers.ambiguous.includes(w)) {
+        if (!(prev && likeBlockPrev.has(prev)) && !(next && likeBlockNext.has(next))) {
+          found.push({ word: w, t: at(i), heuristic: true });
+        }
       }
     }
-  }
+    return found;
+  };
+  let fillers;
+  if (typeof input.fillerTranscript === 'string') {
+    // The separate verbatim pass is the primary source (untimed: positions are never invented).
+    const verbatimWords = (input.fillerTranscript.match(/[\p{L}\p{N}]+(?:'[\p{L}]+)?/gu) || []).map(word => ({ word: normalizeToken(word), start: null }));
+    fillers = scanFillers(verbatimWords);
+    // Two independent detectors miss different things. If the timestamped transcript heard MORE
+    // of a given filler than the verbatim pass, keep the extras (with their real timestamps)
+    // instead of discarding them. Never double-counts a filler both passes heard.
+    const have = {};
+    fillers.forEach((f) => { have[f.word] = (have[f.word] || 0) + 1; });
+    const seen = {};
+    for (const f of scanFillers(words)) {
+      seen[f.word] = (seen[f.word] || 0) + 1;
+      if (seen[f.word] > (have[f.word] || 0)) fillers.push(f);
+    }
+  } else fillers = scanFillers(words);
   const fillerByWord = {};
   fillers.forEach((f) => { fillerByWord[f.word] = (fillerByWord[f.word] || 0) + 1; });
 

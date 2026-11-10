@@ -29,7 +29,7 @@ export const CRITERIA = deepFreeze({
   fillers: {
     perMinuteGood: 3,    // <= good
     perMinuteOk: 6,      // <= ok, above = needs work
-    single: ['um', 'umm', 'uhm', 'uh', 'uhh', 'er', 'erm', 'ano'],
+    single: ['um', 'umm', 'uhm', 'uh', 'uhh', 'er', 'erm', 'ah', 'ahh', 'eh', 'hmm', 'mm', 'mmm', 'ano'],
     phrases: [['you', 'know']],
     ambiguous: ['like'], // counted only when the heuristic in metrics.js says so
     likeBlockedPrev: [

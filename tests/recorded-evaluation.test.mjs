@@ -62,3 +62,11 @@ test('content coverage measures distinct slide ideas, not repeated keywords or n
   assert.equal(validateContent(script.replace('[Your Name]', 'Maria Santos'), options).eligible, true);
   assert.equal(validateContent(sections[0].repeat(4), options).eligible, false);
 });
+
+test('the verbatim filler pass is deterministic (temperature 0) and names common hesitations', async () => {
+  const s = setup({ verbatim: 'Ummm, ' + script });
+  await s.service('Bearer user', request);
+  const payload = JSON.parse(s.calls[1].options.body);
+  assert.equal(payload.generationConfig.temperature, 0);
+  assert.match(payload.systemInstruction.parts[0].text, /hmm/);
+});

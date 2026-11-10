@@ -79,3 +79,20 @@ test('separate verbatim text retains elongated hesitations without invented timi
   const m = computeMetrics({ words: seq(['hello','everyone']), totalDurationSec:4, fillerTranscript:'Ummm hello, uhhh everyone erm.' });
   assert.equal(m.fillerCount, 3); assert.ok(m.fillers.every(f=>f.t===null)); assert.equal(m.words, 2);
 });
+
+test('wider hesitation sounds (ah, eh, hmm) are counted as fillers', () => {
+  const m = computeMetrics({ words: seq(['so','ahh','we','eh','start','hmm','today']), totalDurationSec: 6 });
+  assert.equal(m.fillerCount, 3);
+  assert.deepEqual(m.fillerByWord, { ahh: 1, eh: 1, hmm: 1 });
+});
+test('fillers heard by the timestamped transcript top up the verbatim count without double counting', () => {
+  const words = seq(['hello','um','everyone','um','today']);
+  // verbatim heard one "um"; the timestamped words heard two -> total 2, only the extra one is timed
+  const m = computeMetrics({ words, totalDurationSec: 6, fillerTranscript: 'hello um everyone today' });
+  assert.equal(m.fillerCount, 2);
+  assert.equal(m.fillers.filter(f => f.t === null).length, 1);
+  assert.equal(m.fillers.filter(f => Number.isFinite(f.t)).length, 1);
+  // both passes heard the same single filler -> still one
+  const same = computeMetrics({ words: seq(['hello','um','everyone']), totalDurationSec: 4, fillerTranscript: 'hello um everyone' });
+  assert.equal(same.fillerCount, 1);
+});

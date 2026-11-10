@@ -33,14 +33,21 @@ export function classify(metrics, quality, criteria = CRITERIA) {
   // fillers
   const fr = Number(m.fillersPerMin) || 0;
   const fPts = fr <= c.fillers.perMinuteGood ? P.good : fr <= c.fillers.perMinuteOk ? P.ok : P.poor;
-  const fillers = grade(fPts, ['Few fillers', 'Some fillers', 'Frequent fillers'],
-    `About ${m.fillerCount || 0} possible filler words (${fr} per minute). Some may be recognition artifacts.`);
+  // Labels follow the measured count, so a card that says "0 detected" never reads "Few fillers".
+  const fc = Number(m.fillerCount) || 0;
+  const fillers = grade(fPts, [fc === 0 ? 'No fillers detected' : 'Few fillers', 'Some fillers', 'Frequent fillers'],
+    fc === 0
+      ? 'No filler words were detected. Automatic detection is an estimate and can miss some.'
+      : `About ${fc} possible filler word${fc === 1 ? '' : 's'} (${fr} per minute). Some may be recognition artifacts.`);
 
   // pauses
   const pr = Number(m.pausesPerMin) || 0;
   const paPts = pr <= c.pauses.perMinuteGood ? P.good : pr <= c.pauses.perMinuteOk ? P.ok : P.poor;
-  const pauses = grade(paPts, ['Smooth flow', 'Some long pauses', 'Many long pauses'],
-    `${m.pauseCount || 0} pause(s) of ${c.pauses.longPauseSec}s or more (${pr} per minute); longest ${m.longestPause || 0}s.`);
+  const pc = Number(m.pauseCount) || 0;
+  const pauses = grade(paPts, [pc === 0 ? 'No long pauses' : 'Smooth flow', 'Some long pauses', 'Many long pauses'],
+    pc === 0
+      ? `No pauses of ${c.pauses.longPauseSec}s or more were detected.`
+      : `${pc} pause${pc === 1 ? '' : 's'} of ${c.pauses.longPauseSec}s or more (${pr} per minute); longest ${m.longestPause || 0}s.`);
 
   // duration
   const d = Number(m.totalDurationSec) || 0;

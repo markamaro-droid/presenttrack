@@ -24,8 +24,14 @@ the vocabulary check, and passing does not establish factual accuracy.
 Pace uses recognized words divided by recorded duration, including pauses. Long
 pauses are gaps of at least two seconds between timestamped words. Overlapping
 word timestamps do not create extra gaps; leading and trailing silence are excluded.
-Fillers use the independent verbatim transcript. Their positions are unknown and
-are not invented on the timeline. Counts remain recognition estimates: zero
+Fillers use the independent verbatim transcript (Gemini, temperature 0 to reduce
+variation; identical results are not guaranteed). For each exact filler spelling,
+the count is topped up when the timestamped Whisper transcript detected more.
+Different spellings across transcripts can still overcount the same hesitation.
+Feedback and score labels use the measured counts, so "0 detected" is reported as
+"No fillers detected", never "Few fillers". Verbatim-only detections have no
+timeline positions; additional Whisper detections retain their audio timestamps.
+Counts remain recognition estimates: zero
 detected does not prove no fillers occurred.
 
 Only a successful `complete_recorded_evaluation(p_results)` save updates the local
