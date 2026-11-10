@@ -1,6 +1,6 @@
 # Presentation practice
 
-New presentation uploads accept only PDF and PPTX, up to 50 MB per file. PowerPoint uploads require a PDF exported from the same deck. The original PowerPoint and its PDF export are stored separately and uploaded as the original File bytes. Neither is rewritten. The viewer renders the PDF with the existing PDF.js renderer instead of rebuilding slides from extracted paragraphs.
+New presentation uploads accept only PDF and PPTX, up to 50 MB per file. Use the single upload area to select or drop a PPTX and a PDF exported from the same deck together. A PDF can be uploaded alone. There is no second file picker. Each selection replaces the previous selection; unrelated or duplicate file types are rejected. The original PowerPoint and its PDF export are stored separately and uploaded as the original File bytes. Neither is rewritten. The viewer renders the PDF with the existing PDF.js renderer instead of rebuilding slides from extracted paragraphs.
 
 Existing PowerPoint entries can attach their PDF from the Practice viewer. Existing Word uploads remain in the library, but new Word uploads are not accepted. A plain PDF upload needs no second file.
 
@@ -23,3 +23,5 @@ Apply `supabase/migrations/20261109_presentation_file_types.sql` in the Supabase
 Equivalent dashboard configuration: Storage → presentations → bucket settings → Allowed MIME types: `application/pdf`, `application/vnd.openxmlformats-officedocument.presentationml.presentation`.
 
 Validation: unit coverage includes allowed formats, read-only PDF scanning, context bounds, authentication/consent, optional comment failures, and unchanged metric scores. `tools/check-presentation-flow.mjs` checks uploads, original byte preservation, Start/consent/fullscreen/capture and contextual reports at desktop and phone widths using mocked audio, PDF rendering and providers. Live microphone, real account storage, real document rendering and Groq responses require deployment verification.
+
+Navigation cleanup: dashboard journey steps are informational, repeated next-step/upload/goals shortcuts are removed, and chart data directs readers to the existing report links in Recent attempts. Practice uses one Finish control in the slide toolbar, available during recording both inside and outside fullscreen. Primary sidebar navigation and distinct actions (save, reset, delete, previous/next) remain available.

@@ -46,13 +46,13 @@ try{
    await evaluate(`pick('f',[new File(['rejected'],${JSON.stringify(name)})]);document.getElementById('ua').click()`);
    assert.equal(await evaluate('uploads.length'),0);assert.equal(await evaluate(`document.getElementById('f').files.length`),0);
  }
- await evaluate(`pick('f',[new File(['cancelled'],'cancelled.pptx')]);pick('slide-pdf',[new File(['pdf'],'cancelled.pdf')]);document.getElementById('ut').value='Cancelled draft';document.getElementById('uc').click()`);
- assert.deepEqual(await evaluate(`({title:document.getElementById('ut').value,original:document.getElementById('f').files.length,pdf:document.getElementById('slide-pdf').files.length,hidden:document.getElementById('slide-pdf-field').hidden})`),{title:'',original:0,pdf:0,hidden:true});
+ await evaluate(`pick('f',[new File(['cancelled'],'cancelled.pptx'),new File(['pdf'],'cancelled.pdf')]);document.getElementById('ut').value='Cancelled draft';document.getElementById('uc').click()`);
+ assert.deepEqual(await evaluate(`({title:document.getElementById('ut').value,original:document.getElementById('f').files.length,pickers:document.querySelectorAll('#view input[type=file]').length})`),{title:'',original:0,pickers:1});
  await evaluate(`document.getElementById('ua').click()`);assert.equal(await evaluate('uploads.length'),0);
  await evaluate(`pick('f',[new File(['ORIGINAL POWERPOINT BYTES'],'research.pptx')]);document.getElementById('ut').value='Research';document.getElementById('ua').click()`);
  assert.equal(await evaluate('podium.ext.S.pres.length'),0);
- assert.match(await evaluate(`document.getElementById('toast').textContent`),/Attach a PDF/);
- await evaluate(`pick('slide-pdf',[new File(['ORIGINAL PDF BYTES'],'research.pdf',{type:'application/pdf'})]);document.getElementById('ua').click()`);
+ assert.match(await evaluate(`document.getElementById('toast').textContent`),/PPTX and its matching PDF together/);
+ await evaluate(`pick('f',[new File(['ORIGINAL PDF BYTES'],'research.pdf',{type:'application/pdf'}),new File(['ORIGINAL POWERPOINT BYTES'],'research.pptx')]);document.getElementById('ua').click()`);
  for(let i=0;i<40;i++){if(await evaluate('podium.ext.S.pres.length===1'))break;await new Promise(r=>setTimeout(r,50));}
  assert.deepEqual(await evaluate('uploads.map(x=>x.bytes)'),['ORIGINAL POWERPOINT BYTES','ORIGINAL PDF BYTES']);
  assert.match(await evaluate('podium.ext.S.pres[0].context.text'),/Original slide research findings/);
@@ -62,7 +62,7 @@ try{
   await evaluate(`podium.ext.go('prac',${deckId})`);
   for(let i=0;i<40;i++){if(await evaluate(`!document.getElementById('vfs').disabled`))break;await new Promise(r=>setTimeout(r,50));}
   assert.equal(await evaluate(`document.getElementById('vfs').textContent`),'Start');
-  assert.equal(await evaluate(`document.getElementById('pgo')===null`),true);
+  assert.equal(await evaluate(`document.getElementById('pgo')===null && document.getElementById('pfin')===null`),true);
   const before=await evaluate('recordStarts');
   await evaluate(`document.getElementById('vfs').click()`);assert.equal(await evaluate('recordStarts'),before);
   await evaluate(`document.getElementById('pconsent').checked=true;document.getElementById('vfs').click()`);
@@ -71,6 +71,9 @@ try{
   assert.equal(await evaluate(`document.getElementById('vw').classList.contains('fs')`),true);
   assert.equal(await evaluate(`document.getElementById('vc').textContent`),'Slide 1 / 2');
   assert.equal(await evaluate(`document.getElementById('vfin').hidden`),false);
+  await evaluate(`document.getElementById('vfs').click()`);
+  await new Promise(r=>setTimeout(r,100));
+  assert.equal(await evaluate(`document.getElementById('vfin').hidden`),false,'single Finish remains available outside fullscreen');
   await evaluate('previewShift+=21000');await new Promise(r=>setTimeout(r,250));
   await evaluate(`document.getElementById('vfin').click()`);
   for(let i=0;i<40;i++){if(await evaluate(`podium.ext.S.view==='rdet' && document.getElementById('view').textContent.includes('Comments on your presentation')`))break;await new Promise(r=>setTimeout(r,50));}
@@ -87,6 +90,14 @@ try{
  assert.doesNotMatch(await evaluate(`document.getElementById('view').textContent`),/You said um and uh/);
  console.log('Passed: evaluation and practice cards match measured feedback despite conflicting saved text/count copies; detected words are visible.');
  assert.deepEqual(errors,[]);
- console.log('Passed: PDF/PowerPoint upload restrictions, required companion PDF, original byte preservation, extracted context, Start consent/fullscreen/recording, Finish on first slide, contextual report on desktop and mobile.');
+ console.log('Passed: PDF/PowerPoint upload restrictions, single picker for PPTX/PDF pair, original byte preservation, extracted context, Start consent/fullscreen/recording, Finish on first slide, contextual report on desktop and mobile.');
+ const duplicates=[];
+ for(const view of ['dash','decks','perf','prog','hist','coach','goals','ready','pdet','create','note','set','eval','evres']){
+  await evaluate(`podium.ext.go('${view}',${deckId})`);
+  const repeated=await evaluate(`(()=>{const groups=new Map();for(const b of document.querySelectorAll('#view button[data-go]')){if(!b.getClientRects().length)continue;let route=b.dataset.go;if(route==='up')route='decks';if(route==='weak')route='prac';if(route==='evres')route='eval';const key=route+':'+(route==='eval'?'':b.dataset.a||'');groups.set(key,[...(groups.get(key)||[]),b.textContent.trim()]);}return [...groups].filter(([,labels])=>labels.length>1);})()`);
+  if(repeated.length)duplicates.push({view,repeated});
+ }
+ assert.deepEqual(duplicates,[]);
+ console.log('Passed: no duplicate in-page navigation actions across 14 populated app views.');
  await call('Browser.close');
 }finally{ws?.close();chrome.kill();await new Promise(r=>setTimeout(r,500));await rm(profile,{recursive:true,force:true,maxRetries:3});}
