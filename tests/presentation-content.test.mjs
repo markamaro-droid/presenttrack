@@ -4,12 +4,11 @@ import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 const source=await readFile(new URL('../js/presentation-content.js',import.meta.url),'utf8');
 const setup=()=>{const c={};vm.runInNewContext(source,c);return c.PTPresentationContent;};
-test('single upload selection accepts PDF alone or PPTX/PDF in either order without changing files',()=>{
+test('PPTX and PDF are independently selectable without a companion file',()=>{
  const scanner=setup(),ppt={name:'talk.pptx',size:20},pdf={name:'talk.pdf',size:30};
- for(const pair of [[ppt,pdf],[pdf,ppt]]){const result=scanner.selectUpload(pair);assert.equal(result.file,ppt);assert.equal(result.slideFile,pdf);}
- assert.equal(scanner.selectUpload([pdf]).file,pdf);assert.equal(scanner.selectUpload([pdf]).slideFile,null);
- assert.equal(scanner.selectUpload([ppt]).slideFile,null);
- for(const pair of [[pdf,{...pdf}],[ppt,{...ppt}],[pdf,ppt,pdf],[pdf,{name:'bad.docx',size:1}],[{name:'empty.pdf',size:0}]])assert.throws(()=>scanner.selectUpload(pair));
+ assert.equal(scanner.selectUpload([ppt]).file,ppt);
+ assert.equal(scanner.selectUpload([pdf]).file,pdf);
+ for(const files of [[],[ppt,pdf],[pdf,pdf],[{name:'bad.docx',size:1}],[{name:'empty.pdf',size:0}]])assert.throws(()=>scanner.selectUpload(files));
 });
 test('only PDFs and PowerPoint files are accepted',()=>{
  const scanner=setup();for(const name of ['talk.pdf','TALK.PPTX','talk.pptx'])assert.equal(scanner.supported(name),true);
@@ -23,7 +22,7 @@ test('PDF text scanning leaves original bytes untouched and does not rewrite pag
  const scanner=setup(),original=Buffer.from('%PDF original fonts and layout'),before=Buffer.from(original);let destroyed=false;
  const file={name:'talk.pdf',size:original.length,arrayBuffer:async()=>Uint8Array.from(original).buffer};
  const result=await scanner.scan(file,{pdf:{getDocument:({data})=>({promise:Promise.resolve({numPages:2,getPage:async i=>({getTextContent:async()=>({items:[{str:'Slide '+i},{str:'Original content'}]})}),destroy:()=>{destroyed=true;}})})}});
- assert.equal(result.text,'Slide 1 Original content\nSlide 2 Original content');assert.equal(result.pagesScanned,2);
+ assert.equal(result.text,'Slide 1 Original content\nSlide 2 Original content');assert.equal(result.pagesScanned,2);assert.deepEqual(Array.from(result.pages),['Slide 1 Original content','Slide 2 Original content']);
  assert.deepEqual(original,before);assert.equal(destroyed,true);
 });
 test('scanning limits context size; image-only PDFs never invent content',async()=>{

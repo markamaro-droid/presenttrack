@@ -294,7 +294,7 @@ async function makePreview(file){
   return{}}
 const V={
 dash:()=>S.loading?skeleton():(podium.assessBanner?podium.assessBanner():'')+(podium.baselineBanner?podium.baselineBanner():'')+dashHTML(),
-decks:()=>page('My Presentations','Upload a PDF or PowerPoint file. Your original file is kept unchanged.',(pendingEval()?sec('EVALUATION FIRST',1,`<div class="fr" style="max-width:600px;margin:0 auto;text-align:center"><p class="sub" style="margin:0">Before you upload a presentation, take the short speaking evaluation (about 3 minutes). It measures your speaking speed, filler words and long pauses, so we know how to analyze your presentations.</p><div class="acts" style="justify-content:center"><button class="bt" data-go="eval" type="button">START EVALUATION</button></div></div>`):sec('UPLOAD A PRESENTATION',1,`<div class="fr" style="max-width:600px;margin:0 auto"><div><label for="ut" style="text-align:center">Presentation title</label><input type="text" id="ut" style="text-align:center" placeholder="Type your own title" maxlength="80" autocomplete="off"></div><label class="drop" id="dz" for="f"><b>Drop files here or select them together</b><span id="fn">One PDF, or a PPTX with its matching PDF export</span></label><input type="file" id="f" accept=".pdf,.pptx" multiple hidden><p class="hint">For PowerPoint, select the PPTX and its matching PDF together in this one upload area. The PDF preserves your slide layout; both original files are kept unchanged.</p><div class="acts" style="justify-content:center"><button class="bt" id="ua" type="button">ADD PRESENTATION</button><button class="bt gh" id="uc" type="button">Cancel</button></div></div>`))+deckList()),
+decks:()=>page('My Presentations','Upload a PDF or PowerPoint file. Your original file is kept unchanged.',(pendingEval()?sec('EVALUATION FIRST',1,`<div class="fr" style="max-width:600px;margin:0 auto;text-align:center"><p class="sub" style="margin:0">Before you upload a presentation, take the short speaking evaluation (about 3 minutes). It measures your speaking speed, filler words and long pauses, so we know how to analyze your presentations.</p><div class="acts" style="justify-content:center"><button class="bt" data-go="eval" type="button">START EVALUATION</button></div></div>`):sec('UPLOAD A PRESENTATION',1,`<div class="fr" style="max-width:600px;margin:0 auto"><div><label for="ut" style="text-align:center">Presentation title</label><input type="text" id="ut" style="text-align:center" placeholder="Type your own title" maxlength="80" autocomplete="off"></div><label class="drop" id="dz" for="f"><b>Drop a PPTX or PDF here, or select one</b><span id="fn">One PPTX or PDF - up to 50 MB</span></label><input type="file" id="f" accept=".pdf,.pptx" hidden><p class="hint">Upload either file independently. PDFs display the original slide layout. PPTX files provide a text-only slide preview for practice; images, formatting and animations are not displayed. Your uploaded file is kept unchanged.</p><div class="acts" style="justify-content:center"><button class="bt" id="ua" type="button">ADD PRESENTATION</button><button class="bt gh" id="uc" type="button">Cancel</button></div></div>`))+deckList()),
 pdet:a=>{const p=find(a);if(!p)return V.decks();const l=S.ses.filter(x=>x.deck===p.short);return page(esc(p.t),(p.file?esc(p.file.name)+' · '+fsize(p.file.size):'')+(p.left!=null?' · '+p.date+' · '+p.time+' · '+p.left+' days left':''),`<div class="g-next">${sec('OVERVIEW',1,`<dl class="kv"><div><dt>Target Duration</dt><dd>${Math.round(p.target/60)} minutes</dd></div><div><dt>Practice Sessions</dt><dd>${l.length} completed</dd></div><div><dt>Readiness</dt><dd>${readiness(p)}%</dd></div></dl><div class="acts"><button class="bt" data-go="prac" data-a="${p.id}" type="button">PRACTICE NOW</button><button class="bt gh" data-go="up" type="button">UPLOAD PPT</button></div>`)}${sec('READINESS',2,chkHTML(p)+`<div class="acts"><button class="bt gh" data-go="ready" data-a="${p.id}" type="button">VIEW CHECKLIST</button></div>`)}</div>`+sec('PRACTICE SESSIONS',3,recentRows(l.slice().reverse(),false)))},
 ready:a=>{const p=find(a);if(!p)return V.decks();return page('Presentation Readiness',esc(p.t),`<div class="g-next">${sec('OVERALL',1,`<div class="rd0">${ring(readiness(p),150,'Ready')}<p class="sub" style="margin:0">${p.final?'Final rehearsal recorded. Readiness reflects preparation activities, not a guarantee of performance.':'Complete the checklist to document your preparation.'}</p></div>`)}${sec('CHECKLIST',2,chkHTML(p)+`<div class="acts"><button class="bt" data-go="prac" data-a="${p.id}" type="button">START FINAL REHEARSAL</button></div>`)}</div>`)},
 rec:()=>gated()?gatePage('Upload Recording'):page('Upload Recording','Get a full analysis of a rehearsal you recorded.',sec('ANALYZE RECORDING',1,`<div class="fr recording-form"><div><label for="rs">1. Choose a presentation</label><select id="rs">${S.pres.map(p=>`<option value="${p.id}">${esc(p.t)}</option>`).join('')||'<option value="">Create a presentation first</option>'}</select></div><label class="drop" id="dz" for="f"><span class="recording-upload-icon" aria-hidden="true">${ic(I.up)}</span><b>2. Choose or drop your recording</b><span id="fn">MP3, M4A, WAV, OGG, WebM or MP4</span></label><input type="file" id="f" accept=".mp3,.m4a,.wav,.ogg,.webm,.mp4" hidden><div class="bar2" id="rb" hidden><i style="width:0%"></i></div><p class="sub" id="rt" style="margin:0" role="status"></p><label class="hint recording-consent"><input type="checkbox" id="rconsent"> Send audio and extracted presentation text to Groq for transcription and feedback, and audio to Gemini when configured for a verbatim filler check. Save the report to my account. Up to 25 MB / 10 minutes. Larger files use private temporary storage and are deleted after processing; interrupted cleanup may leave a temporary copy. MP3, M4A, WAV, OGG, WebM or MP4.</label><button class="bt" id="ra" type="button">ANALYZE RECORDING</button></div>`)),
@@ -369,6 +369,27 @@ async function viewer(){const host=$('vst');if(!host)return;const my=++VT;VD=nul
   const p=S.pres.find(x=>x.id==$('pd').value);let f=p&&(p.slideFile?SLIDE_FILES[p.id]:FILES[p.id]);
   if(!f&&p&&(p.slidePath||p.path)&&window.PTCloud&&PTCloud.enabled){msg('Loading '+p.file.name+'\u2026');const r=await PTCloud.download(p.slidePath||p.path);if(my!==VT)return;if(r.error)return msg('Could not load this file. '+r.error);f=new File([r.blob],(p.slideFile||p.file).name);if(p.slideFile)SLIDE_FILES[p.id]=f;else FILES[p.id]=f}
   if(!f)return msg(p&&p.file?'The file for this presentation isn\u2019t loaded in this session. Upload it again in My Presentations to see it here.':'No file attached to this presentation yet.');
+  if(/\.pptx$/i.test(f.name)){
+    msg('Reading PowerPoint slide text...');
+    try{
+      let context=p.context;
+      if(!Array.isArray(context?.pages)){await lib('zip');context=await PTPresentationContent.scan(f,{zip:JSZip});}
+      if(my!==VT)return;
+      p.context=context;
+      const pages=context.pages?.length?context.pages:[''];
+      VD={n:pages.length,show:async i=>{
+        const slide=document.createElement('article');slide.className='sld evaluation-script';
+        const heading=document.createElement('h4');heading.textContent='Slide '+(i+1)+' - text preview';
+        const text=document.createElement('p');text.textContent=pages[i]||'No readable text on this slide. Images and other visual content are not shown in this preview.';
+        slide.append(heading,text);return slide;
+      }};
+      await vshow();if(my!==VT)return;
+      const notice=document.createElement('p');notice.className='basis slide-context';
+      notice.textContent='PPTX text-only preview. Original layout, images and animations are not displayed. Upload a PDF as a separate presentation to practice with the original layout.'+(context.truncated?' This preview reached the text limit and may omit later content.':'');
+      $('vw').appendChild(notice);
+    }catch(e){if(my===VT)msg(e.message||'Could not read this PowerPoint file.')}
+    return;
+  }
   if(!/\.pdf$/i.test(f.name)){
     msg('Your original file is unchanged. Attach a PDF exported from this presentation to display its layout.');
     const label=document.createElement('label');label.className='bt gh';label.textContent='Attach slide PDF';
@@ -394,36 +415,32 @@ async function viewer(){const host=$('vst');if(!host)return;const my=++VT;VD=nul
     if(my===VT&&p){const notice=document.createElement('p');notice.className='basis slide-context';notice.textContent=p.context?.text?'Presentation text is ready for feedback. The displayed PDF is unchanged.':'No readable slide text was found. Your slides are unchanged; feedback will cover delivery only.';$('vw').appendChild(notice)}
   }catch(e){if(my===VT)msg(e.message||'Could not open this file.')}}
 const B={
-decks:()=>{if(!$('f')){const r=$('rtitle');if(r){r.focus();r.select();r.onkeydown=e=>{if(e.key==='Enter')$('rs2').click();if(e.key==='Escape'){S.ren=null;render()}}}return}let file=null,slideFile=null;const f=$('f'),dz=$('dz'),ok=/\.(pdf|pptx)$/i;
+decks:()=>{if(!$('f')){const r=$('rtitle');if(r){r.focus();r.select();r.onkeydown=e=>{if(e.key==='Enter')$('rs2').click();if(e.key==='Escape'){S.ren=null;render()}}}return}let file=null;const f=$('f'),dz=$('dz'),ok=/\.(pdf|pptx)$/i;
   const cancel=$('uc'),title=$('ut');
   const uploadBusy=on=>{S.uploading=on;cancel.disabled=title.disabled=f.disabled=on;};
-  const reset=()=>{file=null;slideFile=null;f.value='';$('fn').textContent='One PDF, or a PPTX with its matching PDF export';};
+  const reset=()=>{file=null;f.value='';$('fn').textContent='One PPTX or PDF - up to 50 MB';};
   cancel.onclick=()=>{if(S.uploading)return;reset();title.value='';dz.classList.remove('hv');title.focus();};
   const reject=message=>{reset();toast(message)};
-  const pk=files=>{if(S.uploading)return;try{const chosen=PTPresentationContent.selectUpload(files);file=chosen.file;slideFile=chosen.slideFile;
-    $('fn').textContent=[file,slideFile].filter(Boolean).map(x=>x.name+' - '+fsize(x.size)).join(' + ');
-    if(!slideFile&&/\.pptx$/i.test(file.name))$('fn').textContent+=' - select this PPTX and its matching PDF together';
+  const pk=files=>{if(S.uploading)return;try{const chosen=PTPresentationContent.selectUpload(files);file=chosen.file;
+    $('fn').textContent=file.name+' - '+fsize(file.size);
     if(!title.value.trim())title.value=file.name.replace(/\.[^.]+$/,'');
   }catch(error){reject(error.message)}};
   f.onchange=()=>f.files.length&&pk(f.files);dz.ondragover=e=>{e.preventDefault();if(!S.uploading)dz.classList.add('hv')};dz.ondragleave=()=>dz.classList.remove('hv');dz.ondrop=e=>{e.preventDefault();dz.classList.remove('hv');if(e.dataTransfer.files.length)pk(e.dataTransfer.files)};
   $('ua').onclick=async()=>{if(pendingEval()){toast('Take the short speaking evaluation first.');go('eval');return}let t=$('ut').value.trim();if(S.uploading)return;if(!file){toast('Choose a PPTX or PDF file first');return}if(!ok.test(file.name)||/wordprocessingml|msword/i.test(file.type||'')){reject('Rejected: only .PPTX or .PDF files are allowed.');return}if(t.length<2){toast('Type a title for your presentation');return}
     if(S.pres.some(p=>p.short===t))t+=' (2)';
-    if(/\.pptx$/i.test(file.name)&&!slideFile){toast('Select the PPTX and its matching PDF together in the upload area.');return}
-    const cloud=window.PTCloud&&PTCloud.enabled,nid=S.nid++,btn=$('ua'),owner=PTCloud?.user?.id;let path=null,slidePath=null,context=null;uploadBusy(true);btn.disabled=true;btn.textContent='READING SLIDES...';
-    try{const source=slideFile||file;await lib('pdf');pdfjsLib.GlobalWorkerOptions.workerSrc=LIB.pdf.replace('pdf.min.js','pdf.worker.min.js');context=await PTPresentationContent.scan(source,{pdf:pdfjsLib});}catch(e){uploadBusy(false);btn.disabled=false;btn.textContent='ADD PRESENTATION';toast(e.message||'Could not read this PDF. Use an unencrypted PDF.');return}
-    // Prefer the original PPTX text for AI context; the display always uses
-    // the user's PDF export. Legacy PPT uses text from that same export.
-    if(/\.pptx$/i.test(file.name)){
-      try{await lib('zip');const original=await PTPresentationContent.scan(file,{zip:JSZip});if(original.text.trim())context=original;}catch(e){uploadBusy(false);btn.disabled=false;btn.textContent='ADD PRESENTATION';toast(e.message||'This file is not a readable PPTX presentation.');return}
-    }
+    const cloud=window.PTCloud&&PTCloud.enabled,nid=S.nid++,btn=$('ua'),owner=PTCloud?.user?.id;let path=null,context=null;uploadBusy(true);btn.disabled=true;btn.textContent='READING SLIDES...';
+    try{
+      if(/\.pptx$/i.test(file.name)){await lib('zip');context=await PTPresentationContent.scan(file,{zip:JSZip});}
+      else{await lib('pdf');pdfjsLib.GlobalWorkerOptions.workerSrc=LIB.pdf.replace('pdf.min.js','pdf.worker.min.js');context=await PTPresentationContent.scan(file,{pdf:pdfjsLib});}
+    }catch(e){uploadBusy(false);btn.disabled=false;btn.textContent='ADD PRESENTATION';toast(e.message||'Could not read this presentation.');return}
     if($('ua')!==btn||(cloud&&PTCloud.user?.id!==owner)){uploadBusy(false);return}
     if(cloud){btn.textContent='UPLOADING…';
       path=PTCloud.user.id+'/uploads/'+nid+'-'+file.name.replace(/[^\w.\-]+/g,'_');
-      let r;try{r=await PTCloud.upload(path,file);if(!r.error&&slideFile){slidePath=path+'.slides.pdf';const uploaded=await PTCloud.upload(slidePath,slideFile);if(uploaded.error){await PTCloud.remove([path]);r.error=uploaded.error}}}catch(e){r={error:'Check your connection and retry.'}}
+      let r;try{r=await PTCloud.upload(path,file);}catch(e){r={error:'Check your connection and retry.'}}
       if(r.error){uploadBusy(false);toast('Upload failed. '+r.error);if($('ua')===btn){btn.disabled=false;btn.textContent='ADD PRESENTATION'}return}
       if(PTCloud.user?.id!==owner){uploadBusy(false);return}}
-    FILES[nid]=file;if(slideFile)SLIDE_FILES[nid]=slideFile;const pv=await makePreview(slideFile||file);uploadBusy(false);
-    S.pres.push(Object.assign({id:nid,t,short:t,file:{name:file.name,size:file.size},path,slidePath,slideFile:slideFile?{name:slideFile.name,size:slideFile.size}:null,context,created:new Date().toISOString(),date:'Not scheduled',time:'',target:600,ready:20,ppt:true,rq:false,sp:true,final:false,left:null},pv));
+    FILES[nid]=file;const pv=await makePreview(file);uploadBusy(false);
+    S.pres.push(Object.assign({id:nid,t,short:t,file:{name:file.name,size:file.size},path,context,created:new Date().toISOString(),date:'Not scheduled',time:'',target:600,ready:20,ppt:true,rq:false,sp:true,final:false,left:null},pv));
     notify('📄','Presentation added','"'+t+'" was uploaded.');flash('Presentation uploaded successfully!','success','Your file is in. Nice work!');toast('Presentation uploaded');go('decks')};
   const r=$('rtitle');if(r){r.focus();r.select();r.onkeydown=e=>{if(e.key==='Enter')$('rs2').click();if(e.key==='Escape'){S.ren=null;render()}}}},
 rec:()=>{if(!$('ra'))return;let file=null;const f=$('f'),dz=$('dz'),pk=x=>{file=x;$('fn').textContent=x.name+' · '+(x.size/1048576).toFixed(1)+' MB'};

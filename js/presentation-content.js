@@ -4,12 +4,10 @@
   const supported=name=>/\.(pdf|pptx)$/i.test(name||'');
   function selectUpload(files) {
     const list=Array.from(files||[]);
-    if(!list.length||list.length>2)throw new Error('Select one PDF, or one PPTX and its matching PDF together.');
+    if(list.length!==1)throw new Error('Select one PPTX or PDF. Upload each presentation separately.');
     if(list.some(f=>!supported(f.name)||/wordprocessingml|msword/i.test(f.type||'')))throw new Error('Rejected: only .PPTX or .PDF files are allowed.');
     if(list.some(f=>!f.size||f.size>50000000))throw new Error('Choose nonempty presentation files up to 50 MB each.');
-    const ppt=list.filter(f=>/\.pptx$/i.test(f.name)),pdf=list.filter(f=>/\.pdf$/i.test(f.name));
-    if(ppt.length>1||pdf.length>1)throw new Error('Upload one presentation at a time: one PDF, or one PPTX with its matching PDF.');
-    return {file:ppt[0]||pdf[0],slideFile:ppt.length?pdf[0]||null:null};
+    return {file:list[0]};
   }
   async function scan(file,{pdf,zip}={}) {
     if(!supported(file?.name))throw new Error('Choose a PPTX or PDF only file.');
@@ -31,7 +29,7 @@
         add([...xml.getElementsByTagName('a:p')].map(p=>[...p.getElementsByTagName('a:t')].map(t=>t.textContent).join('')).join('\n'));
       }
     }
-    return {text:pages.join('\n').slice(0,limit),pagesScanned:pages.length,truncated:length>=limit};
+    return {text:pages.join('\n').slice(0,limit),pages, pagesScanned:pages.length,truncated:length>=limit};
   }
   globalThis.PTPresentationContent={supported,scan,selectUpload};
 })();
