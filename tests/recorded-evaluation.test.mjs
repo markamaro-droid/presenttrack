@@ -31,10 +31,15 @@ test('a 31-second attempt never earns the previous 75-point baseline', async () 
   const s = setup({ duration: 31, transcript: script.split(/\s+/).slice(0,72).join(' ') });
   await assert.rejects(s.service('Bearer user', request), e => e.status === 422 && /90 seconds/.test(e.message));
 });
-test('unrelated complete sentences do not pass the slide-content check even with a forged reference', async () => {
+test('unrelated complete sentences receive delivery results and topic feedback using the server reference', async () => {
   const transcript = 'The football stadium hosts tournaments where athletes compete for a trophy. Spectators watch the referee award a penalty after a defender touches the ball. Teams wear colorful uniforms while coaches select substitutes. The goalkeeper catches the ball and the striker scores during overtime. '.repeat(5);
   const s = setup({ transcript });
-  await assert.rejects(s.service('Bearer user', { ...request, presentation: { title: 'Replace the reference', text: transcript } }), e => e.status === 422 && /presentation ideas/.test(e.message));
+  const result = await s.service('Bearer user', { ...request, presentation: { title: 'Replace the reference', text: transcript } });
+  assert.equal(result.contentValidation.eligible,true);
+  assert.equal(result.contentValidation.topicStatus,'limited_coverage');
+  assert.equal(typeof result.score,'number');
+  assert.match(result.feedback.improvements.join(' '),/limited overlap/);
+  assert.equal(result.contentValidation.referenceChecked,true);
 });
 test('valid slide speech counts verbatim hesitations and real long gaps before awarding a baseline', async () => {
   const s = setup({ verbatim: 'Ummm, ' + script.replace('Three useful', 'uhhh Three useful') });
@@ -60,7 +65,9 @@ test('missing or failed filler analysis never becomes zero fillers or a perfect 
 test('content coverage measures distinct slide ideas, not repeated keywords or name placeholders', () => {
   const options = { reference: script, sections, durationSec: 150, evaluation: true };
   assert.equal(validateContent(script.replace('[Your Name]', 'Maria Santos'), options).eligible, true);
-  assert.equal(validateContent(sections[0].repeat(4), options).eligible, false);
+  const partial=validateContent(sections[0].repeat(4), options);
+  assert.equal(partial.eligible,true);
+  assert.equal(partial.topicStatus,'limited_coverage');
 });
 
 test('the verbatim filler pass is deterministic (temperature 0) and names common hesitations', async () => {

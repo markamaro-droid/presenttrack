@@ -19,6 +19,14 @@ test('missing details remain unknown and conflicting evidence requires verificat
   assert.match(fillerDetails({...metrics,fillerCount:0}),/disagree/);
   assert.match(fillerDetails(metrics),/ano × 2/);
 });
+
+test('topic feedback is advisory and preserves the measured delivery score', () => {
+  const related={score:75,source:'recorded-evaluation',metrics,contentValidation:{eligible:true,topicStatus:'related'}};
+  const limited={...related,contentValidation:{eligible:true,topicStatus:'limited_coverage'}};
+  assert.equal(measuredReport(related).score,measuredReport(limited).score);
+  assert.match(measuredReport(limited).feedback.improvements[0],/limited overlap/);
+  assert.match(measuredReport(related).feedback.summary,/vocabulary related/);
+});
 test('AI slide comments cannot introduce separate filler or pause observations', () => {
   const result=contentOnlyComments({summary:'You used many fillers.',strengths:['Clear example.'],
     improvements:['Reduce um and uh.','Explain the conclusion.'],recommendations:['Avoid long pauses.']});

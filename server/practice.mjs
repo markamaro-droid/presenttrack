@@ -7,6 +7,7 @@ import { CRITERIA } from '../supabase/functions/_shared/criteria.js';
 import { presentationFeedback } from './presentation-feedback.mjs';
 import { validateContent, contentMessage } from './content-validation.mjs';
 import { transcribeVerbatim } from './verbatim.mjs';
+import { withTopicFeedback } from '../supabase/functions/_shared/report.js';
 import '../assets/evaluation/study-habits.js';
 const EVALUATION_DECK = globalThis.PT_EVALUATION_DECK;
 
@@ -68,6 +69,7 @@ export function createPracticeService({ env = process.env, fetchImpl = fetch, ac
     if (evaluation) {
       const checked = validateContent(verbatim, { reference, durationSec: data.duration, evaluation: true, sections: EVALUATION_DECK.slides.map(s => s.bullets.join(' ')) });
       if (!checked.eligible) throw new ChatError(422, 'invalid_presentation_speech', contentMessage(checked.reason));
+      if (checked.topicStatus === 'limited_coverage') contentValidation.topicStatus = 'limited_coverage';
     }
     const metrics = computeMetrics({ words: data.words, totalDurationSec: data.duration, ...(verbatim ? { fillerTranscript: verbatim } : {}) });
     metrics.wpm = metrics.overallWpm;
@@ -80,7 +82,7 @@ export function createPracticeService({ env = process.env, fetchImpl = fetch, ac
     if (verbatimFailed) quality.warnings.push('The additional verbatim speech check was unavailable. No extra filler events were invented.');
     const criteria = evaluation ? CRITERIA : { ...CRITERIA, duration: { ...CRITERIA.duration, targetMinSec: input.target * .9, targetMaxSec: input.target * 1.1, acceptableMinSec: input.target * .75, acceptableMaxSec: input.target * 1.25 } };
     const result = classify(metrics, quality, criteria);
-    const feedback = ruleBasedFeedback(metrics, result);
+    const feedback = withTopicFeedback(ruleBasedFeedback(metrics, result), evaluation ? contentValidation : null);
     // Shared baseline feedback assumes a 2–3 minute task; use the selected practice target instead.
     if (!evaluation) for (const key of ['strengths','improvements','recommendations']) feedback[key] = feedback[key].map(t => t.replace(/2-3 minute/g, `${Math.round(input.target / 60)} minute`));
     if (evaluation) return { ...result, version: 3, source: 'recorded-evaluation', provider: 'groq', metrics, quality, feedback, criteria, contentValidation,

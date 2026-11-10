@@ -1,4 +1,4 @@
-﻿# Built-in recorded evaluation
+# Built-in recorded evaluation
 
 Evaluation records the five-slide study-habits talk in
 `assets/evaluation/study-habits.js`. The server imports the same deck as the page;
@@ -13,13 +13,18 @@ filler analysis produces a retry message, never an assumed zero count.
 
 Aim for 2–3 minutes. The browser requires at least 90 seconds and finishes at five
 minutes; the server allows two extra seconds for codec padding. Before scoring,
-both transcripts must contain enough meaningful speech and cover the slide ideas.
-The eligibility check rejects number drills, excessive repetition, fewer than 120
-tokens, insufficient distinct vocabulary, and insufficient reference overlap.
-Evaluation requires at least 50% reference vocabulary coverage, 25% topic precision,
-and coverage of at least three slide sections. These are coaching product rules,
-not a validated semantic assessment: paraphrases or transcription errors can fail
-the vocabulary check, and passing does not establish factual accuracy.
+both transcripts must contain enough meaningful speech. Number drills, excessive
+repetition, fewer than 120 tokens and insufficient distinct vocabulary still fail.
+Topic coverage is advisory for Evaluation: usable speech proceeds to delivery
+results even when it is unrelated or covers only part of the slides. Feedback
+explains limited topic overlap and suggests what to cover next; it does not change
+the delivery score. Related-topic feedback is also shown in the measurement details.
+The reference check uses 50% vocabulary coverage, 25% topic precision and coverage
+of at least three sections as coaching thresholds, not semantic grading. Paraphrases
+and transcription errors can affect this advice; passing does not prove accuracy.
+The existing recorded-evaluation SQL accepts these usable results without a new
+migration: `eligible` describes speech eligibility, and `topicStatus` stores the
+separate advisory finding. Deploy frontend and backend together.
 
 Pace uses recognized words divided by recorded duration, including pauses. Long
 pauses are gaps of at least two seconds between timestamped words. Overlapping
@@ -85,8 +90,8 @@ dev server running.
 
 For a deployment smoke test, record all slides with audible “um”/“uh” sounds and
 deliberate gaps of at least two seconds, inspect the saved transcript and pause
-timeline, then reload the account. Try counting and unrelated speech: neither should
-award a baseline. Check permission denial, failed analysis and failed save retries.
+timeline, then reload the account. Try counting: it should receive no baseline. Try unrelated complete speech:
+it should show delivery results with limited-topic-coverage feedback. Check permission denial, failed analysis and failed save retries.
 Automated fixtures do not establish live microphone or provider accuracy.
 
 Provider references: [Groq speech-to-text](https://console.groq.com/docs/speech-to-text)

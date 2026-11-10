@@ -3,6 +3,22 @@ import { classify } from './classify.js';
 import { ruleBasedFeedback } from './feedback.js';
 import { CRITERIA } from './criteria.js';
 
+export function topicFeedback(content) {
+  if (content?.topicStatus === 'limited_coverage') return 'Your recognized speech had limited overlap with the slide topic or covered only part of the presentation. Connect each main point to the slides. Paraphrasing and recognition errors can affect this check. Your score measures delivery, not topic relevance.';
+  if (content?.topicStatus === 'related') return 'Your recognized speech includes vocabulary related to the slide topic. This does not verify factual accuracy. Your score measures delivery, not topic relevance.';
+  return '';
+}
+
+export function withTopicFeedback(feedback, content) {
+  const note = topicFeedback(content);
+  if (!note) return feedback;
+  return { ...feedback, summary: `${feedback.summary} ${note}`,
+    ...(content.topicStatus === 'limited_coverage' ? {
+      improvements: [note, ...feedback.improvements].slice(0, 5),
+      recommendations: ['Relate each slide to your main message and explain the sections you have not covered yet.', ...feedback.recommendations].slice(0, 5)
+    } : {}) };
+}
+
 // Content comments are separate from measured delivery. Discard conflicting delivery
 // observations from older/model-generated comments instead of inventing matching counts.
 export function contentOnlyComments(comments) {
@@ -16,7 +32,7 @@ export function measuredReport(saved) {
   if (!saved) return null;
   const metrics = saved.metrics || {};
   const result = classify(metrics, saved.quality, saved.criteria || CRITERIA);
-  const feedback = ruleBasedFeedback(metrics, result);
+  const feedback = withTopicFeedback(ruleBasedFeedback(metrics, result), saved.source === 'recorded-evaluation' ? saved.contentValidation : null);
   if (saved.source !== 'recorded-evaluation' && saved.criteria?.duration) {
     const { targetMinSec, targetMaxSec } = saved.criteria.duration;
     const target = `${Math.round(targetMinSec)}–${Math.round(targetMaxSec)} second`;

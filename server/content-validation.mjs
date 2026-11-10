@@ -20,8 +20,10 @@ export function validateContent(transcript, { reference = '', sections = [], dur
   else if (evaluation && durationSec > 302) reason = 'too_long'; // Allow codec padding around the five-minute stop.
   else if (numericRatio > .35 || repeatedShare > .55 || unique.size < (evaluation ? 30 : 10)) reason = 'not_presentation_speech';
   else if (evaluation && (words.length < 120 || content.length < 50)) reason = 'insufficient_content';
-  else if (expected.size >= 15 && (precision < .25 || (evaluation && (coverage < .5 || sectionMatches < Math.min(3, sections.length))))) reason = 'off_topic';
-  return { version: 1, eligible: reason === null, reason, referenceChecked: expected.size >= 15,
+  const limitedCoverage = expected.size >= 15 && (precision < .25 || (evaluation && (coverage < .5 || sectionMatches < Math.min(3, sections.length))));
+  if (!reason && limitedCoverage && !evaluation) reason = 'off_topic';
+  return { version: 2, eligible: reason === null, reason, referenceChecked: expected.size >= 15,
+    topicStatus: expected.size < 15 ? 'not_checked' : limitedCoverage ? 'limited_coverage' : 'related',
     referenceCoverage: coverage === null ? null : Math.round(coverage * 100), topicPrecision: precision === null ? null : Math.round(precision * 100),
     matchedSections: sectionMatches, totalSections: sections.length, numericRatio: Math.round(numericRatio * 100) / 100, meaningfulWords: content.length };
 }

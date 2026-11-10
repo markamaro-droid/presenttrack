@@ -116,3 +116,15 @@ test('saved feedback is refreshed and the filler card lists the exact measured w
   const zero=app.V.evres();assert.match(zero,/0<small>detected/);assert.match(zero,/No filler words were detected/);
   assert.doesNotMatch(zero,/Only 3 possible filler words|You said um and uh/);
 });
+
+test('limited topic coverage displays delivery results and survives feedback refresh', async () => {
+  const app=setup(); await app.context.podium.loadMeasuredReport();
+  app.S.ev={done:true,results:{source:'recorded-evaluation',score:75,
+    contentValidation:{eligible:true,referenceChecked:true,topicStatus:'limited_coverage'},
+    metrics:{wpm:130,totalDurationSec:150,fillerCount:2,fillersPerMin:.8,pauseCount:1,pausesPerMin:.4},feedback:{}}};
+  const html=app.V.evres();
+  assert.match(html,/Baseline score 75 out of 100/);
+  assert.match(html,/limited overlap with the slide topic/);
+  assert.match(html,/Relate each slide to your main message/);
+  assert.doesNotMatch(html,/passed the slide-content check|No baseline awarded/);
+});
