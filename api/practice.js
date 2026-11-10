@@ -20,7 +20,10 @@ export function createPracticeHandler(service = createPracticeService()) {
       if (!body || Buffer.byteLength(body) > 4100000) return send(413, { message: 'Recording too large.' });
       let parsed; try { parsed = JSON.parse(body); } catch { return send(400, { message: 'Invalid request.' }); }
       send(200, await service(req.headers.authorization, parsed));
-    } catch (e) { send(e instanceof ChatError ? e.status : 503, { message: e instanceof ChatError ? e.message : 'Analysis could not finish. Please retry later.' }); }
+    } catch (e) {
+      if (e instanceof ChatError && e.retryAfter) res.setHeader('Retry-After', String(e.retryAfter));
+      send(e instanceof ChatError ? e.status : 503, { error: e instanceof ChatError ? e.code : 'analysis_failed', message: e instanceof ChatError ? e.message : 'Analysis could not finish. Please retry later.' });
+    }
   };
 }
 export default createPracticeHandler();

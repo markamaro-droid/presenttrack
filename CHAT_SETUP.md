@@ -25,3 +25,7 @@ node tools/check-evaluation-deployment.mjs https://presenttrack-nu.vercel.app
 If saving fails immediately after applying `20261110_recorded_evaluation.sql`, check the deployment first. The migration intentionally revokes `complete_browser_evaluation`; an old frontend still calling it cannot save. The public site was confirmed to be calling that old RPC on November 10. Deploy the latest project revision (not just a redeployment of the old revision), then refresh and retake. An old browser-only recording cannot be converted into a recorded-audio evaluation. Do not re-enable the obsolete RPC to bypass the new checks.
 
 Evaluation topic coverage is now advisory: usable speech proceeds to results, with topic relevance in feedback. Counting-only or insufficient speech still fails. Deploy the updated frontend and backend together; no additional SQL migration is required for this change.
+
+## Library and administrator setup
+
+See [Library and Admin setup](docs/LIBRARY_ADMIN_SETUP.md) for the three SQL migrations, one-time administrator provisioning, server environment variable, deployment steps and independent recording-analysis quota. The initial admin account is not created merely by deploying frontend files.

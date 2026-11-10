@@ -18,14 +18,19 @@ export function createAccess({ env = process.env, fetchImpl = fetch, requiredKey
     return { userId: user.id, headers };
   }
   async function quota(identity, kind) {
-    const response = await fetchImpl(`${env.SUPABASE_URL.replace(/\/$/, '')}/rest/v1/rpc/take_tracy_slot`, {
+    const practice = kind === 'practice';
+    const label = practice ? 'Recording analysis' : 'Tracy';
+    const response = await fetchImpl(`${env.SUPABASE_URL.replace(/\/$/, '')}/rest/v1/rpc/${practice ? 'take_practice_slot' : 'take_tracy_slot'}`, {
       method: 'POST', headers: { ...identity.headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ p_kind: kind }), signal: AbortSignal.timeout(8000)
+      body: JSON.stringify(practice ? {} : { p_kind: kind }), signal: AbortSignal.timeout(8000)
     });
-    if (response.status === 404 || response.status === 403) throw new ChatError(503, 'setup_required', 'Tracy is not set up yet. Please contact the site owner.');
+    if (response.status === 404 || response.status === 403) throw new ChatError(503, 'setup_required', label + ' needs a server setup update. Please contact the site owner.');
     const data = response.ok ? await response.json() : null;
-    if (!data || typeof data.allowed !== 'boolean') throw new ChatError(503, 'quota_unavailable', 'Tracy cannot check usage right now. Please try again shortly.');
-    if (!data.allowed) throw new ChatError(429, 'rate_limited', 'You have reached the conversation limit. Please try again later.', Math.max(1, Math.min(86400, Number(data.retry_after) || 60)));
+    if (!data || typeof data.allowed !== 'boolean') throw new ChatError(503, 'quota_unavailable', label + ' cannot check usage right now. Please try again shortly.');
+    if (!data.allowed) {
+      const retry = Math.max(1, Math.min(86400, Number(data.retry_after) || 60));
+      throw new ChatError(429, 'rate_limited', practice ? `Recording analysis limit reached. Try again in about ${Math.ceil(retry / 60)} minute(s). Keep this page open to retain your recording.` : 'You have reached the conversation limit. Please try again later.', retry);
+    }
   }
   return { authenticate, quota };
 }

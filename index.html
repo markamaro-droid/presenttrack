@@ -26,6 +26,7 @@
 <link rel="stylesheet" href="css/design-system.css">
 <link rel="stylesheet" href="css/mobile.css">
 <link rel="stylesheet" href="css/tracy-conversation.css">
+<link rel="stylesheet" href="css/library.css">
 </head>
 <body>
 <canvas id="water" aria-hidden="true"></canvas>
@@ -73,7 +74,7 @@
         <form id="loginForm" novalidate role="tabpanel" aria-labelledby="t-login">
           <h1>Welcome back</h1>
           <p class="sub">Log in to pick up your last practice run.</p>
-          <div class="field"><label for="le">Email</label><input id="le" type="email" autocomplete="email" placeholder="you@company.com"><p class="err" id="le-e"></p></div>
+          <div class="field"><label for="le">Email or admin username</label><input id="le" type="text" autocomplete="username" placeholder="Email or admin username"><p class="err" id="le-e"></p></div>
           <div class="field"><label for="lp">Password</label>
             <div class="inp"><input id="lp" type="password" autocomplete="current-password" placeholder="Enter your password"><button class="eye" type="button" data-for="lp" aria-label="Show password">Show</button></div>
             <p class="err" id="lp-e"></p></div>
@@ -128,7 +129,7 @@
     <div class="srch"><input type="text" id="q" placeholder="Search presentations, reports, or practice sessions..." aria-label="Search" autocomplete="off"><div class="pop" id="qr" hidden></div></div>
     <div class="tr">
       <div class="rel"><button class="tb bell" id="bell" type="button" aria-label="Notifications"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg><em id="bn" hidden>3</em></button><div class="pop" id="np" hidden></div></div>
-      <div class="rel"><button class="tb prof" id="pb" type="button" aria-label="Account menu"><img id="tav" alt=""><span><b id="tn"></b><small>Student</small></span><i>▾</i></button>
+      <div class="rel"><button class="tb prof" id="pb" type="button" aria-label="Account menu"><img id="tav" alt=""><span><b id="tn"></b><small id="account-role">Student</small></span><i>▾</i></button>
         <div class="pop" id="pmn" hidden><button type="button" data-mp="profile">My Profile</button><button type="button" data-mp="settings">Settings</button><button type="button" data-mp="out">Logout</button></div></div>
     </div>
   </header>
@@ -136,7 +137,7 @@
   <div class="tcap" id="tcap" hidden aria-live="off"><p id="tsub"></p></div>
   <div class="spot" id="spot" hidden aria-hidden="true"><b></b></div>
   <div class="modal" id="hm" hidden><div class="mc" role="dialog" aria-label="Help"><h2>Help</h2>
-    <ul><li>Complete Evaluation for your starting baseline, then upload a PDF or PowerPoint. PowerPoint needs a PDF export of the same slides for display; original files stay unchanged.</li><li>In Practice, choose a target, consent to audio and presentation-text processing, then choose Start under Your slides to enter full screen and record.</li><li>Choose Finish on any slide to transcribe the recording and generate a report. Audio and extracted slide text are sent to Groq; audio also goes to Gemini when configured for a verbatim filler check. Reports include measured delivery feedback and, when available, AI presentation comments.</li><li>Use Performance to compare attempts, Progress to view trends and Goals to set measurable targets.</li><li>History includes saved reports and CSV export. Speech measurements are estimates, not an assessment of overall ability.</li></ul>
+    <ul><li>Complete Evaluation for your starting baseline, then upload a PDF or PowerPoint. PPTX files have a text preview; PDFs keep their original layout. You can also choose a built-in deck from Library.</li><li>In Practice, choose a target, consent to audio and presentation-text processing, then choose Start under Your slides to enter full screen and record.</li><li>Choose Finish on any slide to transcribe the recording and generate a report. Audio and extracted slide text are sent to Groq; audio also goes to Gemini when configured for a verbatim filler check. Reports include measured delivery feedback and, when available, AI presentation comments.</li><li>Use Performance to compare attempts, Progress to view trends and Goals to set measurable targets.</li><li>History includes saved reports and CSV export. Speech measurements are estimates, not an assessment of overall ability.</li></ul>
     <div class="acts"><button class="bt gh" id="hrt" type="button">Replay guided tour</button><button class="bt" id="hx" type="button">Got it</button></div></div></div>
   <div class="toast" id="toast" role="status"></div>
 </div>
@@ -179,6 +180,7 @@
 <input type="file" id="pic" accept="image/*" hidden>
 <script src="js/config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="js/identity.js"></script>
 <script src="js/cloud.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/water.js"></script>
@@ -207,6 +209,7 @@
 <script src="js/robot.js"></script>
 <script src="js/robot-menu.js"></script>
 <script src="js/settings.js"></script>
+<script src="js/library.js"></script>
 <script src="js/welcome-intro.js"></script>
 </body>
 </html>

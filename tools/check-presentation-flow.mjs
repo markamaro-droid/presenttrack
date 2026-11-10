@@ -12,11 +12,12 @@ try{
  let pages;for(let i=0;i<40;i++){try{pages=await(await fetch('http://127.0.0.1:9224/json/list')).json();if(pages.some(p=>p.type==='page'))break;}catch{}await new Promise(r=>setTimeout(r,250));}
  ws=new WebSocket(pages.find(p=>p.type==='page').webSocketDebuggerUrl);await new Promise(r=>ws.onopen=r);
  let id=0;const pending=new Map(),errors=[];
- ws.onmessage=({data})=>{const m=JSON.parse(data);if(m.id){pending.get(m.id)?.(m.result);pending.delete(m.id);}if(m.method==='Runtime.exceptionThrown')errors.push(m.params.exceptionDetails.text);};
+ ws.onmessage=({data})=>{const m=JSON.parse(data);if(m.id){pending.get(m.id)?.(m.result);pending.delete(m.id);}if(m.method==='Runtime.exceptionThrown')errors.push(m.params.exceptionDetails.exception?.description||m.params.exceptionDetails.text);};
  const call=(method,params={})=>new Promise(r=>{pending.set(++id,r);ws.send(JSON.stringify({id,method,params}));});
  const evaluate=async expression=>{const r=await call('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result?.value;};
  await call('Runtime.enable');await call('Page.enable');await call('Page.navigate',{url:'http://127.0.0.1:3000'});
  for(let i=0;i<80;i++){if(await evaluate('!!window.podium?.ext && !!window.PTPresentationContent && document.readyState==="complete"'))break;await new Promise(r=>setTimeout(r,250));}
+ if(process.env.CHECK_LIBRARY_ASSETS)await (await import('./library-flow-check.mjs')).checkLibraryAssets({evaluate,call});
  await evaluate(`(()=>{
  const S=podium.ext.S;S.pres=[];S.ses=[];S.notes=[];S.goals=[];S.booted=true;S.loading=false;S.u.name='Preview';S.nid=100;
  document.querySelector('.shell').hidden=true;document.getElementById('app').hidden=false;document.documentElement.classList.add('clay');podium.save=()=>{};
@@ -24,7 +25,7 @@ try{
  window.pdfjsLib={GlobalWorkerOptions:{},getDocument:()=>({promise:Promise.resolve({numPages:2,getPage:async i=>({getTextContent:async()=>({items:[{str:'Original slide '+i+' research findings'}]}),getViewport:({scale})=>({width:960*scale,height:540*scale}),render:({canvasContext})=>{canvasContext.fillStyle='#fff';canvasContext.fillRect(0,0,960,540);return{promise:Promise.resolve()} }}),destroy:async()=>{}})})};
  window.JSZip={loadAsync:async()=>({files:{'ppt/slides/slide1.xml':{},'ppt/slides/slide2.xml':{}},file:()=>({async:async()=>'<p:sld xmlns:p="urn:p" xmlns:a="urn:a"><a:p><a:t>Original slide research findings</a:t></a:p></p:sld>'})})};
  const append=document.head.appendChild.bind(document.head);document.head.appendChild=el=>{if(el.src?.includes('/pdf.min.js')||el.src?.includes('/jszip.min.js')){queueMicrotask(()=>el.onload());return el;}return append(el)};
- window.recordStarts=0;PTPracticeAudio.Capture=class{async start(){recordStarts++}pause(){}dispose(){}async finish(){return new Blob(['audio'],{type:'audio/webm'})}};
+ window.recordStarts=0;PTPracticeAudio.Capture=class{async start(){recordStarts++}pause(){}dispose(){}async finish(){return this.blob ||= new Blob(['audio'],{type:'audio/webm'})}};
  window.reviewInputs=[];PTPracticeAudio.analyze=async(blob,target,signal,status,presentation)=>{reviewInputs.push(presentation);return{score:80,metrics:{totalDurationSec:30,wpm:120,fillerCount:2,fillersPerMin:4,pauseCount:1,pausesPerMin:2,fillers:[{word:'ano',t:null},{word:'hmm',t:null}]},quality:{level:'ok',warnings:[]},feedback:{strengths:['Steady pace.'],improvements:['Reduce fillers.'],recommendations:['Pause after your key finding.']},comments:{summary:'Connect the research finding to your conclusion.',strengths:['Clear finding.'],improvements:['Explain the implication.'],recommendations:['Practice a transition.']},contextStatus:'reviewed',transcript:'Research findings'}};
  const now=performance.now.bind(performance);window.previewShift=0;performance.now=()=>now()+previewShift;
  })()`);
@@ -82,9 +83,17 @@ try{
   await new Promise(r=>setTimeout(r,100));
   assert.equal(await evaluate(`document.getElementById('vfin').hidden`),false,'single Finish remains available outside fullscreen');
   await evaluate('previewShift+=21000');await new Promise(r=>setTimeout(r,250));
+  await evaluate(`window.reviewBlobs=[];window.originalAnalyze=PTPracticeAudio.analyze;window.failOnce=true;PTPracticeAudio.analyze=async(...args)=>{reviewBlobs.push(args[0]);if(failOnce){failOnce=false;throw Error('Recording analysis limit reached. Keep this page open.')}return originalAnalyze(...args)};document.getElementById('vfin').click()`);
+  await new Promise(r=>setTimeout(r,100));
+  assert.match(await evaluate(`document.getElementById('vnote').textContent`),/Recording analysis limit reached/);
+  assert.equal(await evaluate(`document.getElementById('vfin').textContent`),'Retry analysis');
+  assert.equal(await evaluate('podium.ext.S.view'),'prac');
   await evaluate(`document.getElementById('vfin').click()`);
   for(let i=0;i<40;i++){if(await evaluate(`podium.ext.S.view==='rdet' && document.getElementById('view').textContent.includes('Comments on your presentation')`))break;await new Promise(r=>setTimeout(r,50));}
   assert.equal(await evaluate('podium.ext.S.view'),'rdet');
+  assert.equal(await evaluate('reviewBlobs.at(-1)===reviewBlobs.at(-2)'),true,'retry reuses retained audio');
+  assert.equal(await evaluate('recordStarts'),before+1,'retry does not restart microphone');
+  await evaluate(`PTPracticeAudio.analyze=originalAnalyze`);
   assert.match(await evaluate(`document.getElementById('view').textContent`),/Comments on your presentation/);
   assert.match(await evaluate('reviewInputs.at(-1).text'),/Original slide/);
  }
@@ -106,5 +115,7 @@ try{
  }
  assert.deepEqual(duplicates,[]);
  console.log('Passed: no duplicate in-page navigation actions across 14 populated app views.');
+ await (await import('./library-flow-check.mjs')).checkLibrary({evaluate,call});
+ assert.deepEqual(errors,[]);
  await call('Browser.close');
 }finally{ws?.close();chrome.kill();await new Promise(r=>setTimeout(r,500));await rm(profile,{recursive:true,force:true,maxRetries:3});}

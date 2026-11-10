@@ -34,12 +34,12 @@ test('capture lock covers permission, recording and pause and releases on finish
   assert.equal(cancelled.capturing, false); cancelled.grant(); await assert.rejects(late);
 });
 
-function uploadSetup({ fail = false, signal } = {}) {
+function uploadSetup({ fail = false, signal, response } = {}) {
   const calls = [], session = { data: { session: { access_token: 'token', user: { id: 'account' } } } };
   const bucket = { upload: async (path, blob) => { calls.push(['upload', path, blob.size]); return {}; }, remove: async paths => { calls.push(['remove', paths]); return {}; } };
   const window = { PTCloud: { client: { auth: { getSession: async () => session }, storage: { from: () => bucket } } } };
   vm.runInNewContext(code, { window, Blob, Uint8Array, crypto: { randomUUID: () => 'unique' }, btoa: s => Buffer.from(s, 'binary').toString('base64'), addEventListener() {},
-    fetch: async (url, options) => { calls.push(['request', JSON.parse(options.body)]); if (fail) throw new Error('offline'); return { ok: true, json: async () => ({ score: 80 }) }; }
+    fetch: async (url, options) => { calls.push(['request', JSON.parse(options.body)]); if (fail) throw new Error('offline'); return response || { ok: true, json: async () => ({ score: 80 }) }; }
   });
   return { calls, analyze: (blob,presentation) => window.PTPracticeAudio.analyze(blob, 120, signal,undefined,presentation) };
 }
@@ -64,4 +64,15 @@ test('small recordings stay inline; oversized and cancelled files do not upload'
 test('recording analysis includes bounded slide text, never the source presentation file',async()=>{
  const s=uploadSetup();await s.analyze(new Blob(['audio'],{type:'audio/webm'}),{title:'A'.repeat(180),text:'B'.repeat(25000),file:'must not send'});
  const input=s.calls[0][1];assert.equal(input.presentation.title.length,160);assert.equal(input.presentation.text.length,20000);assert.equal(input.presentation.file,undefined);
+});
+
+ test('analysis exposes safe structured errors and handles non-JSON gateway failures', async () => {
+  for (const [response, pattern, status] of [
+    [{ok:false,status:429,json:async()=>({error:'rate_limited',message:'Recording analysis limit reached.'})},/Recording analysis limit/,429],
+    [{ok:false,status:504,json:async()=>{throw Error('HTML gateway page')}},/timed out/,504],
+    [{ok:false,status:413,json:async()=>{throw Error('HTML')}},/recording size/,413]
+  ]) {
+    const s=uploadSetup({response});
+    await assert.rejects(s.analyze(new Blob(['audio'],{type:'audio/webm'})),error=>{assert.match(error.message,pattern);assert.equal(error.status,status);if(status===429)assert.equal(error.code,'rate_limited');return true;});
+  }
 });

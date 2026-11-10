@@ -28,7 +28,7 @@ export function createPracticeService({ env = process.env, fetchImpl = fetch, ac
       || !Number.isFinite(input.target) || input.target < 60 || input.target > 14400) throw new ChatError(400, 'invalid_recording', 'Choose a supported recording and a valid target time.');
     const storageUrl = stored ? `${env.SUPABASE_URL.replace(/\/$/, '')}/storage/v1/object/practice-audio-temp/${input.storagePath}` : null;
     try {
-    await access.quota(identity, 'voice');
+    await access.quota(identity, 'practice');
     let audio;
     if (stored) {
       const download = await fetchImpl(storageUrl, { headers: identity.headers, signal: AbortSignal.timeout(30000) });
@@ -91,7 +91,7 @@ export function createPracticeService({ env = process.env, fetchImpl = fetch, ac
     let comments=null,contextStatus=context?.text.trim()?'unavailable':'not-provided';
     if(context?.text.trim()) {
       try {
-        await access.quota(identity,'chat');
+        // The recording-analysis slot covers transcription and slide feedback.
         comments=await presentationFeedback({env,fetchImpl,context,transcript,metrics,feedback});
         contextStatus='reviewed';
       } catch { /* Preserve measured results when AI feedback is unavailable. */ }

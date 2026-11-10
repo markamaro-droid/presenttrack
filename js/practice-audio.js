@@ -61,7 +61,13 @@
     if (beforeSend?.data?.session?.user?.id !== session.data.session.user.id) throw new Error('The signed-in account changed. Please start again.');
     onStatus('Transcribing and analyzing your recording...');
     const response = await fetch('/api/practice', { method:'POST', signal, headers: { 'Content-Type':'application/json', Authorization:'Bearer '+beforeSend.data.session.access_token }, body: JSON.stringify(payload) });
-    const result = await response.json(); if (!response.ok) { const error = new Error(result.message || 'Analysis failed.'); error.status = response.status; throw error; }
+    let result;
+    try { result = await response.json(); }
+    catch {
+      const error = new Error(response.status === 504 ? 'Recording analysis timed out. Retry analysis with the same recording.' : response.status === 413 ? 'The server rejected the recording size. Use a smaller recording.' : 'The server returned an unreadable analysis response. Please retry.');
+      error.status=response.status;throw error;
+    }
+    if (!response.ok) { const error = new Error(result.message || 'Analysis failed.'); error.status = response.status; error.code = result.error; throw error; }
     const current = await window.PTCloud.client.auth.getSession();
     if (current?.data?.session?.user?.id !== session.data.session.user.id) throw new Error('The signed-in account changed. Please start again.');
     return result;

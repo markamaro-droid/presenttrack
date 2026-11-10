@@ -7,7 +7,7 @@ const spoken = globalThis.PT_EVALUATION_DECK.slides.flatMap(s=>s.bullets).join('
 const sample = { duration:120, text:spoken.join(' '), words:spoken.map((word,i)=>({word:i===20?'um':word,start:i*.5,end:i*.5+.4})), segments:[{avg_logprob:-.1,no_speech_prob:0}] };
 function setup({deny=false,response=sample}={}) {
   const calls=[];
-  const service=createPracticeService({env:{GROQ_API_KEY:'server-only'},access:{authenticate:async token=>{calls.push('auth');if(token!=='Bearer test')throw new Error('unauthorized');return{userId:'a'}},quota:async()=>{calls.push('quota');if(deny)throw new Error('limited')}},fetchImpl:async()=>{calls.push('provider');return new Response(JSON.stringify(response))}});
+  const service=createPracticeService({env:{GROQ_API_KEY:'server-only'},access:{authenticate:async token=>{calls.push('auth');if(token!=='Bearer test')throw new Error('unauthorized');return{userId:'a'}},quota:async(identity,kind)=>{assert.equal(kind,'practice');calls.push('quota');if(deny)throw new Error('limited')}},fetchImpl:async()=>{calls.push('provider');return new Response(JSON.stringify(response))}});
   return {service,calls};
 }
 test('practice derives pace, fillers, score and target duration from actual provider data',async()=>{

@@ -1,0 +1,14 @@
+.library-panel label,.library-detail label{display:block;margin-bottom:10px;font-weight:600}
+.library-panel input[type=search]{width:100%;max-width:660px}
+.library-panel input[type=search],.library-editor input:not([type=checkbox]),.library-editor textarea{font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0;box-sizing:border-box}
+.library-panel input:focus-visible,.library-editor input:focus-visible,.library-editor textarea:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.library-editor textarea{resize:vertical;min-height:80px}
+.library-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:20px;margin-top:24px}
+.library-card{display:flex;flex-direction:column;gap:14px;padding:24px;border:1px solid var(--line,#34445e);border-radius:18px;background:var(--panel,#1b2940)}
+.library-card h2{font-size:23px;margin:0}.library-card p{margin:0;line-height:1.6}.library-card small{line-height:1.5;opacity:.85}.library-card button{margin-top:auto;align-self:flex-start}
+.library-tag{font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--link,var(--brand))}
+.library-detail{padding:28px}.library-slides{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px;padding:0;list-style:none;margin:24px 0 0}
+.library-slides li{padding:24px;border:1px solid var(--line,#34445e);border-radius:14px}.library-slides p{white-space:pre-line;line-height:1.8}.library-slides h3{margin:0 0 12px}
+.library-admin-list{display:grid;gap:24px}.library-editor{display:grid;gap:14px;padding:24px;border:1px solid var(--line,#34445e);border-radius:14px}.library-editor label{display:grid;gap:6px}.library-editor label:has(input[type=checkbox]){display:flex;align-items:center;gap:10px}.library-editor h3{margin:0}.library-editor h3 small{display:block;font-size:13px;margin-top:8px}.library-editor button{justify-self:start}
+#admin-credentials,#admin-upload{max-width:660px}#admin-credentials input,#admin-upload input,#admin-upload textarea,.library-editor input:not([type=checkbox]),.library-editor textarea{width:100%;box-sizing:border-box}#admin-current,#admin-password,#admin-confirm{font-family:inherit}
+#admin-credentials input,#admin-upload input:not([type=file]),#admin-upload textarea{font:inherit;padding:12px 14px;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:12px;min-width:0}

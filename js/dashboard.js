@@ -3,8 +3,8 @@ window.podium={};
 (()=>{
 const ic=p=>`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${p}"/></svg>`;
 const I={dash:'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',decks:'M3 4h18v12H3zM8 20h8M12 16v4',prac:'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3',rep:'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7',perf:'M4 20V10M10 20V4M16 20v-7M22 20H2',prog:'M3 17l6-6 4 4 8-8M15 7h6v6',hist:'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',note:'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4',set:'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M14 4v4M8 10v4M16 16v4',help:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6M12 17h.01',out:'M9 4H5v16h4M16 8l4 4-4 4M20 12H9',up:'M12 16V4m0 0l-4 4m4-4l4 4M4 20h16',plus:'M12 5v14M5 12h14',vid:'M3 6h12v12H3zM15 10l6-3v10l-6-3',goal:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 12h.01',pace:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',fill:'M4 5h16v11H9l-5 4z',pause:'M8 5v14M16 5v14',star:'M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.8 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z',search:'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5'};
-I.eval=I.goal;
-const NAV=[['MAIN',[['dash','Dashboard'],['eval','Evaluation'],['decks','My Presentations'],['perf','Performance'],['prog','Progress'],['hist','Practice History']]],['SYSTEM',[['note','Notifications'],['set','Settings']]]];
+I.eval=I.goal;I.library='M4 3h6v18H4zM14 3h6v18h-6zM4 7h6M14 7h6';I.admin=I.set;
+const NAV=[['MAIN',[['dash','Dashboard'],['eval','Evaluation'],['decks','My Presentations'],['library','Library'],['perf','Performance'],['prog','Progress'],['hist','Practice History']]],['SYSTEM',[['note','Notifications'],['set','Settings']]]];
 const PARENT={pdet:'decks',create:'decks',up:'decks',ready:'decks',prac:'decks',rec:'decks',weak:'decks',assess:'decks',assres:'decks',rdet:'hist',rep:'hist',coach:'perf',goals:'prog'};
 const $$=q=>[...document.querySelectorAll(q)];
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -135,7 +135,7 @@ function endTour(spoken){
   try{podium.hushNow&&podium.hushNow()}catch(e){}nav();$('side').classList.remove('open')}
 podium.tourStop=()=>{T.on=false;clearTimeout(T.advanceTimer);T.generation=(T.generation||0)+1;spotOff();clearInterval(T.timer);tourEl().hidden=true;$('tcap').hidden=true;document.body.classList.remove('touring','tourcol');$('bot').classList.remove('tourhl','tourmode','tcol');syncGuide()};podium.tourPause=()=>tourPlay(false);podium.startTour=startTour;podium.tourOn=()=>T.on;
 /* ---------- robot guide: navigate by voice/text and explain each page ---------- */
-const GUIDE={dash:'This is your dashboard. At the top you see your next presentation and how ready you are. Below are your performance numbers, your progress chart, my coaching tip and recent practice.',
+const GUIDE={library:'Choose a built-in presentation from Library, then use it for practice. You do not need your own PowerPoint file.',dash:'This is your dashboard. At the top you see your next presentation and how ready you are. Below are your performance numbers, your progress chart, my coaching tip and recent practice.',
  decks:'This is My Presentations. The practice toolkit gives you shortcuts to upload slides, practice, analyze recordings, reports and goals. Type your own title, drop in a PDF or PowerPoint file, then press Add Presentation. You can then practice, rename or open details for each one.',
  prac:'This is Practice. Pick a presentation and a target time, press Start and speak out loud, then press Finish to get your score and tips.',
  rep:'Reports lists every practice session. Press View Report on any row to see the numbers and my feedback.',
@@ -146,8 +146,8 @@ const GUIDE={dash:'This is your dashboard. At the top you see your next presenta
  set:'Settings is where you update your profile, reset your password, choose an appearance, manage my voice and export your workspace data.',
  goals:'Goals lets you add targets, like keeping your pace between 100 and 160, and track your progress toward each one.',
  coach:'This is the AI coach analysis. It shows where your pace drifts and what to practice next.'};
-const LABEL={dash:'Dashboard',decks:'My Presentations',prac:'Practice',rep:'Reports',perf:'Performance',prog:'Progress',hist:'Practice History',note:'Notifications',set:'Settings',goals:'Goals',coach:'the AI Coach'};
-const PAGES=[['dash','dashboard|home|main page|overview'],['decks','my presentations|presentations|presentation|upload|my files'],['prac','practice|rehearse|rehearsal'],['rep','reports|report'],['perf','performance'],['prog','progress'],['hist','practice history|history|past sessions'],['note','notifications|notification|alerts'],['set','settings|setting|profile|preferences'],['goals','goals|goal'],['coach','ai coach|coach|ai feedback']];
+const LABEL={library:'Library',admin:'Admin Dashboard',dash:'Dashboard',decks:'My Presentations',prac:'Practice',rep:'Reports',perf:'Performance',prog:'Progress',hist:'Practice History',note:'Notifications',set:'Settings',goals:'Goals',coach:'the AI Coach'};
+const PAGES=[['library','library|built in presentations|starter decks'],['dash','dashboard|home|main page|overview'],['decks','my presentations|presentations|presentation|upload|my files'],['prac','practice|rehearse|rehearsal'],['rep','reports|report'],['perf','performance'],['prog','progress'],['hist','practice history|history|past sessions'],['note','notifications|notification|alerts'],['set','settings|setting|profile|preferences'],['goals','goals|goal'],['coach','ai coach|coach|ai feedback']];
 const TOUR=['dash','decks','prac','rep','perf','prog','hist','note','set'];
 function parseNav(t){let best=null;PAGES.forEach(([v,al])=>al.split('|').forEach(a=>{if(new RegExp('\\b'+a.replace(/ /g,'\\s+')+'\\b').test(t)&&(!best||a.length>best.len))best={v,len:a.length}}));return best&&best.v}
 function showPage(v){go(v);let x=GUIDE[v];if(empty()&&v==='prac')x+=' First add a presentation in My Presentations.';if(empty()&&(v==='rep'||v==='perf'||v==='hist'||v==='prog'))x+=' It fills up after your first practice.';return x}
@@ -333,7 +333,7 @@ async function pdfDeck(file){await lib('pdf');pdfjsLib.GlobalWorkerOptions.worke
 let VD=null,VI=0,VT=0,VS=0,PR=null;
 const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement;
 const inFS=()=>{const v=$('vw');return !!v&&v.classList.contains('fs')};
-const vnote=m=>{const n=$('vnote');if(!n)return;n.textContent=m;clearTimeout(n._t);n._t=setTimeout(()=>{n.textContent=''},2800)};
+const vnote=(m,persistent=false)=>{const n=$('vnote');if(!n)return;n.textContent=m;clearTimeout(n._t);if(!persistent)n._t=setTimeout(()=>{n.textContent=''},2800)};
 /* one place that decides which presentation buttons are visible/enabled */
 function vui(){const vw=$('vw');if(!vw)return;const fs=inFS(),n=VD?VD.n:0,last=n>0&&VI>=n-1;
   const selected=S.pres.find(x=>x.id==$('pd')?.value),withoutSlides=!selected?.file;
@@ -464,7 +464,7 @@ prac:()=>{if(!$('pdur'))return;let el=0,run=false,last=0,c={};let capture=new PT
     if($('pc')){$('pc').textContent=fmt(el);$('pl').textContent=over?'+'+fmt(el-tg())+' over':'of '+fmt(tg());$('pg').style.strokeDashoffset=339.3*(1-f);$('pg').style.stroke=over?'var(--err)':'var(--brand)'}
     const t=$('vtm');if(t){t.textContent=fmt(el);$('vtmw').classList.toggle('over',over);$('vtmw').classList.toggle('paused',!run);
       $('vtl').textContent=(!run&&el?'Paused \u00b7 ':'')+(over?'+'+fmt(el-tg())+' over':'of '+fmt(tg()))}};
-  const syncRun=()=>{if($('vpr')){$('vpr').textContent=run?'Pause':'Resume';$('vpr').disabled=busy;$('vpr').hidden=!inFS()&&!el&&!run}if($('vfin')){$('vfin').disabled=busy;$('vfin').hidden=!inFS()&&!el&&!run;}};
+  const syncRun=()=>{if($('vpr')){$('vpr').textContent=run?'Pause':'Resume';$('vpr').disabled=busy;$('vpr').hidden=!inFS()&&!el&&!run}if($('vfin')){$('vfin').textContent=capture.blob?'Retry analysis':'Finish';$('vfin').disabled=busy;$('vfin').hidden=!inFS()&&!el&&!run;}};
   const tick=()=>{if(!$('pc')){clearInterval(tm);run=false;return}const n=performance.now();el+=(n-last)/1000;last=n;draw()};
   const stop=()=>{capture.pause();if(run)el+=(performance.now()-last)/1000;run=false;clearInterval(tm);syncRun();draw()};
   const start=async()=>{if(run||busy)return;if(capture.blob){toast('Reset before starting a new recording.');return}if(!$('pconsent').checked){toast('Please consent to audio processing first.');return}busy=true;
@@ -478,7 +478,7 @@ prac:()=>{if(!$('pdur'))return;let el=0,run=false,last=0,c={};let capture=new PT
   $('pdur').onblur=()=>{if(parse($('pdur').value)===null){$('pdur').value=T0/60;hint(false)}};
   $$('#pq .chip2').forEach(b=>b.onclick=()=>{$('pdur').value=b.dataset.m;$('pdur').oninput()});
   $('pd').onchange=()=>{const p=pick();if(p&&!run&&!el){const m=Math.max(1,Math.min(240,Math.round(p.target/60)));$('pdur').value=m;hint(false);T0=m*60;marks();draw()}viewer()};
-  $('prs').onclick=()=>{if(busy)return;stop();capture.dispose();capture=new PTPracticeAudio.Capture();$('pd').disabled=$('pdur').disabled=false;el=0;c={};$('pres').innerHTML='';syncRun();draw()};
+  $('prs').onclick=()=>{if(busy)return;stop();capture.dispose();capture=new PTPracticeAudio.Capture();$('pd').disabled=$('pdur').disabled=false;el=0;c={};$('pres').innerHTML='';vnote('');syncRun();draw()};
   const finish=async()=>{if(busy||disposed)return;if(el<20){toast('Practice for at least 20 seconds first.');return}stop();busy=true;
     $('pres').textContent='Transcribing and analyzing your recording...';vnote('Transcribing and reviewing your presentation...');syncRun();
     try{const blob=await capture.finish();const analysis=await PTPracticeAudio.analyze(blob,tg(),controller.signal,undefined,{title:pick()?.t||'Quick practice',text:pick()?.context?.text||''});if(disposed)return;
@@ -486,7 +486,7 @@ prac:()=>{if(!$('pdur'))return;let el=0,run=false,last=0,c={};let capture=new PT
       S.ses.push(x);if(p){p.rq=analysis.quality.level==='ok';p.ready=readiness(p)}
       if(PTCloud.enabled){const saved=await PTCloud.saveNow(podium.snapshot());if(saved.error)toast('Report is in this session; cloud save failed. Keep this page open.')}else podium.save();
       capture.dispose();if(inFS())setFS(false);go('rdet',x.id);
-    }catch(e){if(!disposed){$('pres').textContent=e.message+' Press Finish to retry the same recording.';vnote('Analysis could not finish. Choose Finish to retry.');toast('No report generated. Your recording is available to retry.')}}finally{busy=false;if(!disposed)syncRun()}};
+    }catch(e){if(!disposed){const message=(e.message||'Analysis could not finish.')+' Choose Retry analysis to use the same recording.';$('pres').textContent=message;vnote(message,true);toast(e.message||'Analysis could not finish. Your recording is available to retry.')}}finally{busy=false;if(!disposed)syncRun()}};
   PR={sync:syncRun,draw,toggle,finish,autostart:()=>{if(!run)start()}};
   viewer();marks();syncRun();draw()}
 };
@@ -533,10 +533,12 @@ function flash(msg,kind,robotMsg){S.flash=msg;robot('success',robotMsg||'Nice wo
 /* ---------- shell: sidebar, top bar ---------- */
 function nav(){
   const act=PARENT[S.view]||S.view,none=!S.pres.length&&!S.ses.length,hl=T.on&&T.steps[T.i]?T.steps[T.i].nav:null;
-  $('nav').innerHTML=NAV.map(([g,items])=>`<p class="ng">${g}</p>`+items.map(([k,l])=>{const dis=false;return `<button class="nv${act===k?' on':''}${hl===k?' tour-hl':''}" data-go="${k}" type="button"${act===k?' aria-current="page"':''}${dis?' disabled title="Complete a practice session first"':''}>${ic(I[k])}<span>${l}</span>${k==='note'&&unread()?`<em>${unread()}</em>`:''}</button>`}).join('')).join('');
+  const navigation=window.PTIdentity?.isAdmin(window.PTCloud?.user)?[['ADMIN',[['admin','Admin Dashboard'],['library','Library']]]]:NAV;
+  $('nav').innerHTML=navigation.map(([g,items])=>`<p class="ng">${g}</p>`+items.map(([k,l])=>{const dis=false;return `<button class="nv${act===k?' on':''}${hl===k?' tour-hl':''}" data-go="${k}" type="button"${act===k?' aria-current="page"':''}${dis?' disabled title="Complete a practice session first"':''}>${ic(I[k])}<span>${l}</span>${k==='note'&&unread()?`<em>${unread()}</em>`:''}</button>`}).join('')).join('');
   $('help').innerHTML=ic(I.help)+'Help & Support';$('lo').innerHTML=ic(I.out)+'Logout';syncGuide();
 }
 function renderTop(){
+  if($('account-role'))$('account-role').textContent=window.PTIdentity?.isAdmin(window.PTCloud?.user)?'Administrator':'Student';
   $('top').classList.toggle('skl',S.loading);
   $('av').src=pic();$('tav').src=pic();$('mn').textContent=S.u.name;$('mm').textContent=S.u.email;$('tn').textContent=S.u.name;
   const u=unread(),bn=$('bn');bn.hidden=!u;bn.textContent=u;bn.classList.toggle('w',S.notes.some(n=>!n.r&&n.warn));
@@ -544,6 +546,9 @@ function renderTop(){
 }
 const renderShell=()=>{nav();renderTop()};
 function go(v,arg){
+  const admin=window.PTIdentity?.isAdmin(window.PTCloud?.user);
+  if(v==='admin'&&!admin)v='library';
+  if(admin&&PTIdentity.mustChange(PTCloud.user))v='admin';
   window.PTVoice?.active&&PTVoice.stop();
   try{podium.practiceCleanup?.();podium.practiceCleanup=null;podium.leave&&podium.leave()}catch(e){}
   clearInterval(tm);S.view=v;S.arg=arg;
@@ -623,7 +628,7 @@ function transition(p,swap){
   a.onfinish=()=>{run();setTimeout(()=>{const b=w.animate({opacity:[1,0]},{duration:500,easing:'ease',fill:'forwards'});b.onfinish=()=>{w.getAnimations().forEach(q=>q.cancel());w.hidden=true}},280)};
 }
 const shell=()=>document.querySelector('.shell'),land=()=>$('land');
-function showLand(){podium.welcomeStop?.();clearTimeout(window.__auto);document.documentElement.classList.remove('clay');$('app').hidden=true;shell().hidden=true;renderLand();land().hidden=false;try{podium.robotShow&&podium.robotShow(true,'welcome')}catch(e){console.warn(e)}land().classList.remove('in');void land().offsetWidth;land().classList.add('in');scrollTo(0,0);
+function showLand(){if(window.PTIdentity?.isAdmin(window.PTCloud?.user)){podium.welcomeStop?.();clearTimeout(window.__auto);shell().hidden=true;land().hidden=true;$('app').hidden=false;document.documentElement.classList.add('clay');go('admin');return;}podium.welcomeStop?.();clearTimeout(window.__auto);document.documentElement.classList.remove('clay');$('app').hidden=true;shell().hidden=true;renderLand();land().hidden=false;try{podium.robotShow&&podium.robotShow(true,'welcome')}catch(e){console.warn(e)}land().classList.remove('in');void land().offsetWidth;land().classList.add('in');scrollTo(0,0);
   podium.welcomeStart?.()}
 function toApp(v,p){clearTimeout(window.__auto);podium.welcomeStop?.();transition(p,()=>{land().hidden=true;$('app').hidden=false;document.documentElement.classList.add('clay');go(v);try{podium.robotShow&&podium.robotShow(true,'app');podium.setMin&&podium.setMin(innerWidth<900)}catch(e){console.warn(e)}})}
 function signOut(p){podium.practiceCleanup?.();podium.practiceCleanup=null;clearTimeout(window.__auto);podium.welcomeStop?.();clearInterval(tm);transition(p,()=>{try{podium.save&&podium.save();window.PTCloud&&PTCloud.enabled&&PTCloud.signOut();podium.tourStop&&podium.tourStop()}catch(e){}try{podium.robotShow&&podium.robotShow(false)}catch(e){}document.documentElement.classList.remove('clay');$('app').hidden=true;land().hidden=true;shell().hidden=false;lf.reset();rf.reset();setTab('login');S.u.pic=''})}
@@ -638,8 +643,8 @@ function renderLand(){
   <footer class="lfoot"><span>PresentTrack · Practice out loud, present with confidence</span><span>© 2026 PresentTrack</span></footer><div class="lf">${cards.map((c,i)=>`<div class="pn" data-r style="--i:${6+i}"><h3>${ico(c[1])}${c[0]}</h3><p>${c[2]}</p></div>`).join('')}</div>`;
   $('leval').onclick=e=>toApp('eval',ctr(e.currentTarget));$('llo').onclick=e=>signOut(ctr(e.currentTarget));
 }
-podium.enter=(name,email)=>{S.u.name=name.replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());S.u.email=email;podium.name=S.u.name.split(' ')[0];podium.account(email,!!podium.newUser);try{podium.assessInit&&podium.assessInit()}catch(e){console.warn(e)}
-  podium.welcomePrepare?.();
+podium.enter=(name,email)=>{S.u.name=name.replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());S.u.email=email;podium.name=S.u.name.split(' ')[0];podium.account(email,!!podium.newUser);try{if(!window.PTIdentity?.isAdmin(window.PTCloud?.user))podium.assessInit&&podium.assessInit()}catch(e){console.warn(e)}
+  if(!window.PTIdentity?.isAdmin(window.PTCloud?.user))podium.welcomePrepare?.();
   transition(ctr(document.querySelector('#authView form:not([hidden]) .btn')),showLand)};
 $('lo').onclick=e=>signOut(ctr(e.currentTarget));
 const hm=document.querySelector('.sl');hm.tabIndex=0;hm.setAttribute('role','button');hm.title='Back to welcome page';hm.style.cursor='pointer';

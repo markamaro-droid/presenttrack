@@ -1,0 +1,77 @@
+[
+  {
+    "id": "10000000-0000-4000-8000-000000000001",
+    "title": "Confident Introductions",
+    "description": "Practice introducing yourself and explaining one idea clearly.",
+    "category": "Communication",
+    "target_seconds": 180,
+    "source": "builtin",
+    "file_path": "assets/library/confident-introductions.pptx",
+    "file_name": "confident-introductions.pptx",
+    "file_size": 8170,
+    "preview_path": "assets/library/confident-introductions.pdf",
+    "context": {
+      "text": "Make a clear introduction\nIntroduce yourself and your topic.\nTell your audience why this topic matters.\nPreview the two ideas you will share.\nKnow your audience\nThink about what your listeners already know.\nChoose one question your talk will answer.\nUse familiar words and explain new terms.\nBuild one main point\nState your point in one sentence.\nGive a concrete example from everyday life.\nExplain how your example supports your point.\nConnect your ideas\nFinish one thought before starting the next.\nUse transitions such as: Here is an example.\nPause briefly so listeners can follow.\nLeave a clear takeaway\nRepeat the idea you want listeners to remember.\nSuggest one practical next step.\nThank your audience and invite a question.",
+      "pages": [
+        "Make a clear introduction\nIntroduce yourself and your topic.\nTell your audience why this topic matters.\nPreview the two ideas you will share.",
+        "Know your audience\nThink about what your listeners already know.\nChoose one question your talk will answer.\nUse familiar words and explain new terms.",
+        "Build one main point\nState your point in one sentence.\nGive a concrete example from everyday life.\nExplain how your example supports your point.",
+        "Connect your ideas\nFinish one thought before starting the next.\nUse transitions such as: Here is an example.\nPause briefly so listeners can follow.",
+        "Leave a clear takeaway\nRepeat the idea you want listeners to remember.\nSuggest one practical next step.\nThank your audience and invite a question."
+      ],
+      "pagesScanned": 5,
+      "truncated": false
+    },
+    "published": true
+  },
+  {
+    "id": "10000000-0000-4000-8000-000000000002",
+    "title": "Planning a Study Week",
+    "description": "Explain a practical weekly plan with priorities, breaks and review.",
+    "category": "Student life",
+    "target_seconds": 180,
+    "source": "builtin",
+    "file_path": "assets/library/planning-a-study-week.pptx",
+    "file_name": "planning-a-study-week.pptx",
+    "file_size": 8187,
+    "preview_path": "assets/library/planning-a-study-week.pdf",
+    "context": {
+      "text": "Plan a realistic week\nStart with your classes and deadlines.\nChoose the most important tasks for this week.\nLeave room for rest and unexpected changes.\nMake tasks specific\nBreak a large assignment into smaller steps.\nReplace study science with review one chapter.\nEstimate how long each step might take.\nProtect focused time\nChoose a place with fewer distractions.\nPut one task in each study block.\nTake a break when attention starts to fade.\nCheck your understanding\nExplain a concept in your own words.\nTry a question before checking the answer.\nWrite down what you need to revisit.\nReview and adjust\nCompare your plan with what you completed.\nMove unfinished work into realistic time slots.\nKeep the habits that helped you focus.",
+      "pages": [
+        "Plan a realistic week\nStart with your classes and deadlines.\nChoose the most important tasks for this week.\nLeave room for rest and unexpected changes.",
+        "Make tasks specific\nBreak a large assignment into smaller steps.\nReplace study science with review one chapter.\nEstimate how long each step might take.",
+        "Protect focused time\nChoose a place with fewer distractions.\nPut one task in each study block.\nTake a break when attention starts to fade.",
+        "Check your understanding\nExplain a concept in your own words.\nTry a question before checking the answer.\nWrite down what you need to revisit.",
+        "Review and adjust\nCompare your plan with what you completed.\nMove unfinished work into realistic time slots.\nKeep the habits that helped you focus."
+      ],
+      "pagesScanned": 5,
+      "truncated": false
+    },
+    "published": true
+  },
+  {
+    "id": "10000000-0000-4000-8000-000000000003",
+    "title": "Presenting a Project Idea",
+    "description": "Rehearse a project pitch from problem to solution and next steps.",
+    "category": "Project skills",
+    "target_seconds": 180,
+    "source": "builtin",
+    "file_path": "assets/library/presenting-a-project.pptx",
+    "file_name": "presenting-a-project.pptx",
+    "file_size": 8177,
+    "preview_path": "assets/library/presenting-a-project.pdf",
+    "context": {
+      "text": "Introduce the project\nGive your project a short, clear name.\nName the people you want to help.\nExplain the problem in everyday language.\nDescribe the problem\nUse a concrete example of the difficulty.\nExplain why the current approach falls short.\nSeparate what you know from what you assume.\nPropose your solution\nDescribe how someone would use your idea.\nChoose two or three essential features.\nExplain how each feature addresses the problem.\nPlan a small test\nBuild a simple version of the main feature.\nAsk potential users to try it.\nObserve what works and what needs improvement.\nExplain the next step\nSummarize the value of your proposed solution.\nName one limitation you still need to address.\nEnd with a clear request or next milestone.",
+      "pages": [
+        "Introduce the project\nGive your project a short, clear name.\nName the people you want to help.\nExplain the problem in everyday language.",
+        "Describe the problem\nUse a concrete example of the difficulty.\nExplain why the current approach falls short.\nSeparate what you know from what you assume.",
+        "Propose your solution\nDescribe how someone would use your idea.\nChoose two or three essential features.\nExplain how each feature addresses the problem.",
+        "Plan a small test\nBuild a simple version of the main feature.\nAsk potential users to try it.\nObserve what works and what needs improvement.",
+        "Explain the next step\nSummarize the value of your proposed solution.\nName one limitation you still need to address.\nEnd with a clear request or next milestone."
+      ],
+      "pagesScanned": 5,
+      "truncated": false
+    },
+    "published": true
+  }
+]

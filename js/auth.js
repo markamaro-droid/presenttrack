@@ -33,17 +33,18 @@ $('rp').oninput=e=>{
 
 const cloudOn=()=>!!(window.PTCloud&&window.PTCloud.enabled);
 const busy=(f,on)=>{const b=f.querySelector('.btn');if(b)b.disabled=on};
-function done(name){podium.enter(name,((podium.newUser?$('re').value:$('le').value)||'').trim()||name.toLowerCase().replace(/\s+/g,'')+'@example.com')}
+function done(name){podium.enter(name,(window.PTCloud?.user?.email||(podium.newUser?$('re').value:$('le').value)||'').trim()||name.toLowerCase().replace(/\s+/g,'')+'@example.com')}
 lf.onsubmit=e=>{
   e.preventDefault();clear('le','lp');
   const em=$('le').value.trim().toLowerCase(),pw=$('lp').value;let ok=true;
-  if(!emailRe.test(em))ok=bad('le','Enter a valid email address.');
+  if(!emailRe.test(em)&&!PTIdentity.valid(em))ok=bad('le','Enter your email or admin username.');
   if(!pw)ok=bad('lp','Enter your password.');
   if(!ok)return;
   window.TracyAudio?.unlock();
-  if(cloudOn()){busy(lf,true);PTCloud.signIn(em,pw).then(r=>{busy(lf,false);
+  if(cloudOn()){busy(lf,true);PTCloud.signIn(PTIdentity.email(em),pw).then(r=>{busy(lf,false);
     if(r.error)return bad('lp',r.error);
     podium.newUser=false;done(r.name)}).catch(err=>{busy(lf,false);bad('lp',err.message||'Network error. Try again.')});return}
+  if(!emailRe.test(em))return bad('le','Admin login requires a configured cloud account.');
   const u=users[em];
   if(u&&u.pw!==pw)return bad('lp','Incorrect password. Try again or reset it.');
   podium.newUser=false;done(u?u.name:em.split('@')[0],'You are logged in. This is a demo, so no data was sent.');
