@@ -55,3 +55,9 @@ test('too_long and low quality note', () => {
   assert.equal(r.durationAssessment.status, 'too_long');
   assert.match(r.explanation, /approximate/);
 });
+
+test('unusable or missing filler/pause measurements cannot receive points', () => {
+  for (const [metrics, quality] of [[base,{level:'unusable'}],[{...base,fillerCount:null},ok],[{...base,pausesPerMin:undefined},ok]]) {
+    const result=classify(metrics,quality);assert.equal(result.score,null);assert.equal(result.classification,'unclassified');assert.deepEqual(result.dims,{});
+  }
+});

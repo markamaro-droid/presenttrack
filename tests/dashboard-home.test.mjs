@@ -15,7 +15,7 @@ test('new users get evaluation next action and no fabricated progress chart',()=
   assert.match(html,/Start evaluation/);assert.match(html,/aria-current="step"/);assert.doesNotMatch(html,/class="dh-chart"/);assert.match(html,/Appears after your first rehearsal/);
 });
 test('baseline-only dashboard shows measured baseline instead of repeating empty practice panels',()=>{
-  const {S,V}=setup();S.ev={results:{metrics:{words:253,totalDurationSec:148,fillerCount:1}}};S.ses=[{assess:true,deck:'Initial Evaluation',dur:148,d:'Today',score:75}];
+  const {S,V}=setup();S.ev={results:{source:'recorded-evaluation',contentValidation:{eligible:true},metrics:{words:253,totalDurationSec:148,fillerCount:1}}};S.ses=[{assess:true,deck:'Initial Evaluation',dur:148,d:'Today',score:75}];
   const html=V.dash();assert.match(html,/Baseline recorded/);assert.match(html,/103<small> WPM/);assert.match(html,/Add your presentation/);assert.doesNotMatch(html,/class="dh-chart"/);
 });
 test('practice dashboard charts analyzed sessions only and escapes presentation text',()=>{

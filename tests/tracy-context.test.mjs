@@ -82,7 +82,7 @@ test('large workspaces keep total counts, bounded lists and valid context within
   assert.doesNotThrow(() => validateBody({ message: 'Summarize my workspace', context: value }));
 });
 test('baseline and explicit comparison mirror the performance page', () => {
-  const s = setup({ ev: { results: { metrics: { words: 120, totalDurationSec: 60, fillerCount: 2, pauseCount: 1 } } } });
+  const s = setup({ ev: { results: { source: 'recorded-evaluation', contentValidation: { eligible: true }, metrics: { words: 120, totalDurationSec: 60, fillerCount: 2, pauseCount: 1 } } } });
   assert.deepEqual(s.snapshot().comparison.map(x => x.id), ['baseline', '3']);
   assert.equal(s.snapshot().baseline.score, null);
   s.S.compareA = '3'; s.S.compareB = '1';

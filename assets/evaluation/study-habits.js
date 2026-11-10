@@ -1,5 +1,5 @@
 /* Built-in baseline deck. Never enters the user presentation/upload workflow. */
-window.PT_EVALUATION_DECK = {
+globalThis.PT_EVALUATION_DECK = {
   id: 'healthy-study-habits', version: 2, narrative: true,
   estimatedSeconds: { min: 120, max: 150 },
   title: 'Building Healthy Study Habits',
@@ -26,3 +26,4 @@ window.PT_EVALUATION_DECK = {
     ] }
   ]
 };
+if (typeof window !== 'undefined') window.PT_EVALUATION_DECK = globalThis.PT_EVALUATION_DECK;

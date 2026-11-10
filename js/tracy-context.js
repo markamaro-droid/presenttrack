@@ -5,11 +5,12 @@
   const number = value => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value)) && Number(value) >= 0 ? Math.min(1000000, Number(value)) : null;
   function result(item) {
     if (!item) return null;
+    const unvalidated = item.assess && item.source !== 'recorded-evaluation';
     return { id: String(item.id ?? '').slice(0, 100), title: text(item.deck, 160), date: text(item.at || item.d, 80),
       source: item.assess ? 'evaluation' : item.analysis ? 'recorded-audio' : 'legacy',
-      wpm: number(item.wpm), fillers: number(item.fill), pauses: number(item.pau), score: number(item.score),
+      wpm: number(item.wpm), fillers: unvalidated ? null : number(item.fill), pauses: unvalidated ? null : number(item.pau), score: unvalidated ? null : number(item.score),
       durationSeconds: number(item.dur), targetSeconds: number(item.tg),
-      feedback: text([item.analysis?.feedback?.summary, ...(item.analysis?.feedback?.improvements || []), ...(item.analysis?.feedback?.recommendations || [])].filter(x => typeof x === 'string').join('\n') || item.analysis?.explanation, 1200) };
+      feedback: unvalidated ? 'Previous browser-only evaluation: retake required; its score, fillers and pauses are not validated.' : text([item.analysis?.feedback?.summary, ...(item.analysis?.feedback?.improvements || []), ...(item.analysis?.feedback?.recommendations || [])].filter(x => typeof x === 'string').join('\n') || item.analysis?.explanation, 1200) };
   }
   function snapshot() {
     const S = globalThis.podium?.ext?.S;

@@ -52,12 +52,14 @@ P.call=async(name,body)=>{
   try{const {data,error}=await sb.functions.invoke(name,{body});return error?await fnErr(error):{data}}
   catch(e){return{error:'Network error. Please try again.',retryable:true}}
 };
-/* Browser-speech evaluation: only the server can mark it done (database function complete_browser_evaluation).
+/* Recorded evaluation: the database function complete_recorded_evaluation marks it done.
    Until this succeeds, user_data.initial_assessment_completed stays false and uploads are refused server-side. */
 P.completeEvaluation=async results=>{
   if(!P.user)return{error:'Please sign in again.'};
+  const owner=P.user.id;
   try{
-    const {error}=await sb.rpc('complete_browser_evaluation',{p_results:results});
+    const {error}=await sb.rpc('complete_recorded_evaluation',{p_results:results});
+    if(P.user?.id!==owner)return{error:'The signed-in account changed. Start the evaluation again.',retryable:false};
     if(error){const m=String(error.message||'');
       if(/invalid_evaluation/.test(m))return{error:'The server could not accept these results. Please record your talk again.',invalid:true};
       if(error.code==='PGRST202'||/could not find the function/i.test(m))return{error:'Evaluation saving needs a server setup update. Keep this page open and retry saving after the site owner completes setup.',retryable:true};

@@ -14,6 +14,11 @@ export function classify(metrics, quality, criteria = CRITERIA) {
   const P = criteria.scoring.points;
   const c = criteria;
   const m = metrics || {};
+  // Missing measurements cannot earn "no fillers/no pauses" points or a baseline.
+  if (quality?.level === 'unusable' || ['wpm', 'totalDurationSec', 'fillerCount', 'fillersPerMin', 'pauseCount', 'pausesPerMin'].some(k => typeof m[k] !== 'number' || !Number.isFinite(m[k]))) {
+    return { dims: {}, totalPoints: null, maxPoints: criteria.scoring.maxPoints, criteriaVersion: criteria.version,
+      score: null, classification: 'unclassified', durationAssessment: null, explanation: 'No score: reliable speech measurements are incomplete. Please record again.' };
+  }
 
   // pace
   const wpm = Number(m.wpm) || 0;

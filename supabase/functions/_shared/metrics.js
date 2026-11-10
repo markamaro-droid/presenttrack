@@ -34,9 +34,11 @@ export function computeMetrics(input = {}, criteria = CRITERIA) {
 
   // Pauses
   const pauses = [];
+  let previousEnd = words[0]?.end || 0;
   for (let i = 1; i < words.length; i++) {
-    const gap = words[i].start - words[i - 1].end;
-    if (gap >= longPause) pauses.push({ t: r2(words[i - 1].end), dur: r2(gap) });
+    const gap = words[i].start - previousEnd;
+    if (gap >= longPause) pauses.push({ t: r2(previousEnd), dur: r2(gap) });
+    previousEnd = Math.max(previousEnd, words[i].end);
   }
   const pauseTotal = pauses.reduce((s, p) => s + p.dur, 0);
   const longestPause = pauses.reduce((m, p) => Math.max(m, p.dur), 0);
@@ -50,18 +52,21 @@ export function computeMetrics(input = {}, criteria = CRITERIA) {
   const likeBlockNext = new Set(criteria.fillers.likeBlockedNext);
   const ykBlockPrev = new Set(criteria.fillers.youKnowBlockedPrev);
   const fillers = [];
-  for (let i = 0; i < words.length; i++) {
-    const w = words[i].word;
-    const prev = i > 0 ? words[i - 1].word : null;
-    const next = i + 1 < words.length ? words[i + 1].word : null;
-    if (single.has(w)) {
-      fillers.push({ word: w, t: r2(words[i].start) });
+  const fillerWords = typeof input.fillerTranscript === 'string'
+    ? (input.fillerTranscript.match(/[\p{L}\p{N}]+(?:'[\p{L}]+)?/gu) || []).map(word => ({ word: normalizeToken(word), start: null })) : words;
+  const at = i => fillerWords[i].start === null ? null : r2(fillerWords[i].start);
+  for (let i = 0; i < fillerWords.length; i++) {
+    const w = fillerWords[i].word;
+    const prev = i > 0 ? fillerWords[i - 1].word : null;
+    const next = i + 1 < fillerWords.length ? fillerWords[i + 1].word : null;
+    if (single.has(w) || /^(?:u+m+|u+h+m*|e+r+m*)$/.test(w)) {
+      fillers.push({ word: w, t: at(i) });
     } else if (w === 'you' && next === 'know' && !(prev && ykBlockPrev.has(prev))) {
-      fillers.push({ word: 'you know', t: r2(words[i].start) });
+      fillers.push({ word: 'you know', t: at(i) });
       i++; // consume "know"
     } else if (criteria.fillers.ambiguous.includes(w)) {
       if (!(prev && likeBlockPrev.has(prev)) && !(next && likeBlockNext.has(next))) {
-        fillers.push({ word: w, t: r2(words[i].start), heuristic: true });
+        fillers.push({ word: w, t: at(i), heuristic: true });
       }
     }
   }

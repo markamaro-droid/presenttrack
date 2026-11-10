@@ -17,7 +17,7 @@ function setup() {
   };
   const S = { view: 'eval', evalRequired: false, pres: [], ses: [] }, V = {}, B = {}, PARENT = {};
   const X = { S, V, B, PARENT, esc: String, page: (...a) => a.join(''), sec: (t, i, h) => t + h, fmt: String };
-  const context = { window: {}, podium: { ext: X }, document: { body: { classList: classes() }, getElementById: el, addEventListener() {} } };
+  const context = { clearInterval() {}, window: {}, podium: { ext: X }, document: { body: { classList: classes() }, getElementById: el, addEventListener() {} } };
   vm.runInNewContext(deck, context); vm.runInNewContext(source, context);
   return { S, V, B, PARENT, el, context, deck: context.window.PT_EVALUATION_DECK };
 }
@@ -46,7 +46,7 @@ test('built-in deck loads immediately and all five slides have bounded navigatio
 });
 test('completed baseline stays accessible with next-practice feedback', () => {
   const app = setup();
-  app.S.ev = { done: true, results: { metrics: {}, feedback: { recommendations: ['Pause between ideas.'] } } };
+  app.S.ev = { done: true, results: { source: 'recorded-evaluation', contentValidation: { eligible: true }, score: 75, metrics: {}, feedback: { recommendations: ['Pause between ideas.'] } } };
   assert.match(app.V.eval(), /WHAT TO PRACTICE NEXT/);
   assert.match(app.V.eval(), /Pause between ideas/);
   assert.match(app.V.eval(), /data-act="eretake"/);
@@ -73,11 +73,27 @@ test('fullscreen fallback preserves slides and cleans up when leaving Evaluation
 });
 test('results visualize saved scores and explain an empty event timeline', () => {
   const app = setup();
-  app.S.ev = { done: true, results: { score: 50, metrics: { wpm: 103, fillerCount: 0, pauseCount: 0 }, dims: { pace: { points: 0, label: 'Slow pace' } }, quality: { level: 'low' }, feedback: {} } };
+  app.S.ev = { done: true, results: { source: 'recorded-evaluation', contentValidation: { eligible: true }, score: 50, metrics: { wpm: 103, fillerCount: 0, pauseCount: 0 }, dims: { pace: { points: 0, label: 'Slow pace' } }, quality: { level: 'low' }, feedback: {} } };
   const html = app.V.evres();
   assert.match(html, /Baseline score 50 out of 100/);
   assert.match(html, /Pace 103 WPM; target 100 to 160 WPM/);
   assert.match(html, /No filler or long-pause markers were detected/);
   assert.match(html, /er-method" open/);
   assert.doesNotMatch(html, /NaN|undefined/);
+});
+
+test('browser-only and unvalidated evaluations cannot display a baseline score', () => {
+  for (const results of [{ source: 'browser-speech-recognition', score: 75 }, { source: 'recorded-evaluation', score: 100, contentValidation: { eligible: false } }]) {
+    const app = setup(); app.S.ev = { done: true, results };
+    const html = app.V.evres();
+    assert.doesNotMatch(html, /BASELINE SCORE|Baseline score \d/);
+    assert.match(html, /Retake evaluation/);
+  }
+});
+
+test('verbatim fillers without timestamps do not get fabricated timeline markers', () => {
+  const app = setup(); app.S.ev = { done: true, results: { source: 'recorded-evaluation', contentValidation: { eligible: true }, score: 75,
+    metrics: { fillerCount: 1, pauseCount: 0, fillers: [{word:'um',t:null}], totalDurationSec:120 } } };
+  const html = app.V.evres();
+  assert.doesNotMatch(html, /um at/); assert.match(html, /no precise positions/);
 });

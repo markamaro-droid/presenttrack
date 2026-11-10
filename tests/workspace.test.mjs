@@ -30,8 +30,16 @@ test('comparison uses rates and missing data stays unavailable', () => {
   assert.equal(M.value({}, 'wpm'), null);
 });
 test('baseline is separate, uses full duration and does not reuse an old score', () => {
-  const { M } = setup(), b = M.baseline({ results: { score: 75, metrics: { words: 253, totalDurationSec: 148, fillerCount: 1, pauseCount: 0 } } });
+  const { M } = setup(), b = M.baseline({ results: { source: 'recorded-evaluation', contentValidation: { eligible: true }, score: 75, metrics: { words: 253, totalDurationSec: 148, fillerCount: 1, pauseCount: 0 } } });
   assert.equal(b.wpm, 103); assert.equal(b.score, null); assert.equal(b.assess, true);
+});
+
+test('old browser baselines cannot contribute filler, pause or score values to views or exports', () => {
+  const { M }=setup();
+  assert.equal(M.baseline({results:{source:'browser-speech-recognition',score:75,metrics:{words:72,totalDurationSec:31,fillerCount:0,pauseCount:0}}}),null);
+  const old={assess:true,source:'browser-speech-recognition',deck:'Old evaluation',score:75,fill:0,pau:0,wpm:135,dur:31};
+  for(const key of ['score','fill','pau','fillerRate','pauseRate'])assert.equal(M.value(old,key),null);
+  const csv=M.csv([old]);assert.match(csv,/retake required/);assert.doesNotMatch(csv,/"75"/);
 });
 test('goals calculate actual scope, support zero fillers and leave absent observations pending', () => {
   const { M } = setup(), list = [session(1, 1), session(2, 2), session(3, 1, { fill: 0 })];
@@ -61,7 +69,7 @@ test('schedule countdown uses calendar days, including today and past events', (
 });
 test('empty progress offers clearly labelled sample charts without changing account data', () => {
   const { S, V } = setup(); assert.match(V.perf(), /Make your first rehearsal count/);
-  S.ev = { results: { metrics: { totalDurationSec: 148, words: 253, fillerCount: 1, pauseCount: 0 } } };
+  S.ev = { results: { source: 'recorded-evaluation', contentValidation: { eligible: true }, metrics: { totalDurationSec: 148, words: 253, fillerCount: 1, pauseCount: 0 } } };
   assert.match(V.perf(), /Your baseline is ready/);
   const before = JSON.stringify(S);
   for (const key of ['score', 'wpm', 'fillerRate', 'pauseRate', 'dur']) {

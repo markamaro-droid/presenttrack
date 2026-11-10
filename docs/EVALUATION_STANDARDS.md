@@ -20,19 +20,25 @@ The variation is why one narrow range should not be treated as universal.
 
 ## Measurement and saved reports
 
-Browser evaluations use recognized word count / elapsed minutes, including
-pauses. Recognition phrase events do not supply reliable word timestamps; the
-previous interpolation-based speaking-time denominator is no longer used for
-browser pace scoring. Pause counts still use estimated timings and fillers may
-be omitted by recognition. Neither can be claimed to be accurate audio analysis.
-The timestamp-based audio pipeline is unchanged.
+Recorded evaluations use recognized word count divided by audio duration, including
+pauses. Long pauses come from audio word timestamps, with a two-second threshold;
+leading and trailing silence are excluded. Fillers use a separate verbatim audio
+transcript. Missing measurements cannot earn points. These remain recognition
+estimates, not ground-truth counts.
 
-New evaluations save the criteria version and snapshot. Saved browser evaluations
-are re-scored in the results view using current criteria and rule-based feedback.
-This does not overwrite saved baselines or historical session scores. The results
-details explain this and expose the recognized transcript for checking omissions.
+Before applying this delivery rubric, the server requires at least 90 seconds,
+enough meaningful speech and coverage of the built-in slide content. Number drills,
+excessive repetition and insufficient topic coverage receive no baseline. The content
+check uses vocabulary overlap; it does not grade factual correctness. The target
+remains 2?3 minutes. See [evaluation implementation and setup](EVALUATION.md) for
+eligibility thresholds and limitations.
 
-Duration (2–3 minutes), filler and pause thresholds are unchanged task-specific
-rubrics. They are not universal standards. No database migration is required.
-Deploy frontend assets for browser evaluation; deploy affected Supabase Edge
-Functions separately if using their shared scoring code in production.
+New evaluations save the criteria snapshot and recorded result. Saved browser-only
+results now require a retake instead of being rescored from unreliable timings.
+Existing historical records are retained, but their scores and filler/pause counts
+do not contribute to the displayed evaluation baseline or comparisons.
+
+Deploy the frontend and recording backend together and apply
+`supabase/migrations/20261110_recorded_evaluation.sql`. Both Groq and Gemini keys
+are required for the built-in evaluation. Deploy affected Supabase Edge Functions
+separately if using the shared scoring code there.

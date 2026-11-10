@@ -1,18 +1,14 @@
-/* Start Evaluation (new accounts only).
-   The user talks for 2-3 minutes. The browser's speech recognition gives the words and when they were said;
-   the shared, tested modules in supabase/functions/_shared turn that into WPM, filler words, long pauses,
-   a recognition-quality check and a baseline classification. No audio is recorded or uploaded.
-   The result is saved with the account (user_data.data.ev), so it is persistent and never asked twice. */
+/* Evaluation records the displayed talk for server transcription and content validation.
+   No baseline is committed until both the audio analysis and save succeed. */
 (()=>{
 const X=podium.ext;if(!X)return;
 const {S,V,B,go,toast,esc,page,sec,nodata,fmt,flash,robot,notify,today,PARENT,pendingEval}=X;
 const $=id=>document.getElementById(id);
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 const mm=s=>fmt(Math.max(0,s||0));
-const MIN=20,MAX=300;
+const MIN=90,MAX=300;
 PARENT.evres='eval';PARENT.base='perf';
 const DECK=window.PT_EVALUATION_DECK;
-const E={st:'idle',slide:0,segs:{},ses:0,want:false,rec:null,iv:0,t0:0,total:0,fatal:null,retake:false};
+const E={st:'idle',slide:0,capture:null,controller:null,generation:0,iv:0,t0:0,total:0,retake:false};
 
 /* shared analysis code (same files the Supabase functions use) */
 let CORE=null,CV=null;   /* CV = the loaded modules, once available (lets the dashboard card render without waiting) */
@@ -33,6 +29,7 @@ V.eval=()=>{
         <button class="bt gh sm" id="efs" type="button">Full screen</button>
       </div>
     </div>
+    <label class="hint evaluation-consent"><input type="checkbox" id="econsent"> Record my microphone and send the audio to Groq for transcription and Gemini for a verbatim filler check. Save the transcript and validated baseline to my account. Present the slide ideas for 2-3 minutes; counting or unrelated speech will not earn a score. Audio is discarded after processing (large uploads use temporary private storage).</label>
     <div id="eslide" class="vst" aria-live="polite"></div>
   </section>`);
 };
@@ -64,7 +61,7 @@ function draw(){
   else if(E.st==='ask')controls='<span role="status">Waiting for microphone permission...</span>';
   else if(E.st==='rec')controls='<button class="bt sm" data-act="efin" type="button">Finish</button><button class="bt gh sm" data-act="ecancel" type="button">Cancel</button>';
   else if(E.st==='busy')controls='<span role="status">Analyzing your speech...</span>';
-  else if(E.st==='err')controls=`${E.save?'<button class="bt sm" data-act="esave" type="button">Retry saving</button>':''}<button class="bt gh sm" data-act="estart" type="button">Try again</button>`;
+  else if(E.st==='err')controls=`${E.save?'<button class="bt sm" data-act="esave" type="button">Retry saving</button>':E.blob?'<button class="bt sm" data-act="eanalyze" type="button">Retry analysis</button>':''}<button class="bt gh sm" data-act="estart" type="button">Try again</button>`;
   h.innerHTML=`<div class="evaluation-record"><div class="vtm" aria-label="Elapsed time"><b id="etm">${mm(elapsed)}</b><small>${E.st==='rec'?'Listening':'Target 2-3 min'}</small></div>${controls}</div>
     <p class="vnote" id="enote" role="status"></p>${E.st==='err'?`<p class="wr" role="alert">${esc(E.msg||'Something went wrong.')}</p>`:''}`;
 }
@@ -96,78 +93,73 @@ const note=m=>{const n=$('enote');if(n)n.textContent=m};
 
 /* ---------- listening ---------- */
 async function start(){
-  if(E.st==='ask'||E.st==='rec'||E.st==='busy')return;
-  window.PTVoice?.active&&PTVoice.stop();
-  if(!SR||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return setE({st:'err',msg:'This browser cannot do speech recognition. Please open PresentTrack in Google Chrome or Microsoft Edge on a computer or Android phone.',warn:[]});
-  setE({st:'ask'});
-  try{const s=await navigator.mediaDevices.getUserMedia({audio:true});s.getTracks().forEach(t=>t.stop())}
-  catch(e){return setE({st:'err',msg:e&&e.name==='NotFoundError'?'No microphone was found. Connect one and try again.':'Microphone access was blocked. Allow it for this site in your browser settings, then try again.',warn:[]})}
-  if(!$('erec'))return;
-  E.segs={};E.ses=0;E.fatal=null;E.save=false;E.pend=null;E.want=true;E.t0=performance.now();clearInterval(E.iv);E.iv=setInterval(tick,250);
-  setE({st:'rec'});begin();
+  if(['ask','rec','busy'].includes(E.st))return;
+  if(!$('econsent')?.checked)return note('Please consent to recording and audio processing before starting.');
+  if(!window.PTCloud?.enabled||!window.PTCloud.user)return setE({st:'err',msg:'Sign in to analyze and save an evaluation.'});
+  if(!window.PTPracticeAudio||!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder)return setE({st:'err',msg:'Audio recording is unavailable. Use a browser with microphone recording support on HTTPS or localhost.'});
+  halt();E.blob=null;E.save=false;E.pend=null;E.total=0;
+  const generation=E.generation,owner=window.PTCloud.user.id;
+  E.owner=owner;E.capture=new window.PTPracticeAudio.Capture();
+  window.podium?.hushNow?.();setE({st:'ask'});
+  try{
+    await E.capture.start();
+    if(generation!==E.generation)return;
+    if(window.PTCloud?.user?.id!==owner||S.view!=='eval'){halt();E.st='idle';return}
+    E.t0=performance.now();setE({st:'rec'});E.iv=setInterval(tick,250);
+  }catch(error){if(generation===E.generation){halt();setE({st:'err',msg:error.message||'Microphone permission was blocked. Please allow it and retry.'})}}
 }
-function begin(){
-  let r;try{r=new SR()}catch(e){return abort('Speech recognition could not start in this browser.')}
-  E.rec=r;const ses=++E.ses;r.lang='en-US';r.continuous=true;r.interimResults=true;r.maxAlternatives=1;
-  r.onresult=ev=>{const now=(performance.now()-E.t0)/1000;
-    for(let i=ev.resultIndex;i<ev.results.length;i++){const res=ev.results[i],alt=res&&res[0],txt=((alt&&alt.transcript)||'').trim();if(!txt)continue;
-      const k=ses+':'+i;let g=E.segs[k];if(!g)g=E.segs[k]={start:now,last:now,text:'',conf:null};
-      if(txt!==g.text){g.text=txt;g.last=now}
-      if(res.isFinal&&alt.confidence>0)g.conf=alt.confidence}};
-  r.onerror=ev=>{const c=ev&&ev.error;if(c==='no-speech'||c==='aborted')return;
-    E.fatal=c==='not-allowed'||c==='service-not-allowed'?'Microphone or speech recognition is blocked. Allow the microphone for this site, then try again.'
-      :c==='audio-capture'?'No microphone was found. Connect one and try again.'
-      :c==='network'?'Speech recognition needs an internet connection. Check your connection and try again.':'Speech recognition stopped unexpectedly. Please try again.'};
-  r.onend=()=>{if(!E.want||E.rec!==r)return;if(E.fatal)return abort(E.fatal);setTimeout(()=>{if(E.want&&E.rec===r){try{begin()}catch(e){abort('Speech recognition stopped unexpectedly. Please try again.')}}},150)};
-  try{r.start()}catch(e){abort('Speech recognition could not start. Please try again.')}
+function tick(){
+  if(E.st!=='rec')return;
+  if(!$('etm')||S.view!=='eval'){halt();E.st='idle';return}
+  const elapsed=(performance.now()-E.t0)/1000;$('etm').textContent=mm(elapsed);
+  if(elapsed>=MAX)finish(true);
 }
-function liveText(){const a=Object.values(E.segs).sort((x,y)=>x.start-y.start).map(g=>g.text).join(' ');return a.length>170?'…'+a.slice(-170):a}
-function tick(){const t=$('etm');if(!t){if(E.st==='rec'){halt();E.st='idle'}return}const e=(performance.now()-E.t0)/1000;t.textContent=mm(e);
-  const l=$('elive');if(l&&Object.keys(E.segs).length)l.textContent=liveText();if(e>=MAX)finish(true)}
-function halt(){E.want=false;clearInterval(E.iv);const r=E.rec;E.rec=null;if(r){r.onresult=r.onend=r.onerror=null;try{r.abort()}catch(e){}}}
-function abort(msg){halt();setE({st:'err',msg,warn:[]})}
-podium.leave=(p=>()=>{setFullscreen(false);try{p&&p()}catch(e){}if(E.st==='rec'||E.st==='ask'){halt();E.st='idle'}})(podium.leave);
-
+function halt(){
+  E.generation++;clearInterval(E.iv);E.capture?.dispose();E.capture=null;
+  E.controller?.abort();E.controller=null;
+}
+podium.leave=(p=>()=>{setFullscreen(false);try{p&&p()}catch(e){}halt();E.blob=null;E.pend=null;E.save=false;E.st='idle'})(podium.leave);
+window.addEventListener?.('pagehide',halt);
+window.PTCloud?.client?.auth.onAuthStateChange((_event,session)=>{if(E.owner&&session?.user?.id!==E.owner){halt();E.blob=null;E.pend=null;E.save=false;E.st='idle';E.owner=null}});
 async function finish(auto){
   if(E.st!=='rec')return;
-  const el=(performance.now()-E.t0)/1000;
-  if(el<MIN&&!auto){note('Please talk for at least '+MIN+' seconds so there is enough to measure.');return}
-  E.total=el;E.want=false;clearInterval(E.iv);setE({st:'busy'});robot('thinking','Analyzing your speech…',5000);
-  await new Promise(res=>{const r=E.rec;let d=false;const f=()=>{if(!d){d=true;res()}};if(!r)return f();r.onend=f;r.onerror=null;try{r.stop()}catch(e){f()}setTimeout(f,1800)});
-  E.rec=null;await analyze();
+  const elapsed=(performance.now()-E.t0)/1000;
+  if(elapsed<MIN&&!auto){note('Present the slide ideas for at least '+MIN+' seconds; aim for 2-3 minutes. No baseline has been awarded.');return}
+  E.total=elapsed;clearInterval(E.iv);setE({st:'busy'});
+  const generation=E.generation;
+  try{const blob=await E.capture.finish();if(generation!==E.generation)return;E.blob=blob;E.capture.dispose();E.capture=null;await analyze()}
+  catch(error){if(generation===E.generation){E.capture?.dispose();E.capture=null;setE({st:'err',msg:error.message||'Recording could not finish. Please try again.'})}}
 }
 async function analyze(){
-  let C;try{C=await core()}catch(e){return setE({st:'err',msg:'The analysis code could not be loaded. Open the site from its web address (not as a file) and try again.',warn:[]})}
-  const segs=Object.values(E.segs).filter(g=>g.text).sort((a,b)=>a.start-b.start),words=[],qs=[];
-  segs.forEach(g=>{const t=g.text.split(/\s+/).filter(Boolean),n=t.length;if(!n)return;
-    const span=Math.max(g.last-g.start,n*.35),per=span/n;
-    t.forEach((w,k)=>words.push({word:w,start:g.start+k*per,end:g.start+k*per+per*.85}));
-    qs.push({avg_logprob:g.conf>0?Math.log(g.conf):NaN,no_speech_prob:0})});
-  const metrics=C.computeMetrics({words,totalDurationSec:E.total}),quality=C.assessQuality(metrics,qs);
-  if(quality.level==='unusable')return setE({st:'err',msg:'We could not hear enough speech to give meaningful results. Please try again in a quiet place, closer to your microphone, and talk for 2 to 3 minutes.',warn:quality.warnings||[]});
-  // Browser recognition provides phrase events, not reliable word timestamps.
-  metrics.wpm=metrics.overallWpm;metrics.paceBasis='recognized-words-over-elapsed-time';
-  const result=C.classify(metrics,quality,C.CRITERIA),feedback=C.ruleBasedFeedback(metrics,result);
-  const results={version:2,criteriaVersion:C.CRITERIA.version,criteria:C.CRITERIA,source:'browser-speech-recognition',topic:DECK.title,deckId:DECK.id,deckVersion:DECK.version,quality,metrics,durationAssessment:result.durationAssessment,dims:result.dims,totalPoints:result.totalPoints,maxPoints:result.maxPoints,score:result.score,classification:result.classification,explanation:result.explanation,feedback,transcript:segs.map(g=>g.text).join(' ').slice(0,6000),created_at:new Date().toISOString()};
-  return commit(results);
+  if(!E.blob||window.PTCloud?.user?.id!==E.owner)return;
+  const generation=E.generation;E.controller=new AbortController();setE({st:'busy'});
+  try{
+    const results=await window.PTPracticeAudio.analyze(E.blob,150,E.controller.signal,note,undefined,'evaluation');
+    if(generation!==E.generation||window.PTCloud?.user?.id!==E.owner)return;
+    if(results.source!=='recorded-evaluation'||results.contentValidation?.eligible!==true||!Number.isFinite(results.score))throw new Error('No valid baseline was returned. Please record the presentation again.');
+    E.blob=null;return await commit(results);
+  }catch(error){if(generation===E.generation){if(error.status===422)E.blob=null;setE({st:'err',msg:error.message||'Analysis could not finish. Please retry.'})}}
 }
 /* Cloud accounts: the SERVER must accept the result first (it sets the flag that unlocks uploads).
    If that fails nothing is unlocked and the user can retry saving without recording again. */
 async function commit(results){
+  const generation=E.generation,owner=E.owner;
   const cloud=window.PTCloud&&PTCloud.enabled;
   if(cloud){
     setE({st:'busy'});
     const c=await PTCloud.completeEvaluation(results);
+    if(generation!==E.generation||window.PTCloud?.user?.id!==owner)return;
     if(c.error){E.pend=c.invalid?null:results;return setE({st:'err',msg:c.error,warn:[],save:!c.invalid&&c.retryable!==false})}
   }
   E.pend=null;E.save=false;
   const metrics=results.metrics||{};
   S.ev={done:true,at:results.created_at,results};S.evalRequired=false;S.assessRequired=false;
-  const x={id:S.nid++,deck:'Initial Evaluation',d:today(),at:results.created_at||new Date().toISOString(),dur:Math.round(metrics.totalDurationSec||0),wpm:Math.round(metrics.wpm||0),fill:metrics.fillerCount||0,pau:metrics.pauseCount||0,score:results.score,tg:150,assess:true};
+  const x={id:S.nid++,deck:'Initial Evaluation',d:today(),at:results.created_at||new Date().toISOString(),dur:Math.round(metrics.totalDurationSec||0),wpm:Math.round(metrics.wpm||0),fill:metrics.fillerCount||0,pau:metrics.pauseCount||0,score:results.score,tg:150,assess:true,source:'recorded-evaluation',contentValidation:results.contentValidation};
   const i=S.ses.findIndex(q=>q.assess);if(i>=0)S.ses.splice(i,1);S.ses.push(x);
   E.retake=false;E.st='idle';
   let saved=true;
   if(window.PTCloud&&PTCloud.enabled){const r=await PTCloud.saveNow(podium.snapshot());if(r.error)saved=false}else podium.save&&podium.save();
+  if(generation!==E.generation||window.PTCloud?.user?.id!==owner)return;
   notify('✅','Evaluation completed','Your baseline is ready. You can upload your presentations now.');
   flash('Evaluation completed!','success','Great job! Your baseline is ready.');
   if(!saved)toast('Your result is shown, but saving failed. It will retry automatically.');
@@ -179,7 +171,7 @@ const CLASS={proficient:['Proficient','ok'],developing:['Developing','warn'],nee
 function timeline(m){
   const W=600,tot=Math.max(1,m.totalDurationSec||1),x=t=>8+Math.min(1,t/tot)*(W-16);
   const pa=(m.pauses||[]).map(p=>`<rect x="${x(p.t)}" y="22" width="${Math.max(3,x(p.t+p.dur)-x(p.t))}" height="26" rx="3" fill="color-mix(in srgb,var(--err) 55%,transparent)" style="filter:none"><title>Pause ${mm(p.t)} · ${p.dur}s</title></rect>`).join('');
-  const fi=(m.fillers||[]).map(f=>`<rect x="${x(f.t)-1.5}" y="14" width="3" height="42" rx="1.5" fill="#E8930C" style="filter:none"><title>${esc(f.word)} at ${mm(f.t)}</title></rect>`).join('');
+  const fi=(m.fillers||[]).filter(f=>Number.isFinite(f.t)).map(f=>`<rect x="${x(f.t)-1.5}" y="14" width="3" height="42" rx="1.5" fill="#E8930C" style="filter:none"><title>${esc(f.word)} at ${mm(f.t)}</title></rect>`).join('');
   return `<svg class="cht" viewBox="0 0 ${W} 86" role="img" aria-label="Timeline of your talk with ${m.fillerCount} filler words and ${m.pauseCount} long pauses"><rect x="8" y="22" width="${W-16}" height="26" rx="8" fill="var(--cs)" style="filter:none" stroke="var(--ish)"/>${pa}${fi}<text x="8" y="72">0:00</text><text x="${W-8}" y="72" text-anchor="end">${mm(tot)}</text><text x="${W/2}" y="72" text-anchor="middle">Talk timeline</text></svg><p class="basis" style="margin:6px 0 0"><span class="lg amber"></span> filler word &nbsp; <span class="lg red"></span> long pause</p>`}
 const reportIcon=name=>{
   const paths={pace:'M4 16a8 8 0 1 1 16 0M12 13l4-5M4 20h16',words:'M4 4h16v13H8l-4 3zM8 8h8M8 12h5',time:'M12 8v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',fill:'M5 5h5v6H7v4H4V9zM15 5h5v6h-3v4h-3V9z',pause:'M8 5v14M16 5v14',check:'M5 12l4 4L19 6',target:'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0',arrow:'M5 12h14M13 6l6 6-6 6'};
@@ -194,12 +186,8 @@ B.evres=loadReportCriteria;
 V.evres=()=>{
   const saved=S.ev&&S.ev.results;
   let r=saved;
-  if(saved&&CV&&saved.source==='browser-speech-recognition'){
-    const metrics={...saved.metrics};
-    if(metrics.totalDurationSec>0&&Number.isFinite(metrics.words))metrics.wpm=Math.round(metrics.words*600/metrics.totalDurationSec)/10;
-    const updated=CV.classify(metrics,saved.quality,CV.CRITERIA);
-    r={...saved,...updated,metrics,criteria:CV.CRITERIA,feedback:CV.ruleBasedFeedback(metrics,updated)};
-  }
+  if(saved&&saved.source!=='recorded-evaluation')return page('Evaluation results','Retake needed',sec('PREVIOUS EVALUATION',1,'<p>Your previous browser-only evaluation did not verify the slide content or measure audio word timings. Its score and filler/pause counts are not a validated baseline. Take a new recorded evaluation to get a reliable starting point.</p><button class="bt" data-act="eretake" type="button">Retake evaluation</button>'));
+  if(saved&&(saved.contentValidation?.eligible!==true||!Number.isFinite(saved.score)))return page('Evaluation results','No baseline awarded',sec('RETAKE EVALUATION',1,'<p>This recording has no validated baseline. Present the slide ideas and record again.</p><button class="bt" data-act="eretake" type="button">Retake evaluation</button>'));
   if(!r)return page('Evaluation results','',sec('RESULTS',1,nodata('You have not taken the evaluation yet.','<button class="bt" data-go="eval" type="button">START EVALUATION</button>')));
   const m=r.metrics||{},q=r.quality||{},d=r.durationAssessment||{},f=r.feedback||{},cl=CLASS[r.classification]||['Result',''];
   const num=v=>Number.isFinite(Number(v))?Math.max(0,Number(v)):0;
@@ -215,15 +203,15 @@ V.evres=()=>{
   return page('Evaluation results','Your starting point. Your next step.',`<div class="evaluation-report">
     <section class="er-hero">
       <div class="er-score" role="img" aria-label="Baseline score ${score} out of 100"><svg viewBox="0 0 160 160" aria-hidden="true"><circle cx="80" cy="80" r="66" class="er-ring-track"/><circle cx="80" cy="80" r="66" class="er-ring-value" pathLength="100" stroke-dasharray="${score} 100"/></svg><div><strong>${score}<small>/100</small></strong><span>BASELINE SCORE</span></div></div>
-      <div class="er-intro"><span class="er-eyebrow">YOUR SPEAKING SNAPSHOT</span><h2>A starting point for stronger presentations.</h2><div class="er-meta"><span class="st ${cl[1]}">${cl[0]}</span><span>${esc(date)}</span></div><p>This baseline measures pace, fillers, pauses and talk length. Use it to choose what to practice next.</p></div>
+      <div class="er-intro"><span class="er-eyebrow">YOUR SPEAKING SNAPSHOT</span><h2>A starting point for stronger presentations.</h2><div class="er-meta"><span class="st ${cl[1]}">${cl[0]}</span><span>${esc(date)}</span></div><p>Your speech passed the slide-content check. This delivery baseline estimates pace, fillers, pauses and talk length; it is not a grade for factual accuracy.</p></div>
       <div class="er-focus"><span class="er-icon">${reportIcon('target')}</span><span class="er-eyebrow">YOUR NEXT FOCUS</span><p>${esc((f.recommendations||[])[0]||'Review your delivery below and choose one skill to practice.')}</p><a class="er-link" href="#evaluation-plan">See your practice plan ${reportIcon('arrow')}</a></div>
     </section>
     <div class="er-metrics">
       ${metric('pace','Estimated pace',wpm,'WPM',r.dims?.pace?.label||'Recognized speaking speed')}
       ${metric('words','Words spoken',num(m.words),'words','Recognized in this evaluation')}
       ${metric('time','Talk duration',mm(duration),'',`Target ${mm(targetMin)} to ${mm(targetMax)}`)}
-      ${metric('fill','Filler words',num(m.fillerCount),'detected','Estimated by speech recognition')}
-      ${metric('pause','Long pauses',num(m.pauseCount),'detected','Gaps of 2 seconds or longer')}
+      ${metric('fill','Filler words',Number.isFinite(m.fillerCount)?m.fillerCount:'—','detected',m.fillerBasis==='verbatim-audio-transcript'?'Estimated from verbatim audio':'Audio transcript estimate; some fillers may be missed')}
+      ${metric('pause','Long pauses',Number.isFinite(m.pauseCount)?m.pauseCount:'—','detected','Audio timestamp gaps of 2 seconds or longer')}
     </div>
     <div class="er-analysis">
       <section class="er-panel"><span class="er-eyebrow">DELIVERY INSIGHTS</span><h3>Find your speaking rhythm</h3><div class="er-chart-title"><b>${wpm} <small>WPM</small></b><span>Reference ${min}&ndash;${max} WPM</span></div>
@@ -233,12 +221,12 @@ V.evres=()=>{
       </section>
       <section class="er-panel"><span class="er-eyebrow">SCORE BREAKDOWN</span><h3>What shaped your baseline</h3>${dims.length?dims.map(([key,v])=>`<div class="er-dimension"><div><span>${esc(dimNames[key]||key)}</span><b>${num(v.points)} / 2</b></div><progress max="2" value="${Math.min(2,num(v.points))}" aria-label="${esc(dimNames[key]||key)} score"></progress><small>${esc(v.label||'')}</small></div>`).join(''):'<p class="sub">A detailed score breakdown is not available for this saved evaluation.</p>'}</section>
     </div>
-    <section class="er-panel er-timeline"><div class="er-section-head"><div><span class="er-eyebrow">MOMENTS IN YOUR TALK</span><h3>Your delivery timeline</h3></div><span class="er-tag">${mm(duration)} total</span></div>${timeline(m)}${!(m.fillers||[]).length&&!(m.pauses||[]).length?'<p class="er-empty">No filler or long-pause markers were detected in this evaluation.</p>':''}<p class="basis">Markers show estimated events, not an audio waveform.</p></section>
+    <section class="er-panel er-timeline"><div class="er-section-head"><div><span class="er-eyebrow">MOMENTS IN YOUR TALK</span><h3>Your delivery timeline</h3></div><span class="er-tag">${mm(duration)} total</span></div>${timeline(m)}${!(m.fillers||[]).length&&!(m.pauses||[]).length?'<p class="er-empty">No filler or long-pause markers were detected in this evaluation.</p>':''}<p class="basis">Pause markers use audio word timestamps. Fillers from a separate verbatim transcript have no precise positions and are listed in the transcript instead.</p></section>
     <section id="evaluation-plan" class="er-plan"><span class="er-eyebrow">WHAT TO PRACTICE NEXT</span><h2>Turn feedback into your next rehearsal.</h2><div class="er-coaching"><article class="er-panel er-strength"><h3>${reportIcon('check')} Keep doing</h3>${list(f.strengths)}</article><article class="er-panel er-improve"><h3>${reportIcon('target')} Give attention to</h3>${list(f.improvements)}</article></div>
       <ol class="er-steps">${(f.recommendations||[]).map((t,i)=>`<li><span>${String(i+1).padStart(2,'0')}</span><p>${esc(t)}</p></li>`).join('')}</ol>
       <div class="er-actions"><button class="bt" data-go="up" type="button">Practice with your presentation ${reportIcon('arrow')}</button><button class="bt gh" data-go="hist" type="button">Practice history</button><button class="bt gh" data-act="eretake" type="button">Retake evaluation</button></div>
     </section>
-    <details class="er-panel er-method" ${q.level==='low'?'open':''}><summary>${reportIcon('words')} Recognition quality &amp; how this was measured${q.level==='low'?' - Low-confidence recording':''}</summary><p>${esc(r.explanation||'This is a baseline, not a definitive judgment of your speaking ability.')}</p>${list(q.warnings)}<p>For browser evaluations, pace is recognized words divided by total elapsed minutes, including pauses. This avoids treating estimated word timings as exact speech measurements. Browser recognition can miss fillers and estimate timing incorrectly. Eye contact, confidence and body language are not evaluated.</p>${f.summary?`<p>${esc(f.summary)}</p>`:''}<p>The 100-160 WPM range is a presentation coaching reference, not a universal standard. Clarity depends on content and audience. Saved browser evaluations are re-scored for this view with the current rubric; the original stored report and history are unchanged.</p>${r.transcript?`<details><summary>Review recognized transcript</summary><p>${esc(r.transcript)}</p></details>`:''}</details>
+    <details class="er-panel er-method" ${q.level==='low'?'open':''}><summary>${reportIcon('words')} Recognition quality &amp; how this was measured${q.level==='low'?' - Low-confidence recording':''}</summary><p>${esc(r.explanation||'This is a baseline, not a definitive judgment of your speaking ability.')}</p>${list(q.warnings)}<p>Pace is recognized words divided by recorded audio minutes, including pauses. Long pauses are gaps of at least 2 seconds between timestamped words, excluding leading and trailing silence. Fillers are estimated from the audio transcript and an additional verbatim pass when available. Zero detected does not prove none occurred. Eye contact, confidence and body language are not evaluated.</p>${f.summary?`<p>${esc(f.summary)}</p>`:''}<p>The 100-160 WPM range is a presentation coaching reference, not a universal standard. Clarity depends on content and audience. The content check requires meaningful speech about several slide sections before a delivery score is awarded. It uses vocabulary overlap, not semantic grading; substantial paraphrasing or recognition errors may require a retake.</p>${r.transcript?`<details><summary>Review recognized transcript</summary><p>${esc(r.verbatimTranscript||r.transcript)}</p></details>`:''}</details>
   </div>`);
 };
 
@@ -287,6 +275,7 @@ $('app').addEventListener('click',e=>{
   const t=e.target.closest('[data-act]');if(!t)return;const a=t.dataset.act;
   if(a==='estart')start();
   else if(a==='esave'){if(E.pend)commit(E.pend)}
+  else if(a==='eanalyze'){if(E.st==='err'&&E.blob)analyze()}
   else if(a==='efin')finish(false);
   else if(a==='ecancel'){halt();setE({st:'idle'})}
   else if(a==='eretake'){E.retake=true;E.st='idle';E.slide=0;go('eval')}

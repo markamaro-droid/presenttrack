@@ -11,7 +11,7 @@
   }
   function comparison() {
     const baseline=S.ev?.results,latest=sessions().at(-1);
-    if(!baseline||!latest)return '';
+    if(!baseline||!latest||baseline.source!=='recorded-evaluation'||baseline.contentValidation?.eligible!==true)return '';
     const m=baseline.metrics||{},rows=[['Estimated pace',m.totalDurationSec>0?Math.round(m.words*60/m.totalDurationSec):m.wpm,latest.wpm,'WPM'],['Fillers per minute',m.totalDurationSec>0?m.fillerCount*60/m.totalDurationSec:0,latest.fill*60/latest.dur,'/min'],['Long pauses per minute',m.totalDurationSec>0?m.pauseCount*60/m.totalDurationSec:0,latest.pau*60/latest.dur,'/min']];
     return sec('PRE-EVALUATION VS LATEST PRACTICE',4,`<div class="tw"><table><tr><th>Indicator</th><th>Pre-evaluation</th><th>Latest practice</th></tr>${rows.map(([label,a,b,unit])=>`<tr><td>${label}</td><td>${Number(a||0).toFixed(1)} ${unit}</td><td>${Number(b||0).toFixed(1)} ${unit}</td></tr>`).join('')}</table></div><p class="basis">Different topics, durations and recognition methods can affect these estimates. This comparison shows changes, not proof of improved ability.</p>`);
   }

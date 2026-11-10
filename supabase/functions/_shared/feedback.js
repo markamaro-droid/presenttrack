@@ -24,6 +24,8 @@ export function validateFeedback(obj) {
 
 // `result` is the object returned by classify().
 export function ruleBasedFeedback(metrics, result) {
+  if (result?.score === null) return { summary: 'No baseline was awarded because reliable speech measurements are incomplete.', strengths: [],
+    improvements: ['The recording could not be scored reliably.'], recommendations: ['Check the microphone and record the presentation again.'] };
   const m = metrics || {};
   const dims = (result && result.dims) || {};
   const pts = (k) => (dims[k] ? dims[k].points : 0);

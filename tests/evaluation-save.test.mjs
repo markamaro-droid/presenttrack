@@ -24,7 +24,7 @@ test('baseline save requires authentication and uses the expected RPC argument',
   cloud.user = { id: 'user-a' };
   const results = { score: 70 };
   await cloud.completeEvaluation(results);
-  assert.equal(calls[0].name, 'complete_browser_evaluation');
+  assert.equal(calls[0].name, 'complete_recorded_evaluation');
   assert.equal(calls[0].args.p_results, results);
   assert.equal(cloud.assessmentDone, true);
 });

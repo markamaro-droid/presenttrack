@@ -70,3 +70,12 @@ test('unsorted / invalid words tolerated', () => {
   const m = computeMetrics({ words: [{ word: 'b', start: 1, end: 1.2 }, { word: 'a', start: 0, end: 0.2 }, { word: '', start: 2, end: 3 }, { word: 'c', start: 'x', end: 3 }] });
   assert.equal(m.words, 2);
 });
+
+test('overlapping timestamps do not invent pauses; exactly two seconds is counted', () => {
+  const m = computeMetrics({ words: [{word:'hello',start:0,end:4},{word:'there',start:1,end:1.5},{word:'again',start:4.2,end:5},{word:'thanks',start:7,end:8}], totalDurationSec:10 });
+  assert.equal(m.pauseCount, 1); assert.deepEqual(m.pauses, [{t:5,dur:2}]);
+});
+test('separate verbatim text retains elongated hesitations without invented timings', () => {
+  const m = computeMetrics({ words: seq(['hello','everyone']), totalDurationSec:4, fillerTranscript:'Ummm hello, uhhh everyone erm.' });
+  assert.equal(m.fillerCount, 3); assert.ok(m.fillers.every(f=>f.t===null)); assert.equal(m.words, 2);
+});

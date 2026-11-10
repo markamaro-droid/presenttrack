@@ -11,3 +11,5 @@ After changing this integration, run `npm test` and `npm run build`, then deploy
 See [TRACY_VOICE_SETUP.md](TRACY_VOICE_SETUP.md) for current architecture, configuration, diagnosis, testing, and GitHub/Vercel instructions.
 
 The new authenticated quota function does not require a Supabase service-role key.
+
+Evaluation now checks recorded audio and slide-content coverage before awarding a baseline. It requires Groq and Gemini keys plus the new recorded-evaluation SQL migration. See [evaluation setup and verification](docs/EVALUATION.md). Tracy treats older browser-only evaluation results as needing a retake.

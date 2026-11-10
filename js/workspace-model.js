@@ -18,6 +18,7 @@
   }
   function value(s, key) {
     if (!s) return null;
+    if (s.assess && s.source !== 'recorded-evaluation' && ['score', 'fill', 'pau', 'fillerRate', 'pauseRate'].includes(key)) return null;
     if (key === 'fillerRate' || key === 'pauseRate') {
       const n = numeric(s[key === 'fillerRate' ? 'fill' : 'pau']);
       return n !== null && s.dur > 0 ? n * 60 / s.dur : null;
@@ -26,9 +27,10 @@
     return numeric(s[key]);
   }
   function baseline(ev) {
+    if (ev?.results?.source !== 'recorded-evaluation' || ev.results.contentValidation?.eligible !== true) return null;
     const m = ev?.results?.metrics;
     if (!m) return null;
-    return { id: 'baseline', deck: 'Pre-evaluation', assess: true, at: ev.results.completedAt || ev.at,
+    return { id: 'baseline', deck: 'Pre-evaluation', assess: true, source: 'recorded-evaluation', at: ev.results.completedAt || ev.at,
       dur: numeric(m.totalDurationSec), wpm: m.totalDurationSec > 0 ? Math.round(m.words * 60 / m.totalDurationSec) : numeric(m.wpm),
       fill: numeric(m.fillerCount), pau: numeric(m.pauseCount), score: null, tg: null };
   }
@@ -54,7 +56,7 @@
   function csv(sessions) {
     const cell = v => '"' + String(v ?? '').replace(/^[=+@\-\t\r]/, "'$&").replaceAll('"', '""') + '"';
     const rows = [['Presentation', 'Recorded at', 'Source', 'Duration seconds', 'Target seconds', 'WPM', 'Fillers', 'Long pauses', 'Score'],
-      ...sessions.map(s => [s.deck, s.at || s.d, s.assess ? 'Pre-evaluation' : s.analysis ? 'Recorded audio' : 'Legacy / unverified', s.dur, s.tg, s.wpm, s.fill, s.pau, s.score])];
+      ...sessions.map(s => [s.deck, s.at || s.d, s.assess ? s.source === 'recorded-evaluation' ? 'Recorded evaluation' : 'Evaluation / retake required' : s.analysis ? 'Recorded audio' : 'Legacy / unverified', s.dur, s.tg, s.wpm, value(s, 'fill'), value(s, 'pau'), value(s, 'score')])];
     return '\uFEFF' + rows.map(row => row.map(cell).join(',')).join('\r\n');
   }
   function analytics(sessions, now = Date.now()) {

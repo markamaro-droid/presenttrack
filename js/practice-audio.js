@@ -30,7 +30,7 @@
     }
     dispose() { this.cancelled = true; captures.delete(this); if (this.recorder?.state !== 'inactive') { try { this.recorder?.stop(); } catch {} } this.stream?.getTracks().forEach(t => t.stop()); this.chunks = []; this.blob = null; }
   }
-  async function analyze(blob, target, signal, onStatus = () => {}, presentation) {
+  async function analyze(blob, target, signal, onStatus = () => {}, presentation, purpose) {
     if (!blob.size || blob.size > 25000000) throw new Error('Choose a nonempty recording up to 25 MB and 10 minutes.');
     const session = await window.PTCloud?.client?.auth.getSession();
     if (!session?.data?.session) throw new Error('Sign in to analyze practice recordings.');
@@ -42,6 +42,7 @@
     try {
     signal?.throwIfAborted();
     const payload = { mime, target, consent:true };
+    if (purpose === 'evaluation') payload.purpose = 'evaluation';
     if (presentation?.text) payload.presentation = {title:String(presentation.title||'').slice(0,160),text:String(presentation.text).slice(0,20000)};
     if (blob.size > 3000000) {
       if (!bucket) throw new Error('Large uploads are not configured yet.');
@@ -60,7 +61,7 @@
     if (beforeSend?.data?.session?.user?.id !== session.data.session.user.id) throw new Error('The signed-in account changed. Please start again.');
     onStatus('Transcribing and analyzing your recording...');
     const response = await fetch('/api/practice', { method:'POST', signal, headers: { 'Content-Type':'application/json', Authorization:'Bearer '+beforeSend.data.session.access_token }, body: JSON.stringify(payload) });
-    const result = await response.json(); if (!response.ok) throw new Error(result.message || 'Analysis failed.');
+    const result = await response.json(); if (!response.ok) { const error = new Error(result.message || 'Analysis failed.'); error.status = response.status; throw error; }
     const current = await window.PTCloud.client.auth.getSession();
     if (current?.data?.session?.user?.id !== session.data.session.user.id) throw new Error('The signed-in account changed. Please start again.');
     return result;
