@@ -21,3 +21,5 @@ node tools/check-evaluation-deployment.mjs https://presenttrack-nu.vercel.app
 ```
 
 `OUTDATED` or `UNAVAILABLE` means the hosted report code does not match this checkout. The check does not sign in, send audio, verify private backend configuration, or apply migrations.
+
+If saving fails immediately after applying `20261110_recorded_evaluation.sql`, check the deployment first. The migration intentionally revokes `complete_browser_evaluation`; an old frontend still calling it cannot save. The public site was confirmed to be calling that old RPC on November 10. Deploy the latest project revision (not just a redeployment of the old revision), then refresh and retake. An old browser-only recording cannot be converted into a recorded-audio evaluation. Do not re-enable the obsolete RPC to bypass the new checks.

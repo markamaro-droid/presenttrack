@@ -63,7 +63,10 @@ P.completeEvaluation=async results=>{
     if(error){const m=String(error.message||'');
       if(/invalid_evaluation/.test(m))return{error:'The server could not accept these results. Please record your talk again.',invalid:true};
       if(error.code==='PGRST202'||/could not find the function/i.test(m))return{error:'Evaluation saving needs a server setup update. Keep this page open and retry saving after the site owner completes setup.',retryable:true};
-      return{error:'We could not save your evaluation to your account. Please try again.',retryable:true}}
+      if(/authentication_required|JWT expired/i.test(m)||error.code==='PGRST301')return{error:'Your sign-in session expired. Sign in again before saving an evaluation.',retryable:true};
+      if(error.code==='42501')return{error:'The database denied evaluation saving. The deployed app and evaluation migration may not match. Keep this page open while the site owner checks deployment and saving permissions.',retryable:true};
+      const code=/^[A-Z0-9]{5,12}$/.test(error.code||'')?error.code:'unknown';
+      return{error:'Evaluation saving failed (code: '+code+'). Keep this page open and retry saving after the site owner checks this database error.',retryable:true}}
     P.assessmentDone=true;return{}}
   catch(e){return{error:'Network error. Please check your connection and try again.',retryable:true}}
 };
