@@ -14,7 +14,7 @@ for (const file of ['index.html', 'css', 'js', 'assets']) {
 // Browser evaluation imports these existing modules dynamically.
 const shared = 'supabase/functions/_shared';
 await mkdir(path.join(out, shared), { recursive: true });
-for (const name of ['metrics', 'quality', 'classify', 'feedback', 'criteria', 'baseline']) {
+for (const name of ['metrics', 'quality', 'classify', 'feedback', 'criteria', 'baseline', 'report']) {
   await cp(path.join(root, shared, name + '.js'), path.join(out, shared, name + '.js'));
 }
 // Fingerprinted files can be cached indefinitely; HTML always points to the

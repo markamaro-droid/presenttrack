@@ -53,7 +53,7 @@ export function ruleBasedFeedback(metrics, result) {
   } else {
     improvements.push(fc === null
       ? 'Possible filler words (such as "um" or "uh") showed up fairly often. Automatic detection is imperfect, so this is an estimate.'
-      : `${plural(fc, 'possible filler word', 'possible filler words')} (such as "um" or "uh") ${verb(fc)} detected${perMin}. Automatic detection is imperfect, so this is an estimate.`);
+      : `${plural(fc, 'possible filler word', 'possible filler words')} ${verb(fc)} detected${perMin}. Automatic detection is imperfect, so this is an estimate.`);
     recommendations.push('Replace a filler with a calm, short silent pause while you think.');
   }
 

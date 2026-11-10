@@ -10,7 +10,7 @@ import practice from '../api/practice.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.glb': 'model/gltf-binary', '.png': 'image/png', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg' };
-const shared = /^supabase\/functions\/_shared\/(metrics|quality|classify|feedback|criteria|baseline)\.js$/;
+const shared = /^supabase\/functions\/_shared\/(metrics|quality|classify|feedback|criteria|baseline|report)\.js$/;
 createServer(async (req, res) => {
   try {
     const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);

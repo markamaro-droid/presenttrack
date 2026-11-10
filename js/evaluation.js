@@ -12,9 +12,13 @@ const E={st:'idle',slide:0,capture:null,controller:null,generation:0,iv:0,t0:0,t
 
 /* shared analysis code (same files the Supabase functions use) */
 let CORE=null,CV=null;   /* CV = the loaded modules, once available (lets the dashboard card render without waiting) */
-const core=()=>CORE||(CORE=Promise.all([import('../supabase/functions/_shared/metrics.js'),import('../supabase/functions/_shared/quality.js'),import('../supabase/functions/_shared/classify.js'),import('../supabase/functions/_shared/feedback.js'),import('../supabase/functions/_shared/criteria.js'),import('../supabase/functions/_shared/baseline.js')])
-  .then(([m,q,c,f,k,b])=>(CV={computeMetrics:m.computeMetrics,assessQuality:q.assessQuality,classify:c.classify,ruleBasedFeedback:f.ruleBasedFeedback,CRITERIA:k.CRITERIA,baselineFromSessions:b.baselineFromSessions}))
+const core=()=>CORE||(CORE=Promise.all([import('../supabase/functions/_shared/metrics.js'),import('../supabase/functions/_shared/quality.js'),import('../supabase/functions/_shared/classify.js'),import('../supabase/functions/_shared/feedback.js'),import('../supabase/functions/_shared/criteria.js'),import('../supabase/functions/_shared/baseline.js'),import('../supabase/functions/_shared/report.js')])
+  .then(([m,q,c,f,k,b,r])=>(CV={computeMetrics:m.computeMetrics,assessQuality:q.assessQuality,classify:c.classify,ruleBasedFeedback:f.ruleBasedFeedback,CRITERIA:k.CRITERIA,baselineFromSessions:b.baselineFromSessions,measuredReport:r.measuredReport,fillerDetails:r.fillerDetails}))
   .catch(e=>{CORE=null;throw e}));
+
+podium.measuredReport=r=>CV?.measuredReport(r);
+podium.fillerDetails=m=>CV?.fillerDetails(m)||'Loading filler details...';
+podium.loadMeasuredReport=core;
 
 /* ---------- evaluation page ---------- */
 V.eval=()=>{
@@ -177,18 +181,22 @@ const reportIcon=name=>{
   const paths={pace:'M4 16a8 8 0 1 1 16 0M12 13l4-5M4 20h16',words:'M4 4h16v13H8l-4 3zM8 8h8M8 12h5',time:'M12 8v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',fill:'M5 5h5v6H7v4H4V9zM15 5h5v6h-3v4h-3V9z',pause:'M8 5v14M16 5v14',check:'M5 12l4 4L19 6',target:'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0',arrow:'M5 12h14M13 6l6 6-6 6'};
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[name]||paths.target}"/></svg>`;
 };
-let reportLoading=false;
+let reportLoading=false,reportError='';
+podium.reportLoadMessage=()=>reportError||'Loading measured feedback...';
 function loadReportCriteria(){
-  if(CV||reportLoading)return;
-  reportLoading=true;core().then(()=>{reportLoading=false;if(['eval','evres','base'].includes(S.view))X.render()}).catch(()=>{reportLoading=false;toast('Updated scoring could not load. Please reload to refresh this report.')});
+  if(CV||reportLoading||reportError)return;
+  reportLoading=true;core().then(()=>{reportLoading=false;if(['eval','evres','base','rdet'].includes(S.view))X.render()}).catch(()=>{reportLoading=false;reportError='Report modules could not load. Reload this page after checking the deployment.';if(['eval','evres','rdet'].includes(S.view))X.render()});
 }
 B.evres=loadReportCriteria;
+B.rdet=loadReportCriteria;
 V.evres=()=>{
   const saved=S.ev&&S.ev.results;
   let r=saved;
   if(saved&&saved.source!=='recorded-evaluation')return page('Evaluation results','Retake needed',sec('PREVIOUS EVALUATION',1,'<p>Your previous browser-only evaluation did not verify the slide content or measure audio word timings. Its score and filler/pause counts are not a validated baseline. Take a new recorded evaluation to get a reliable starting point.</p><button class="bt" data-act="eretake" type="button">Retake evaluation</button>'));
   if(saved&&(saved.contentValidation?.eligible!==true||!Number.isFinite(saved.score)))return page('Evaluation results','No baseline awarded',sec('RETAKE EVALUATION',1,'<p>This recording has no validated baseline. Present the slide ideas and record again.</p><button class="bt" data-act="eretake" type="button">Retake evaluation</button>'));
   if(!r)return page('Evaluation results','',sec('RESULTS',1,nodata('You have not taken the evaluation yet.','<button class="bt" data-go="eval" type="button">START EVALUATION</button>')));
+  if(!CV)return page('Evaluation results','',sec('LOADING REPORT',1,`<p role="status">${esc(podium.reportLoadMessage())}</p>`));
+  r=CV.measuredReport(saved);
   const m=r.metrics||{},q=r.quality||{},d=r.durationAssessment||{},f=r.feedback||{},cl=CLASS[r.classification]||['Result',''];
   const num=v=>Number.isFinite(Number(v))?Math.max(0,Number(v)):0;
   const score=Math.min(100,Math.round(num(r.score))),wpm=Math.round(num(m.wpm)),duration=num(m.totalDurationSec);
@@ -210,7 +218,7 @@ V.evres=()=>{
       ${metric('pace','Estimated pace',wpm,'WPM',r.dims?.pace?.label||'Recognized speaking speed')}
       ${metric('words','Words spoken',num(m.words),'words','Recognized in this evaluation')}
       ${metric('time','Talk duration',mm(duration),'',`Target ${mm(targetMin)} to ${mm(targetMax)}`)}
-      ${metric('fill','Filler words',Number.isFinite(m.fillerCount)?m.fillerCount:'—','detected',m.fillerBasis==='verbatim-audio-transcript'?'Estimated from verbatim audio':'Audio transcript estimate; some fillers may be missed')}
+      ${metric('fill','Filler words',Number.isFinite(m.fillerCount)?m.fillerCount:'—','detected',CV.fillerDetails(m))}
       ${metric('pause','Long pauses',Number.isFinite(m.pauseCount)?m.pauseCount:'—','detected','Audio timestamp gaps of 2 seconds or longer')}
     </div>
     <div class="er-analysis">

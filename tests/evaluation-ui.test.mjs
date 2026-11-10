@@ -17,8 +17,8 @@ function setup() {
   };
   const S = { view: 'eval', evalRequired: false, pres: [], ses: [] }, V = {}, B = {}, PARENT = {};
   const X = { S, V, B, PARENT, esc: String, page: (...a) => a.join(''), sec: (t, i, h) => t + h, fmt: String };
-  const context = { clearInterval() {}, window: {}, podium: { ext: X }, document: { body: { classList: classes() }, getElementById: el, addEventListener() {} } };
-  vm.runInNewContext(deck, context); vm.runInNewContext(source, context);
+  const context = { loadModule: path => import(new URL(path, new URL('../js/evaluation.js', import.meta.url))), clearInterval() {}, window: {}, podium: { ext: X }, document: { body: { classList: classes() }, getElementById: el, addEventListener() {} } };
+  vm.runInNewContext(deck, context); vm.runInNewContext(source.replaceAll('import(', 'loadModule('), context);
   return { S, V, B, PARENT, el, context, deck: context.window.PT_EVALUATION_DECK };
 }
 test('Evaluation is separate and available to existing accounts without adding an uploaded presentation', () => {
@@ -44,11 +44,12 @@ test('built-in deck loads immediately and all five slides have bounded navigatio
   app.el('enext').onclick(); assert.equal(app.el('eslide-count').textContent, 'Slide 5 / 5');
   app.el('eprev').onclick(); assert.equal(app.el('eslide-count').textContent, 'Slide 4 / 5');
 });
-test('completed baseline stays accessible with next-practice feedback', () => {
-  const app = setup();
+test('completed baseline refreshes feedback from measurements', async () => {
+  const app = setup(); await app.context.podium.loadMeasuredReport();
   app.S.ev = { done: true, results: { source: 'recorded-evaluation', contentValidation: { eligible: true }, score: 75, metrics: {}, feedback: { recommendations: ['Pause between ideas.'] } } };
   assert.match(app.V.eval(), /WHAT TO PRACTICE NEXT/);
-  assert.match(app.V.eval(), /Pause between ideas/);
+  assert.doesNotMatch(app.V.eval(), /Pause between ideas/);
+  assert.match(app.V.eval(), /measurements are incomplete/);
   assert.match(app.V.eval(), /data-act="eretake"/);
 });
 test('expanded deck provides about two to two-and-a-half minutes at the target speaking pace', () => {
@@ -71,8 +72,8 @@ test('fullscreen fallback preserves slides and cleans up when leaving Evaluation
   assert.equal(app.el('evalviewer').classList.contains('evaluation-fullscreen'), false);
   assert.equal(app.context.document.body.classList.contains('evaluation-fullscreen-open'), false);
 });
-test('results visualize saved scores and explain an empty event timeline', () => {
-  const app = setup();
+test('results visualize saved scores and explain an empty event timeline', async () => {
+  const app = setup(); await app.context.podium.loadMeasuredReport();
   app.S.ev = { done: true, results: { source: 'recorded-evaluation', contentValidation: { eligible: true }, score: 50, metrics: { wpm: 103, fillerCount: 0, pauseCount: 0 }, dims: { pace: { points: 0, label: 'Slow pace' } }, quality: { level: 'low' }, feedback: {} } };
   const html = app.V.evres();
   assert.match(html, /Baseline score 50 out of 100/);
@@ -91,9 +92,27 @@ test('browser-only and unvalidated evaluations cannot display a baseline score',
   }
 });
 
-test('verbatim fillers without timestamps do not get fabricated timeline markers', () => {
-  const app = setup(); app.S.ev = { done: true, results: { source: 'recorded-evaluation', contentValidation: { eligible: true }, score: 75,
+test('verbatim fillers without timestamps do not get fabricated timeline markers', async () => {
+  const app = setup(); await app.context.podium.loadMeasuredReport(); app.S.ev = { done: true, results: { source: 'recorded-evaluation', contentValidation: { eligible: true }, score: 75,
     metrics: { fillerCount: 1, pauseCount: 0, fillers: [{word:'um',t:null}], totalDurationSec:120 } } };
   const html = app.V.evres();
   assert.doesNotMatch(html, /um at/); assert.match(html, /no precise positions/);
+});
+
+
+test('saved feedback is refreshed and the filler card lists the exact measured words', async () => {
+  const app=setup(); await app.context.podium.loadMeasuredReport();
+  const metrics={wpm:130,totalDurationSec:150,fillerCount:3,fillersPerMin:1.2,pauseCount:0,pausesPerMin:0,
+    fillers:[{word:'ano',t:null},{word:'hmm',t:null},{word:'ano',t:12}]};
+  const saved={source:'recorded-evaluation',contentValidation:{eligible:true},score:100,metrics,
+    feedback:{strengths:['No filler words detected.'],improvements:['You said um and uh.'],recommendations:[]}};
+  app.S.ev={done:true,results:saved};
+  const html=app.V.evres();
+  assert.match(html,/3<small>detected/);assert.match(html,/ano \u00d7 2, hmm \u00d7 1/);
+  assert.match(html,/Only 3 possible filler words/);
+  assert.doesNotMatch(html,/You said um and uh|No filler words detected\./);
+  assert.equal(saved.feedback.improvements[0],'You said um and uh.','display refresh must not overwrite account history');
+  metrics.fillerCount=0;metrics.fillersPerMin=0;metrics.fillers=[];
+  const zero=app.V.evres();assert.match(zero,/0<small>detected/);assert.match(zero,/No filler words were detected/);
+  assert.doesNotMatch(zero,/Only 3 possible filler words|You said um and uh/);
 });

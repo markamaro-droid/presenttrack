@@ -59,6 +59,22 @@ records and account access flags are retained; old audio cannot be re-analyzed.
 
 The migration has not been applied to a live database from this workspace.
 
+## Report consistency
+
+Report cards and delivery feedback now read the same saved `metrics` object.
+`supabase/functions/_shared/report.js` refreshes delivery wording when a report
+opens, without changing the saved score, account data, or audio measurements.
+Practice report cards ignore stale duplicated session counts. Evaluation cards
+list detected filler words and frequencies, including untimed verbatim detections.
+Missing word details remain unavailable; conflicting saved details request a retake.
+Generic filler examples are no longer presented as if those exact words were heard.
+AI slide comments are kept separate from measured delivery feedback, with English
+delivery claims filtered out; this filter is not a multilingual semantic validator.
+
+Run `node tools/check-evaluation-deployment.mjs https://presenttrack-nu.vercel.app`
+after deployment to compare public report assets with this checkout. This does not
+verify private backend code, database state, or recognition accuracy.
+
 ## Verification
 
 Run `npm test`, `npm run test:assessment`, and `npm run build`. Tests cover invalid

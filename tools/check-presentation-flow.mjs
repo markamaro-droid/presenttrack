@@ -25,7 +25,7 @@ try{
  window.JSZip={loadAsync:async()=>({files:{'ppt/slides/slide1.xml':{}},file:()=>({async:async()=>'<p:sld xmlns:p="urn:p" xmlns:a="urn:a"><a:p><a:t>Original slide research findings</a:t></a:p></p:sld>'})})};
  const append=document.head.appendChild.bind(document.head);document.head.appendChild=el=>{if(el.src?.includes('/pdf.min.js')||el.src?.includes('/jszip.min.js')){queueMicrotask(()=>el.onload());return el;}return append(el)};
  window.recordStarts=0;PTPracticeAudio.Capture=class{async start(){recordStarts++}pause(){}dispose(){}async finish(){return new Blob(['audio'],{type:'audio/webm'})}};
- window.reviewInputs=[];PTPracticeAudio.analyze=async(blob,target,signal,status,presentation)=>{reviewInputs.push(presentation);return{score:80,metrics:{totalDurationSec:30,wpm:120,fillerCount:2,pauseCount:1},quality:{level:'ok',warnings:[]},feedback:{strengths:['Steady pace.'],improvements:['Reduce fillers.'],recommendations:['Pause after your key finding.']},comments:{summary:'Connect the research finding to your conclusion.',strengths:['Clear finding.'],improvements:['Explain the implication.'],recommendations:['Practice a transition.']},contextStatus:'reviewed',transcript:'Research findings'}};
+ window.reviewInputs=[];PTPracticeAudio.analyze=async(blob,target,signal,status,presentation)=>{reviewInputs.push(presentation);return{score:80,metrics:{totalDurationSec:30,wpm:120,fillerCount:2,fillersPerMin:4,pauseCount:1,pausesPerMin:2,fillers:[{word:'ano',t:null},{word:'hmm',t:null}]},quality:{level:'ok',warnings:[]},feedback:{strengths:['Steady pace.'],improvements:['Reduce fillers.'],recommendations:['Pause after your key finding.']},comments:{summary:'Connect the research finding to your conclusion.',strengths:['Clear finding.'],improvements:['Explain the implication.'],recommendations:['Practice a transition.']},contextStatus:'reviewed',transcript:'Research findings'}};
  const now=performance.now.bind(performance);window.previewShift=0;performance.now=()=>now()+previewShift;
  })()`);
  await evaluate(`podium.ext.go('decks');window.pick=(id,files)=>{const dt=new DataTransfer();files.forEach(f=>dt.items.add(f));const input=document.getElementById(id);input.files=dt.files;input.dispatchEvent(new Event('change'))};pick('f',[new File(['pdf'],'old-selection.pdf')]);pick('f',[new File(['word'],'not-allowed.docx')])`);
@@ -73,11 +73,19 @@ try{
   assert.equal(await evaluate(`document.getElementById('vfin').hidden`),false);
   await evaluate('previewShift+=21000');await new Promise(r=>setTimeout(r,250));
   await evaluate(`document.getElementById('vfin').click()`);
-  for(let i=0;i<40;i++){if(await evaluate(`podium.ext.S.view==='rdet'`))break;await new Promise(r=>setTimeout(r,50));}
+  for(let i=0;i<40;i++){if(await evaluate(`podium.ext.S.view==='rdet' && document.getElementById('view').textContent.includes('Comments on your presentation')`))break;await new Promise(r=>setTimeout(r,50));}
   assert.equal(await evaluate('podium.ext.S.view'),'rdet');
   assert.match(await evaluate(`document.getElementById('view').textContent`),/Comments on your presentation/);
   assert.match(await evaluate('reviewInputs.at(-1).text'),/Original slide/);
  }
+ await evaluate(`podium.ext.S.ses.at(-1).fill=0;podium.ext.S.ses.at(-1).pau=99;podium.ext.go('rdet',podium.ext.S.ses.at(-1).id)`);
+ assert.deepEqual(await evaluate(`[...document.querySelectorAll('.g-perf .mv')].map(x=>x.textContent)`),['120 WPM','2','1','80%']);
+ assert.match(await evaluate(`document.getElementById('view').textContent`),/ano.*hmm/);
+ await evaluate(`podium.ext.S.ev={done:true,results:{source:'recorded-evaluation',contentValidation:{eligible:true},score:75,metrics:{wpm:130,totalDurationSec:150,fillerCount:2,fillersPerMin:.8,pauseCount:0,pausesPerMin:0,fillers:[{word:'ano',t:null},{word:'ano',t:12}]},feedback:{strengths:['No filler words.'],improvements:['You said um and uh.'],recommendations:[]}}};podium.ext.go('evres')`);
+ assert.match(await evaluate(`document.querySelectorAll('.er-metric')[3].textContent`),/2detected.*ano/);
+ assert.match(await evaluate(`document.getElementById('view').textContent`),/Only 2 possible filler words/);
+ assert.doesNotMatch(await evaluate(`document.getElementById('view').textContent`),/You said um and uh/);
+ console.log('Passed: evaluation and practice cards match measured feedback despite conflicting saved text/count copies; detected words are visible.');
  assert.deepEqual(errors,[]);
  console.log('Passed: PDF/PowerPoint upload restrictions, required companion PDF, original byte preservation, extracted context, Start consent/fullscreen/recording, Finish on first slide, contextual report on desktop and mobile.');
  await call('Browser.close');

@@ -13,3 +13,11 @@ See [TRACY_VOICE_SETUP.md](TRACY_VOICE_SETUP.md) for current architecture, confi
 The new authenticated quota function does not require a Supabase service-role key.
 
 Evaluation now checks recorded audio and slide-content coverage before awarding a baseline. It requires Groq and Gemini keys plus the new recorded-evaluation SQL migration. See [evaluation setup and verification](docs/EVALUATION.md). Tracy treats older browser-only evaluation results as needing a retake.
+
+On November 10, 2026, a read-only check of `https://presenttrack-nu.vercel.app` found the older evaluation script (without the recorded-evaluation path) and older generic filler feedback. Local changes alone do not update that deployment. Deploy the current frontend and backend together, apply the recorded-evaluation migration if not yet applied, and verify the public report assets with:
+
+```powershell
+node tools/check-evaluation-deployment.mjs https://presenttrack-nu.vercel.app
+```
+
+`OUTDATED` or `UNAVAILABLE` means the hosted report code does not match this checkout. The check does not sign in, send audio, verify private backend configuration, or apply migrations.
