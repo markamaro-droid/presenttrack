@@ -55,6 +55,17 @@ test('typed and spoken messages share bounded history across stop and restart; c
   assert.equal(s.timers.size, 0);
 });
 
+test('each conversation turn refreshes the displayed name and page instead of caching old app context', async () => {
+  let name = 'Alex Rivera', page = 'dash';
+  const s = setup({ getContext: () => ({ profile: { displayName: name }, page }) });
+  s.session.muteSpeaker(true); await s.session.sendText('What is my name?');
+  assert.equal(s.calls.at(-1).body.context.profile.displayName, name);
+  name = 'Sam Rivera'; page = 'set';
+  await s.session.sendText('And now?');
+  assert.equal(s.calls.at(-1).body.context.profile.displayName, name); assert.equal(s.calls.at(-1).body.context.page, 'set');
+  assert.equal(s.calls.at(-1).body.history.length, 2);
+});
+
 test('text chat works with no recognition or synthesis and selected device voice is honored', async () => {
   const s = setup(); s.session.Recognition = null; s.session.synth = null; s.session.Utterance = null;
   s.session.muteSpeaker(true); await s.session.sendText('Hello');

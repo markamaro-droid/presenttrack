@@ -18,6 +18,23 @@ function setup(responses, config = env) {
   const service = createCoachService({ env: config, fetchImpl: async (url, init) => { calls.push({ url, ...init }); assert.ok(responses.length, 'Unexpected request'); const next = responses.shift(); if (next instanceof Error) throw next; return next; } });
   return { service, calls };
 }
+
+test('both AI providers receive fresh profile context and instructions to use it despite old access denials', async () => {
+  for (const gemini of [false, true]) {
+    const s = setup([json({ id: 'a' }), json({ allowed: true }), json(gemini ? { candidates: [{ content: { parts: [{ text: 'Your name is Alex Rivera.' }] } }] } : { choices: [{ message: { content: 'Your name is Alex Rivera.' } }] })],
+      gemini ? { ...env, GROQ_API_KEY: '', GEMINI_API_KEY: 'private-gemini' } : env);
+    const reply = await s.service('Bearer user-token', { message: 'What is my name?', context: { profile: { displayName: 'Alex Rivera' }, page: 'dash', pageTitle: 'Dashboard', dataStatus: 'ready' },
+      history: [{ role: 'user', content: 'Can you see my name?' }, { role: 'assistant', content: 'I do not have access to your dashboard.' }] });
+    assert.equal(reply.reply, 'Your name is Alex Rivera.');
+    const request = JSON.parse(s.calls[2].body);
+    const instruction = gemini ? request.systemInstruction.parts[0].text : request.messages[0].content;
+    const current = gemini ? request.contents.at(-1).parts[0].text : request.messages.at(-1).content;
+    assert.match(instruction, /profile\.displayName/); assert.match(instruction, /even if an earlier assistant message/);
+    assert.match(instruction, /Notifications/); assert.match(instruction, /read-only/);
+    assert.match(current, /Alex Rivera/); assert.match(current, /Dashboard/);
+    assert.ok(!current.includes('user-token'));
+  }
+});
 test('Groq starts require authentication and the voice quota without needing an OpenAI key', async () => {
   const s = setup([json({ id: 'a' }), json({ allowed: true })]);
   assert.deepEqual(await s.service('Bearer real-user-token', { action: 'start' }), { ready: true });
