@@ -96,12 +96,12 @@
     };
   };
 
-  const credentialsForm = () => `<form id="admin-credentials" class="fr"><label for="admin-username">Admin username</label><input id="admin-username" autocomplete="username" required pattern="[a-z](?:[a-z0-9_]|-){2,31}" maxlength="32" value="${esc(PTIdentity.username(PTCloud.user))}"><label for="admin-current">Current password</label><input id="admin-current" type="password" autocomplete="current-password" required maxlength="128"><label for="admin-password">New password (at least 12 characters)</label><input id="admin-password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required><label for="admin-confirm">Confirm new password</label><input id="admin-confirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" required><button class="bt" type="submit">Save login credentials</button><p id="admin-credential-status" role="status"></p></form>`;
+  const credentialsForm = () => `<form id="admin-credentials" class="fr"><label for="admin-email">Admin email address</label><input id="admin-email" type="email" autocomplete="email" required maxlength="254" value="${esc(PTCloud.user?.email || '')}"><label for="admin-current">Current password</label><input id="admin-current" type="password" autocomplete="current-password" required maxlength="128"><label for="admin-password">New password (at least 12 characters)</label><input id="admin-password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required><label for="admin-confirm">Confirm new password</label><input id="admin-confirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" required><button class="bt" type="submit">Save login credentials</button><p id="admin-credential-status" role="status"></p></form>`;
   V.admin = () => {
     if (!isAdmin()) return page('Admin Dashboard', '', '<p>Administrator access required.</p>');
     const forced = PTIdentity.mustChange(PTCloud.user);
     return page('Admin Dashboard', 'Manage the presentation library and your administrator login.',
-      sec(forced ? 'SECURE YOUR ADMIN ACCOUNT' : 'LOGIN CREDENTIALS', 1, `<p>${forced ? 'Change the initial password before managing presentations.' : 'Change your username and password here. Your account and library ownership stay the same.'}</p>${credentialsForm()}`) + (forced ? '' :
+      sec(forced ? 'SECURE YOUR ADMIN ACCOUNT' : 'LOGIN CREDENTIALS', 1, `<p>${forced ? 'Change the initial password before managing presentations.' : 'Change your email address and password here. Your account and library ownership stay the same.'}</p>${credentialsForm()}`) + (forced ? '' :
       sec('ADD A LIBRARY PRESENTATION', 2, `<form id="admin-upload" class="fr"><label for="admin-title">Title</label><input id="admin-title" required minlength="2" maxlength="80"><label for="admin-description">Description</label><textarea id="admin-description" maxlength="500" rows="2"></textarea><label for="admin-category">Topic</label><input id="admin-category" required maxlength="40" value="General"><label for="admin-target">Practice length (minutes)</label><input id="admin-target" type="number" min="1" max="10" value="3" required><label for="admin-file">Presentation file (PPTX or PDF, up to 50 MB)</label><input id="admin-file" type="file" accept=".pptx,.pdf" required><p class="hint">PDF preserves the slide layout. PPTX provides a text preview in practice. Add content you have permission to share with students.</p><button class="bt" type="submit">Add as draft</button><p id="admin-upload-status" role="status"></p></form>`) +
       sec('LIBRARY PRESENTATIONS', 3, '<p id="admin-catalog-status" role="status">Loading library...</p><div id="admin-catalog" class="library-admin-list"></div>')));
   };
@@ -115,17 +115,17 @@
       event.preventDefault(); const form = event.currentTarget, button = form.querySelector('button'), note = $('admin-credential-status');
       const password = $('admin-password').value;
       if (password !== $('admin-confirm').value) return status(note, 'The new passwords do not match.');
-      const username = $('admin-username').value.trim().toLowerCase();
+      const email = $('admin-email').value.trim().toLowerCase();
       button.disabled = true; status(note, 'Updating your login...');
       try {
         const { data } = await PTCloud.client.auth.getSession();
         if (!data.session) throw Error('Please sign in again.');
-        const response = await fetch('/api/admin', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + data.session.access_token }, body: JSON.stringify({ username, currentPassword: $('admin-current').value, password }) });
+        const response = await fetch('/api/admin', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + data.session.access_token }, body: JSON.stringify({ email, currentPassword: $('admin-current').value, password }) });
         const result = await response.json(); if (!response.ok) throw Error(result.message || 'Could not update your login.');
         // Reauthenticate with the changed credentials so refreshed claims unlock library writes.
-        const signed = await PTCloud.client.auth.signInWithPassword({ email: PTIdentity.email(username), password });
+        const signed = await PTCloud.client.auth.signInWithPassword({ email, password });
         form.reset();
-        if (signed.error) { status(note, 'Credentials saved. Sign out, then sign in with your new username and password.'); return; }
+        if (signed.error) { status(note, 'Credentials saved. Sign out, then sign in with your new email address and password.'); return; }
         PTCloud.user = signed.data.user; S.u.email = signed.data.user.email; go('admin'); toast('Admin login updated.');
       } catch (e) { status(note, e.message || 'Could not update your login. Please retry.'); }
       finally { button.disabled = false; }

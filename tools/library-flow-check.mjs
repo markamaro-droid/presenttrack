@@ -66,7 +66,7 @@ export async function checkLibrary({ evaluate, call }) {
  assert.equal(await evaluate('podium.ext.S.pres.length'),before+1);
  assert.equal(await evaluate('libraryFiles.size'),2);
  assert.match(await evaluate(`document.getElementById('library-action-status').textContent`),/Could not save/);
- await evaluate(`PTCloud.saveNow=async()=>({});PTCloud.user={id:'admin-preview',email:'admin@admin.presenttrack.invalid',app_metadata:{role:'admin',must_change_password:true}};podium.ext.go('library')`);
+ await evaluate(`PTCloud.saveNow=async()=>({});PTCloud.user={id:'admin-preview',email:'markamaro1234567@gmail.com',app_metadata:{role:'admin',must_change_password:true}};podium.ext.go('library')`);
  assert.equal(await evaluate('podium.ext.S.view'),'admin','initial admin must change password');
  assert.equal(await evaluate(`!!document.getElementById('admin-credentials')`),true);
  assert.equal(await evaluate(`!!document.getElementById('admin-upload')`),false);
@@ -85,10 +85,10 @@ export async function checkLibrary({ evaluate, call }) {
  const originalFetch=window.fetch;
  window.fetch=async(url,opts)=>{if(url==='/api/admin'){window.credentialRequest=JSON.parse(opts.body);return new Response(JSON.stringify({updated:true}))};return originalFetch(url,opts)};
  PTCloud.client.auth={getSession:async()=>({data:{session:{access_token:'mock-token'}}}),signInWithPassword:async args=>{window.newLogin=args;return{data:{user:{id:'admin-preview',email:args.email,app_metadata:{role:'admin',must_change_password:false}}}}}};
- document.getElementById('admin-username').value='newowner';document.getElementById('admin-current').value='old-password';document.getElementById('admin-password').value='new-test-password-123';document.getElementById('admin-confirm').value='new-test-password-123';document.getElementById('admin-credentials').dispatchEvent(new Event('submit',{cancelable:true}));
+ document.getElementById('admin-email').value='newowner@example.com';document.getElementById('admin-current').value='old-password';document.getElementById('admin-password').value='new-test-password-123';document.getElementById('admin-confirm').value='new-test-password-123';document.getElementById('admin-credentials').dispatchEvent(new Event('submit',{cancelable:true}));
  })()`);
  await wait(); assert.equal(await evaluate('credentialRequest.currentPassword'),'old-password');
- assert.equal(await evaluate('newLogin.email'),'newowner@admin.presenttrack.invalid');
+ assert.equal(await evaluate('newLogin.email'),'newowner@example.com');
  assert.equal(await evaluate(`document.getElementById('admin-password').value`),'');
  await evaluate(`PTCloud.user={id:'preview'};podium.ext.go('library')`);
  await wait(); assert.equal(await evaluate(`document.querySelectorAll('.library-card').length`),3,'hidden deck excluded from student catalog');
@@ -101,10 +101,10 @@ export async function checkLibrary({ evaluate, call }) {
  await evaluate(`(()=>{
  window.adminWelcomeCalls=0;podium.welcomePrepare=()=>adminWelcomeCalls++;
  PTCloud.signIn=async(email,password)=>{window.portalLogin={email,password};PTCloud.user={id:'admin-preview',email,app_metadata:{role:'admin',must_change_password:true}};PTCloud.row=null;return{name:'Administrator'}};
- document.getElementById('le').value='admin';document.getElementById('lp').value='admin1234';document.getElementById('loginForm').dispatchEvent(new Event('submit',{cancelable:true}));
+ document.getElementById('le').value='markamaro1234567@gmail.com';document.getElementById('lp').value='admin1234';document.getElementById('loginForm').dispatchEvent(new Event('submit',{cancelable:true}));
  })()`);
  for(let i=0;i<60;i++){if(await evaluate(`podium.ext.S.view==='admin'&&!document.getElementById('app').hidden`))break;await new Promise(r=>setTimeout(r,100));}
- assert.equal(await evaluate('portalLogin.email'),'admin@admin.presenttrack.invalid');
+ assert.equal(await evaluate('portalLogin.email'),'markamaro1234567@gmail.com');
  assert.equal(await evaluate('podium.ext.S.view'),'admin','same portal routes administrator to admin dashboard');
  assert.equal(await evaluate('adminWelcomeCalls'),0,'administrator does not consume student greeting quota');
  console.log('Passed: library search, detail, saved copy, reopen, deduplication, rollback, admin guard, drafts, publishing, credentials, student visibility and responsive layout.');
