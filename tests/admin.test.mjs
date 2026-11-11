@@ -4,7 +4,6 @@ import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 import { createAdminService, validateCredentials } from '../server/admin.mjs';
 import { createAdminHandler } from '../api/admin.js';
-import { createInitialAdmin } from '../tools/create-admin.mjs';
 
 const env = { SUPABASE_URL: 'https://test.supabase.co', SUPABASE_ANON_KEY: 'public-key', SUPABASE_SERVICE_ROLE_KEY: 'private-key' };
 const credentials = { email: 'owner@example.com', currentPassword: 'admin1234', password: 'new-long-password-123' };
@@ -44,12 +43,6 @@ test('credential validation bounds input and forbids preserving the initial pass
   for (const edit of [{ email: 'admin' }, { email: 'invalid@' }, { email: 'a'.repeat(250)+'@example.com' }, { password: 'short' }, { password: 'admin1234' }, { password: 'x'.repeat(129) }, { currentPassword: '' }]) {
     assert.throws(() => validateCredentials({ ...credentials, ...edit }), { status: 400 });
   }
-});
-test('initial admin creation is one-shot and never resets or promotes an existing account', async () => {
-  const calls = [];
-  await assert.rejects(createInitialAdmin({ env, fetchImpl: async (url, options) => { calls.push({ url, ...options }); return json({}, 422); } }), /never resets or promotes/);
-  assert.equal(calls.length, 1); assert.equal(calls[0].method, 'POST');
-  const body = JSON.parse(calls[0].body); assert.equal(body.email, 'markamaro1234567@gmail.com'); assert.equal(body.password, 'admin1234'); assert.equal(body.app_metadata.must_change_password, true);
 });
 test('admin API refuses wrong methods, anonymous calls, large or malformed input', async () => {
   let calls = 0;

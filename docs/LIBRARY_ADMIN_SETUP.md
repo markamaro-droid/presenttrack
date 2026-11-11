@@ -14,11 +14,16 @@ The app now includes Library in the student sidebar, three original five-slide d
    ```powershell
    node --env-file=.env.local tools/create-admin.mjs
    ```
-   This creates the requested initial admin email **markamaro1234567@gmail.com**, password **admin1234** using Supabase Auth. It refuses to reset or promote an existing account. Do not rerun it to reset a changed password. If your Supabase password policy rejects this initial password, create the account with a stronger password through your trusted server-side setup instead of weakening the policy.
+   This creates the requested initial admin email **markamaro1234567@gmail.com**, password **admin1234** using Supabase Auth. If the email already belongs to a regular account, the script explains that you must explicitly adopt it with the command below. Re-running setup for an existing admin leaves its password unchanged. If your Supabase password policy rejects this initial password, create the account with a stronger password through your trusted server-side setup instead of weakening the policy.
+   To turn the existing account for this exact email into the initial admin, preserving its account ID, profile, presentations and reports, run:
+   ```powershell
+   node --env-file=.env.local tools/create-admin.mjs --adopt-existing
+   ```
+   This explicitly gives that account the admin role and sets `admin1234` as its initial password. It requires a password change at first admin login. It does not reset an account that is already an admin.
 4. Commit/push the changed app files and wait for the new Vercel deployment to become Ready. The SQL files in Git are **not applied by Vercel**.
 5. Sign in through the usual login form using `markamaro1234567@gmail.com` and `admin1234`. The Admin Dashboard requires a new password of at least 12 characters before library management is available. You can change the admin email address there too. Keep these credentials private. Student accounts still sign in with email.
 
-Both administrators and students sign in with their full email address. Admin access is determined by server-controlled `app_metadata`, never by matching an email address or editable `user_metadata`. If you already created the previous admin account, sign in with its full email `admin@admin.presenttrack.invalid`, then change it in the Admin Dashboard. If the requested Gmail address already belongs to an account, provisioning will stop rather than overwrite its password or role; the site owner must resolve the existing account through trusted Supabase Auth administration.
+Both administrators and students sign in with their full email address. Admin access is determined by server-controlled `app_metadata`, never by matching an email address or editable `user_metadata`. If you already created the previous admin account, sign in with its full email `admin@admin.presenttrack.invalid`, then change it in the Admin Dashboard. If the requested Gmail address already belongs to a regular account, the site owner can use `--adopt-existing` locally with the service-role key. Ordinary setup never silently changes an existing account. The tool reports safe HTTP/error codes for key, password-policy and database failures; raw provider errors and keys are not printed.
 
 The browser checks which navigation to display; database row-level security independently checks the actual account's admin role and initial-password flag for all catalog and storage writes. Existing private student data stays private. No public bootstrap endpoint is provided.
 
