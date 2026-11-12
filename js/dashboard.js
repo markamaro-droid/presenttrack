@@ -3,7 +3,7 @@ window.podium={};
 (()=>{
 const ic=p=>`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${p}"/></svg>`;
 const I={dash:'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',decks:'M3 4h18v12H3zM8 20h8M12 16v4',prac:'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3',rep:'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7',perf:'M4 20V10M10 20V4M16 20v-7M22 20H2',prog:'M3 17l6-6 4 4 8-8M15 7h6v6',hist:'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',note:'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4',set:'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M14 4v4M8 10v4M16 16v4',help:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6M12 17h.01',out:'M9 4H5v16h4M16 8l4 4-4 4M20 12H9',up:'M12 16V4m0 0l-4 4m4-4l4 4M4 20h16',plus:'M12 5v14M5 12h14',vid:'M3 6h12v12H3zM15 10l6-3v10l-6-3',goal:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 12h.01',pace:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',fill:'M4 5h16v11H9l-5 4z',pause:'M8 5v14M16 5v14',star:'M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.8 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z',search:'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5'};
-I.eval=I.goal;I.library='M4 3h6v18H4zM14 3h6v18h-6zM4 7h6M14 7h6';I.admin=I.set;
+I.eval=I.goal;I.library='M4 3h6v18H4zM14 3h6v18h-6zM4 7h6M14 7h6';I.admin=I.set;I.adminUsers=I.dash;
 const NAV=[['MAIN',[['dash','Dashboard'],['eval','Evaluation'],['decks','My Presentations'],['library','Library'],['perf','Performance'],['prog','Progress'],['hist','Practice History']]],['SYSTEM',[['note','Notifications'],['set','Settings']]]];
 const PARENT={pdet:'decks',create:'decks',up:'decks',ready:'decks',prac:'decks',rec:'decks',weak:'decks',assess:'decks',assres:'decks',rdet:'hist',rep:'hist',coach:'perf',goals:'prog'};
 const $$=q=>[...document.querySelectorAll(q)];
@@ -533,7 +533,7 @@ function flash(msg,kind,robotMsg){S.flash=msg;robot('success',robotMsg||'Nice wo
 /* ---------- shell: sidebar, top bar ---------- */
 function nav(){
   const act=PARENT[S.view]||S.view,none=!S.pres.length&&!S.ses.length,hl=T.on&&T.steps[T.i]?T.steps[T.i].nav:null;
-  const navigation=window.PTIdentity?.isAdmin(window.PTCloud?.user)?[['ADMIN',[['admin','Admin Dashboard'],['library','Library']]]]:NAV;
+  const navigation=window.PTIdentity?.isAdmin(window.PTCloud?.user)?[['ADMIN',[['admin','Admin Dashboard'],['adminUsers','Users'],['library','Library']]]]:NAV;
   $('nav').innerHTML=navigation.map(([g,items])=>`<p class="ng">${g}</p>`+items.map(([k,l])=>{const dis=false;return `<button class="nv${act===k?' on':''}${hl===k?' tour-hl':''}" data-go="${k}" type="button"${act===k?' aria-current="page"':''}${dis?' disabled title="Complete a practice session first"':''}>${ic(I[k])}<span>${l}</span>${k==='note'&&unread()?`<em>${unread()}</em>`:''}</button>`}).join('')).join('');
   $('help').innerHTML=ic(I.help)+'Help & Support';$('lo').innerHTML=ic(I.out)+'Logout';syncGuide();
 }
@@ -547,8 +547,8 @@ function renderTop(){
 const renderShell=()=>{nav();renderTop()};
 function go(v,arg){
   const admin=window.PTIdentity?.isAdmin(window.PTCloud?.user);
-  if(v==='admin'&&!admin)v='library';
-  if(admin&&PTIdentity.mustChange(PTCloud.user))v='admin';
+  if(['admin','adminUsers'].includes(v)&&!admin)v='library';
+  if(admin&&PTIdentity.mustChange(PTCloud.user)&&!['admin','library','libraryDetail'].includes(v)){toast('Change your initial password to open system monitoring. Library browsing is available.');v='admin';}
   window.PTVoice?.active&&PTVoice.stop();
   try{podium.practiceCleanup?.();podium.practiceCleanup=null;podium.leave&&podium.leave()}catch(e){}
   clearInterval(tm);S.view=v;S.arg=arg;

@@ -44,3 +44,26 @@ Analysis errors remain visible beside the slides and provide a **Retry analysis*
 - Optional staging-only database checks: `supabase/tests/library-access.sql` and `supabase/tests/practice-quota.sql`; both roll back their test data.
 
 Regenerate the original PPTX/PDF assets and seed with `python tools/build-library.py`. Live authentication, RLS and storage must also be verified against your configured Supabase project after setup; local mocks do not prove that a migration has been applied.
+
+## System monitoring update
+
+Apply `supabase/migrations/20261111_admin_monitoring.sql` once in the Supabase SQL Editor, then push/deploy the updated application. No account recreation is needed. The existing server-only `SUPABASE_SERVICE_ROLE_KEY` is required in Vercel.
+
+- **Admin Dashboard:** total users, student/admin counts, new registrations and recent sign-ins, evaluation completion, saved presentations and recorded-audio practice reports; published/draft library counts; seven-day registration chart and 24-hour quota usage. Configuration checks report key presence, not provider uptime or credits.
+- **Users:** search by name/email, filter by role or evaluation completion, and browse 25 accounts per page. Shows registration/sign-in dates, email confirmation/suspension status and presentation/report counts. No transcripts or private presentation content are returned.
+- **Library:** secured administrators can add, edit, publish/hide and preview decks here. Before changing the initial password, the same sidebar link opens the published library for browsing and explains how to unlock publishing. It no longer silently redirects back to the dashboard.
+- **Account settings:** expand Admin account settings in the overview to change credentials. Password setup remains required for monitoring and library writes.
+
+Metrics count registered, non-anonymous accounts. Recent sign-in is not a live online count; saved presentations include library copies; practice counts exclude evaluation and demo/legacy entries. AI usage counts attempts accepted by the quota, including later failures. Dates on the registration chart use UTC. Refresh the overview to fetch current data. Figures come from stored workspace state and are operational indicators, not tamper-proof audit records.
+
+The database monitoring function grants execution only to the server service role. `/api/admin` verifies the signed-in caller's current server-controlled admin role and password-change flag before invoking it. Existing student RLS policies stay in force. If the migration is missing, the UI gives the exact setup filename instead of displaying zero counts.
+
+Local SQL verification uses an isolated temporary PostgreSQL engine and never connects to Supabase:
+
+```powershell
+$sqlTestDir = Join-Path $env:TEMP 'presenttrack-admin-sql-check'
+npm install --prefix $sqlTestDir --no-save --ignore-scripts --no-audit --no-fund @electric-sql/pglite
+node --liftoff-only --no-wasm-tier-up --wasm-lazy-compilation --wasm-num-compilation-tasks=1 tools/check-admin-monitoring-sql.mjs
+```
+
+This check executes the migration against mock tables and verifies totals, search, pagination, malformed legacy state, private-field exclusion and function permissions. It does not verify that the live project has applied the migration.

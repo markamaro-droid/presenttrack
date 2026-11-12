@@ -67,10 +67,12 @@ export async function checkLibrary({ evaluate, call }) {
  assert.equal(await evaluate('libraryFiles.size'),2);
  assert.match(await evaluate(`document.getElementById('library-action-status').textContent`),/Could not save/);
  await evaluate(`PTCloud.saveNow=async()=>({});PTCloud.user={id:'admin-preview',email:'markamaro1234567@gmail.com',app_metadata:{role:'admin',must_change_password:true}};podium.ext.go('library')`);
- assert.equal(await evaluate('podium.ext.S.view'),'admin','initial admin must change password');
+ assert.equal(await evaluate('podium.ext.S.view'),'library','initial admin can browse published library');
+ assert.match(await evaluate(`document.getElementById('view').textContent`),/Change initial password/);
+ await evaluate(`podium.ext.go('admin')`);
  assert.equal(await evaluate(`!!document.getElementById('admin-credentials')`),true);
  assert.equal(await evaluate(`!!document.getElementById('admin-upload')`),false);
- await evaluate(`PTCloud.user.app_metadata.must_change_password=false;podium.ext.go('admin')`);
+ await evaluate(`PTCloud.user.app_metadata.must_change_password=false;podium.ext.go('library')`);
  await wait();
  assert.equal(await evaluate(`document.querySelectorAll('.library-editor').length`),3);
  if(process.env.CHECK_LIBRARY_ASSETS){const shot=await call('Page.captureScreenshot',{format:'png'});await writeFile(path.join(tmpdir(),'presenttrack-admin.png'),Buffer.from(shot.data,'base64'));}
@@ -81,9 +83,10 @@ export async function checkLibrary({ evaluate, call }) {
  assert.equal(await evaluate('libraryRows.at(-1).published'),false);
  await evaluate(`(()=>{const f=[...document.querySelectorAll('.library-editor')].at(-1);f.elements.published.checked=true;f.dispatchEvent(new Event('submit',{cancelable:true}))})()`);
  await wait(); assert.equal(await evaluate('libraryRows.at(-1).published'),true);
+ await evaluate(`podium.ext.go('admin')`);
  await evaluate(`(()=>{
  const originalFetch=window.fetch;
- window.fetch=async(url,opts)=>{if(url==='/api/admin'){window.credentialRequest=JSON.parse(opts.body);return new Response(JSON.stringify({updated:true}))};return originalFetch(url,opts)};
+ window.fetch=async(url,opts)=>{if(url==='/api/admin'){const body=JSON.parse(opts.body);if(body.action==='overview')return new Response(JSON.stringify({message:'Monitoring fixture not loaded yet'}),{status:503});window.credentialRequest=body;return new Response(JSON.stringify({updated:true}))};return originalFetch(url,opts)};
  PTCloud.client.auth={getSession:async()=>({data:{session:{access_token:'mock-token'}}}),signInWithPassword:async args=>{window.newLogin=args;return{data:{user:{id:'admin-preview',email:args.email,app_metadata:{role:'admin',must_change_password:false}}}}}};
  document.getElementById('admin-email').value='newowner@example.com';document.getElementById('admin-current').value='old-password';document.getElementById('admin-password').value='new-test-password-123';document.getElementById('admin-confirm').value='new-test-password-123';document.getElementById('admin-credentials').dispatchEvent(new Event('submit',{cancelable:true}));
  })()`);
@@ -98,6 +101,7 @@ export async function checkLibrary({ evaluate, call }) {
    assert.ok(await evaluate(`document.documentElement.scrollWidth<=innerWidth+2`),'library fits viewport');
    if(process.env.CHECK_LIBRARY_ASSETS){const shot=await call('Page.captureScreenshot',{format:'png'});await writeFile(path.join(tmpdir(),'presenttrack-library-'+width+'.png'),Buffer.from(shot.data,'base64'));}
  }
+ await (await import('./admin-monitor-check.mjs')).checkAdminMonitoring({evaluate,call});
  await evaluate(`(()=>{
  window.adminWelcomeCalls=0;podium.welcomePrepare=()=>adminWelcomeCalls++;
  PTCloud.signIn=async(email,password)=>{window.portalLogin={email,password};PTCloud.user={id:'admin-preview',email,app_metadata:{role:'admin',must_change_password:true}};PTCloud.row=null;return{name:'Administrator'}};

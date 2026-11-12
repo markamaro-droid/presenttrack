@@ -64,3 +64,31 @@ test('email alone and editable metadata never grant administrator authority', as
 test('admin email is normalized before updating the account', () => {
   assert.equal(validateCredentials({ ...credentials, email: '  Owner@Example.COM ' }).email, 'owner@example.com');
 });
+
+test('monitoring authenticates administrator, checks password setup and uses server-only RPC', async () => {
+  const report = { summary: { users: 40 }, users: [{ email: 'student@example.com' }], pagination: { total: 40 } };
+  const s = setup([json({ ...admin, app_metadata: { role: 'admin', must_change_password: false } }), json(report)]);
+  const result = await s.service('Bearer token', { action: 'overview', page: 2, query: ' student ', filter: 'pending' });
+  assert.equal(result.summary.users,40); assert.equal(s.calls.length,2);
+  assert.match(s.calls[1].url,/\/rest\/v1\/rpc\/admin_system_overview$/);
+  assert.deepEqual(JSON.parse(s.calls[1].body),{p_page:2,p_query:'student',p_filter:'pending'});
+  assert.equal(s.calls[1].headers.apikey,'private-key');
+  assert.equal(result.configuration.database,true); assert.equal(result.configuration.transcription,false);
+  assert.doesNotMatch(JSON.stringify(result),/private-key|public-key/);
+});
+test('student and initial-password admin cannot read system monitoring', async () => {
+  for (const user of [{id:'student',user_metadata:{role:'admin'}},admin,{...admin,app_metadata:{role:'admin'}}]) {
+    const s=setup([json(user)]);
+    await assert.rejects(s.service('Bearer token',{action:'overview'}),{status:403});assert.equal(s.calls.length,1);
+  }
+});
+test('monitoring validates filters and distinguishes missing migrations from empty counts', async () => {
+  const user={...admin,app_metadata:{role:'admin',must_change_password:false}};
+  for(const body of [{page:0},{page:1.5},{query:'x'.repeat(121)},{filter:'drop table'}]) {
+    const s=setup([json(user)]);await assert.rejects(s.service('Bearer token',{action:'overview',...body}),{status:400});assert.equal(s.calls.length,1);
+  }
+  const missing=setup([json(user),json({},404)]);
+  await assert.rejects(missing.service('Bearer token',{action:'overview'}),/20261111_admin_monitoring.sql/);
+  const broken=setup([json(user),json({})]);
+  await assert.rejects(broken.service('Bearer token',{action:'overview'}),{status:503});
+});

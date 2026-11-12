@@ -19,7 +19,7 @@ export function createAdminHandler(service = createAdminService()) {
       if (!body || Buffer.byteLength(body) > 4096) return send(413, { message: 'Request too large.' });
       let parsed; try { parsed = JSON.parse(body); } catch { return send(400, { message: 'Invalid JSON.' }); }
       send(200, await service(req.headers.authorization, parsed));
-    } catch (error) { send(error instanceof ChatError ? error.status : 503, { message: error instanceof ChatError ? error.message : 'Account updates are unavailable. Please retry shortly.' }); }
+    } catch (error) { send(error instanceof ChatError ? error.status : 503, { message: error instanceof ChatError ? error.message : 'Admin tools are unavailable. Please retry shortly.' }); }
   };
 }
 export default createAdminHandler();

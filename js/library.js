@@ -36,9 +36,10 @@
     const url = URL.createObjectURL(file), a = document.createElement('a');
     a.href = url; a.download = file.name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
-  V.library = () => page('Presentation Library', 'No slides of your own? Choose a ready-made presentation and make it your next practice.',
-    `<section class="pn library-panel"><label for="library-search">Find a presentation</label><input id="library-search" type="search" placeholder="Search titles, topics or descriptions"><p id="library-status" role="status">Loading presentations...</p><div class="library-grid" id="library-grid"></div></section>`);
+  V.library = () => canManage() ? page('Library management', 'Upload presentations, edit details and control what students can see.', managementPanels()) : page('Presentation Library', 'No slides of your own? Choose a ready-made presentation and make it your next practice.',
+    `<section class="pn library-panel">${isAdmin() ? '<p class="basis">You can browse published decks. <button class="bt gh sm" type="button" data-go="admin">Change initial password to enable publishing</button></p>' : ''}<label for="library-search">Find a presentation</label><input id="library-search" type="search" placeholder="Search titles, topics or descriptions"><p id="library-status" role="status">Loading presentations...</p><div class="library-grid" id="library-grid"></div></section>`);
   B.library = async () => {
+    if (canManage()) return bindAdminLibrary();
     const root = $('library-grid'), note = $('library-status'), identity = owner(); let catalog;
     try { catalog = await rows(); } catch (e) { return status(note, e.message); }
     if (!root.isConnected || identity !== owner()) return;
@@ -54,15 +55,16 @@
   };
   podium.ext.PARENT.libraryDetail = 'library';
   V.libraryDetail = row => !row ? V.library() : page(esc(row.title), esc(row.description),
-    `<section class="pn library-detail"><span class="library-tag">${esc(row.category)}</span><p>${Math.round(row.target_seconds / 60)} minute practice. ${row.preview_path || /\.pdf$/i.test(row.file_name) ? 'The slide layout is available in practice.' : 'PowerPoint practice uses a text-only preview.'}</p><div class="acts"><button class="bt" id="library-use" type="button">Use for practice</button><button class="bt gh" id="library-download" type="button">Download ${/\.pdf$/i.test(row.file_name) ? 'PDF' : 'PPTX'}</button></div><p id="library-action-status" role="status"></p><ol class="library-slides">${(row.context?.pages || []).map((text, i) => `<li><h3>Slide ${i + 1}</h3><p>${esc(text)}</p></li>`).join('')}</ol></section>`);
+    `<section class="pn library-detail"><span class="library-tag">${esc(row.category)}</span><p>${Math.round(row.target_seconds / 60)} minute practice. ${row.preview_path || /\.pdf$/i.test(row.file_name) ? 'The slide layout is available in practice.' : 'PowerPoint practice uses a text-only preview.'}</p><div class="acts">${isAdmin() ? '<button class="bt" type="button" data-go="library">Back to library management</button>' : '<button class="bt" id="library-use" type="button">Use for practice</button>'}<button class="bt gh" id="library-download" type="button">Download ${/\.pdf$/i.test(row.file_name) ? 'PDF' : 'PPTX'}</button></div><p id="library-action-status" role="status"></p><ol class="library-slides">${(row.context?.pages || []).map((text, i) => `<li><h3>Slide ${i + 1}</h3><p>${esc(text)}</p></li>`).join('')}</ol></section>`);
   B.libraryDetail = row => {
-    if (!row || !$('library-use')) return;
+    if (!row || !$('library-download')) return;
     const note = $('library-action-status');
     $('library-download').onclick = async event => {
       const button = event.currentTarget; button.disabled = true;
       try { download(await fileFor(row)); status(note, 'Download ready.'); } catch (e) { status(note, e.message); }
       finally { button.disabled = false; }
     };
+    if (!$('library-use')) return;
     $('library-use').onclick = async event => {
       if (isAdmin()) { status(note, 'Use a student account to record practice. Your admin account manages the library.'); return; }
       if (pendingEval()) { toast('Complete your speaking evaluation first, then choose a library presentation.'); go('eval'); return; }
@@ -97,13 +99,14 @@
   };
 
   const credentialsForm = () => `<form id="admin-credentials" class="fr"><label for="admin-email">Admin email address</label><input id="admin-email" type="email" autocomplete="email" required maxlength="254" value="${esc(PTCloud.user?.email || '')}"><label for="admin-current">Current password</label><input id="admin-current" type="password" autocomplete="current-password" required maxlength="128"><label for="admin-password">New password (at least 12 characters)</label><input id="admin-password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required><label for="admin-confirm">Confirm new password</label><input id="admin-confirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" required><button class="bt" type="submit">Save login credentials</button><p id="admin-credential-status" role="status"></p></form>`;
+  const managementPanels = () => (
+      sec('ADD A LIBRARY PRESENTATION', 2, `<form id="admin-upload" class="fr"><label for="admin-title">Title</label><input id="admin-title" required minlength="2" maxlength="80"><label for="admin-description">Description</label><textarea id="admin-description" maxlength="500" rows="2"></textarea><label for="admin-category">Topic</label><input id="admin-category" required maxlength="40" value="General"><label for="admin-target">Practice length (minutes)</label><input id="admin-target" type="number" min="1" max="10" value="3" required><label for="admin-file">Presentation file (PPTX or PDF, up to 50 MB)</label><input id="admin-file" type="file" accept=".pptx,.pdf" required><p class="hint">PDF preserves the slide layout. PPTX provides a text preview in practice. Add content you have permission to share with students.</p><button class="bt" type="submit">Add as draft</button><p id="admin-upload-status" role="status"></p></form>`) +
+      sec('LIBRARY PRESENTATIONS', 3, '<p id="admin-catalog-status" role="status">Loading library...</p><div id="admin-catalog" class="library-admin-list"></div>'));
   V.admin = () => {
     if (!isAdmin()) return page('Admin Dashboard', '', '<p>Administrator access required.</p>');
     const forced = PTIdentity.mustChange(PTCloud.user);
-    return page('Admin Dashboard', 'Manage the presentation library and your administrator login.',
-      sec(forced ? 'SECURE YOUR ADMIN ACCOUNT' : 'LOGIN CREDENTIALS', 1, `<p>${forced ? 'Change the initial password before managing presentations.' : 'Change your email address and password here. Your account and library ownership stay the same.'}</p>${credentialsForm()}`) + (forced ? '' :
-      sec('ADD A LIBRARY PRESENTATION', 2, `<form id="admin-upload" class="fr"><label for="admin-title">Title</label><input id="admin-title" required minlength="2" maxlength="80"><label for="admin-description">Description</label><textarea id="admin-description" maxlength="500" rows="2"></textarea><label for="admin-category">Topic</label><input id="admin-category" required maxlength="40" value="General"><label for="admin-target">Practice length (minutes)</label><input id="admin-target" type="number" min="1" max="10" value="3" required><label for="admin-file">Presentation file (PPTX or PDF, up to 50 MB)</label><input id="admin-file" type="file" accept=".pptx,.pdf" required><p class="hint">PDF preserves the slide layout. PPTX provides a text preview in practice. Add content you have permission to share with students.</p><button class="bt" type="submit">Add as draft</button><p id="admin-upload-status" role="status"></p></form>`) +
-      sec('LIBRARY PRESENTATIONS', 3, '<p id="admin-catalog-status" role="status">Loading library...</p><div id="admin-catalog" class="library-admin-list"></div>')));
+    const account = sec(forced ? 'SECURE YOUR ADMIN ACCOUNT' : 'LOGIN CREDENTIALS', 1, `<p>${forced ? 'Change the initial password to manage presentations and view system monitoring. You can browse published presentations in Library now.' : 'Change your email address and password here.'}</p>${credentialsForm()}`);
+    return page('Admin Dashboard', 'Monitor accounts, practice activity and the presentation library.', forced ? account : (window.PTAdminMonitor?.overviewHTML() || '') + `<details class="pn admin-account"><summary>Admin account settings</summary>${account}</details>`);
   };
   async function loadParser(pdf) {
     if (pdf ? window.pdfjsLib : window.JSZip) return;
@@ -130,7 +133,9 @@
       } catch (e) { status(note, e.message || 'Could not update your login. Please retry.'); }
       finally { button.disabled = false; }
     };
-    if (!canManage()) return;
+    if (canManage()) window.PTAdminMonitor?.mountOverview();
+  };
+  async function bindAdminLibrary() {
     const root = $('admin-catalog'), note = $('admin-catalog-status'), identity = owner();
     $('admin-upload').onsubmit = async event => {
       event.preventDefault(); const form = event.currentTarget, button = form.querySelector('button'), note = $('admin-upload-status'); let path;
@@ -148,21 +153,22 @@
         if (uploaded.error) throw Error('The library upload failed. Check your admin access and file size.');
         const saved = await PTCloud.client.from('presentation_library').insert({ id, title, description, category, target_seconds: target, source: 'upload', file_path: path, file_name: file.name, file_size: file.size, context, published: false });
         if (saved.error) throw Error('Could not save the library entry. Check its title, topic and duration.');
-        path = null; if (form.isConnected && identity === owner()) { go('admin'); toast('Draft added. Publish it when ready.'); }
+        path = null; if (form.isConnected && identity === owner()) { go('library'); toast('Draft added. Publish it when ready.'); }
       } catch (e) { if (path && owner() === identity) await bucket().remove([path]).catch(() => {}); status(note, e.message); }
       finally { button.disabled = false; }
     };
     try {
       const catalog = await rows(); if (!root.isConnected || identity !== owner()) return;
       status(note, `${catalog.length} presentations · ${catalog.filter(row => row.published).length} published`);
-      root.innerHTML = catalog.map(row => `<form class="library-editor" data-library-edit="${esc(row.id)}"><h3>${esc(row.title)} <small>${row.published ? 'Published' : 'Draft / hidden'}</small></h3><label>Title<input name="title" required minlength="2" maxlength="80" value="${esc(row.title)}"></label><label>Description<textarea name="description" maxlength="500">${esc(row.description)}</textarea></label><label>Topic<input name="category" maxlength="40" required value="${esc(row.category)}"></label><label>Practice length (minutes)<input name="minutes" type="number" min="1" max="10" required value="${row.target_seconds / 60}"></label><label><input name="published" type="checkbox"${row.published ? ' checked' : ''}> Published — visible to students</label><button class="bt" type="submit">Save presentation</button><p role="status"></p></form>`).join('');
+      root.innerHTML = catalog.map(row => `<form class="library-editor" data-library-edit="${esc(row.id)}"><h3>${esc(row.title)} <small>${row.published ? 'Published' : 'Draft / hidden'}</small></h3><label>Title<input name="title" required minlength="2" maxlength="80" value="${esc(row.title)}"></label><label>Description<textarea name="description" maxlength="500">${esc(row.description)}</textarea></label><label>Topic<input name="category" maxlength="40" required value="${esc(row.category)}"></label><label>Practice length (minutes)<input name="minutes" type="number" min="1" max="10" required value="${row.target_seconds / 60}"></label><label><input name="published" type="checkbox"${row.published ? ' checked' : ''}> Published — visible to students</label><div class="acts"><button class="bt" type="submit">Save presentation</button><button class="bt gh" type="button" data-admin-preview="${esc(row.id)}">Preview slides</button></div><p role="status"></p></form>`).join('');
+      root.querySelectorAll('[data-admin-preview]').forEach(button => button.onclick = () => go('libraryDetail', catalog.find(row => row.id === button.dataset.adminPreview)));
       root.querySelectorAll('form').forEach(form => form.onsubmit = async event => {
         event.preventDefault(); const button = form.querySelector('button'), note = form.querySelector('[role=status]'), fields = form.elements;
         button.disabled = true; status(note, 'Saving...');
         try {
           const { data, error } = await PTCloud.client.from('presentation_library').update({ title: fields.title.value.trim(), description: fields.description.value.trim(), category: fields.category.value.trim(), target_seconds: Number(fields.minutes.value) * 60, published: fields.published.checked }).eq('id', form.dataset.libraryEdit).select('id');
           if (error || !data?.length) throw Error('Could not save. Check your admin access and the presentation details.');
-          if (form.isConnected && identity === owner()) { go('admin'); toast('Library presentation updated.'); }
+          if (form.isConnected && identity === owner()) { go('library'); toast('Library presentation updated.'); }
         } catch (e) { status(note, e.message); } finally { button.disabled = false; }
       });
     } catch (e) { status(note, e.message); }
