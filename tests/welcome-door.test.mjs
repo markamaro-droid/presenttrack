@@ -18,6 +18,8 @@ function setup({reducedMotion=false,voice=true,narration=true,throwSpeech=false}
       getBoundingClientRect:()=>rect,
       setAttribute:(name,value)=>attributes.set(name,value),removeAttribute:name=>attributes.delete(name),
       appendChild(child){child.parentElement=this;if(child.id)elements.set(child.id,child);},
+      before(child){child.parentElement=this.parentElement;},
+      replaceWith(child){child.parentElement=this.parentElement;},
       remove(){if(elements.get(this.id)===this)elements.delete(this.id);this.removed=true;},
       querySelector(selector){
         if(!children.has(selector))children.set(selector,element(selector,selector==='.welcome-door-actor'?{left:470,top:200,width:218,height:230}:{left:180,top:180,width:164,height:260}));
@@ -31,8 +33,10 @@ function setup({reducedMotion=false,voice=true,narration=true,throwSpeech=false}
   ['bot','land','leval','bc','app'].forEach(id=>elements.set(id,element(id)));
   elements.get('app').hidden=true;
   document.body=element('body');
+  document.body.appendChild(elements.get('app'));
   document.getElementById=id=>elements.get(id)||null;
   document.createElement=()=>element('');
+  document.createComment=()=>element('placeholder');
   document.querySelector=()=>element('heading');
   document.addEventListener=(type,fn)=>listeners.set(type,fn);
   document.removeEventListener=(type,fn)=>{if(listeners.get(type)===fn)listeners.delete(type);};
@@ -71,13 +75,18 @@ test('door forms from the button before narration; approach follows playback and
   s.advance(700);assert.equal(s.poses.at(-1),'turn');assert.equal(s.navigations,0);
   s.speech.onend();assert.equal(s.overlay.dataset.phase,'entering');assert.equal(s.poses.at(-1),'enter');
   s.advance(1649);assert.equal(s.navigations,0);s.advance(1);
-  assert.equal(s.overlay.dataset.phase,'crossing');assert.equal(s.navigations,0);
-  const zoom=s.animations.at(-1);assert.equal(zoom.element.id,'.welcome-door-frame');
-  s.advance(859);assert.equal(s.navigations,0);s.advance(1);assert.equal(s.navigations,1);
-  assert.equal(zoom.cancelled,false,'portal must stay expanded during dashboard reveal');
+  assert.equal(s.overlay.dataset.phase,'crossing');assert.equal(s.navigations,1);
+  const app=s.elements.get('app'),viewport=app.parentElement;
+  assert.equal(viewport.className,'welcome-dashboard-window');assert.equal(app.inert,true);
+  const aperture=s.animations.find(a=>a.element===viewport);assert.match(aperture.frames[0].clipPath,/inset\(/);
+  assert.equal(aperture.frames.at(-1).clipPath,'inset(0px 0px 0px 0px round 0px)');
+  s.advance(1499);assert.equal(s.overlay.dataset.phase,'crossing');s.advance(1);assert.equal(s.navigations,1);
+  assert.equal(app.parentElement.id,'body');assert.equal(app.inert,false);
   assert.equal(s.overlay.dataset.morphed,'true');
   assert.equal(s.elements.get('land').inert,false);assert.equal(s.elements.get('bc').tabIndex,0);
-  s.advance(560);assert.equal(s.overlay,undefined);assert.equal(s.timers.size,0);assert.equal(zoom.cancelled,true);
+  assert.equal(s.podium.welcomeEntering(),true,'auto-tour waits until the reveal is removed');
+  s.advance(560);assert.equal(s.overlay,undefined);assert.equal(s.timers.size,0);assert.equal(aperture.cancelled,true);
+  assert.equal(s.podium.welcomeEntering(),false);
 });
 
 test('muted or unavailable narration keeps readable captions, then completes without audio',()=>{
@@ -143,7 +152,8 @@ test('cancelling or skipping during the portal morph cannot cause a late second 
     const s=setup();s.start();s.advance(850);s.speech.onstart();s.speech.onend();s.advance(1650);
     assert.equal(s.overlay.dataset.phase,'crossing');
     if(skip)s.overlay.querySelector('[data-door-skip]').onclick();else s.podium.welcomeEnterCancel();
-    s.advance(100000);assert.equal(s.navigations,skip?1:0);assert.equal(s.overlay,undefined);
+    s.advance(100000);assert.equal(s.navigations,1);assert.equal(s.overlay,undefined);
+    assert.equal(s.elements.get('app').parentElement.id,'body');assert.equal(s.elements.get('app').inert,false);
     assert.equal(s.timers.size,0);assert.ok(s.animations.every(a=>a.cancelled));
   }
 });

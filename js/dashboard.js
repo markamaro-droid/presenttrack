@@ -663,7 +663,7 @@ function toApp(v,p,direct=false){
     const beginTour=()=>{
       if(account!==S.u.email||$('app').hidden||S.view!=='dash'||T.on||!S.isNew||S.toured)return;
       // Never consume a first visit while the user is in another tab.
-      if(document.hidden){window.__auto=setTimeout(beginTour,650);return;}
+      if(document.hidden||podium.welcomeEntering?.()){window.__auto=setTimeout(beginTour,650);return;}
       startTour();
     };
     window.__auto=setTimeout(beginTour,direct?650:1400);

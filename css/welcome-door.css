@@ -114,10 +114,17 @@ html #welcome-door #bot.welcome.door-tracy { position:absolute; inset:0; width:1
 #welcome-door[data-phase="revealing"] { pointer-events:none; animation:door-reveal .36s ease both; }
 #welcome-door[data-phase="revealing"] .welcome-door-actor { visibility:hidden; }
 #welcome-door[data-phase="crossing"] .welcome-door-frame { z-index:6; will-change:transform; }
+#welcome-door[data-connected="true"] .welcome-door-frame { opacity:0; transition:opacity .25s ease; }
+.welcome-dashboard-window { position:fixed; inset:0; z-index:8; overflow:hidden; pointer-events:none; background:var(--bg); will-change:clip-path; }
+html .welcome-dashboard-window>#app { position:absolute; inset:0; width:100%; height:100%; margin:0; transform-origin:center; }
+.welcome-dashboard-edge { position:fixed; z-index:9; pointer-events:none; border:2px solid #89ecff; box-shadow:0 0 8px #b6f4ffb3,0 0 28px #4cc8ff88,inset 0 0 24px #55caff38; }
+.welcome-dashboard-flare { position:absolute; inset:0; z-index:20; pointer-events:none; background:linear-gradient(115deg,transparent 25%,#70ddff12 40%,#bdf8ff4d 50%,#70ddff12 60%,transparent 75%); }
 #welcome-door[data-phase="crossing"] :is(.welcome-door-eyebrow,#welcome-door-title,.welcome-door-caption,.welcome-door-skip,.welcome-door-floor) { animation:door-surroundings-out .3s ease both; }
 #welcome-door[data-phase="crossing"] .welcome-door-rings { animation:door-depth .86s ease-in both; }
 #welcome-door[data-phase="crossing"] .welcome-door-horizon { animation:door-threshold .86s ease both; }
 #welcome-door[data-morphed="true"] { animation-duration:.54s; }
+#welcome-door[data-connected="true"][data-phase="revealing"]::before { opacity:0; animation:none; }
+#welcome-door[data-connected="true"][data-phase="revealing"] .welcome-door-content { visibility:hidden; }
 #welcome-door[data-morphed="true"] :is(.welcome-door-eyebrow,#welcome-door-title,.welcome-door-caption,.welcome-door-skip,.welcome-door-floor) { opacity:0; animation:none; }
 #welcome-door[data-morphed="true"] .welcome-door-rings { opacity:0; }
 @keyframes door-surroundings-out { to { opacity:0; transform:translateY(-6px); } }

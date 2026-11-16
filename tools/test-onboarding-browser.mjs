@@ -145,16 +145,20 @@ try {
     }
     if(inspectDoor){
       await waitFor(`document.querySelector('#welcome-door')?.dataset.phase==='crossing'`,'portal morph after Tracy enters');
-      assert.equal(await evaluate(`document.getElementById('app').hidden`),true,'dashboard waits for the portal expansion');
-      const morph=await evaluate(`(()=>{const frame=document.querySelector('.welcome-door-frame');const animation=frame.getAnimations().find(a=>a.effect?.target===frame);const end=animation.effect.getKeyframes().at(-1);return {duration:animation.effect.getTiming().duration,end:end.transform};})()`);
-      assert.equal(morph.duration,860);assert.match(morph.end,/scale\(/);
+      assert.equal(await evaluate(`document.getElementById('app').hidden`),false,'real dashboard is visible through the portal');
+      assert.equal(await evaluate(`document.getElementById('app').parentElement.className`),'welcome-dashboard-window');
+      assert.equal(await evaluate(`document.getElementById('app').inert`),true,'page is not interactive during the morph');
+      assert.equal(await evaluate(`podium.tourOn()`),false,'automatic tour waits for the full dashboard');
+      const morph=await evaluate(`(()=>{const frame=document.querySelector('.welcome-dashboard-window');const animation=frame.getAnimations().find(a=>a.effect?.target===frame);const end=animation.effect.getKeyframes().at(-1);return {duration:animation.effect.getTiming().duration,end:end.clipPath};})()`);
+      assert.equal(morph.duration,1500);assert.match(morph.end,/inset\(0px/);
       if(screenshots){
-        await new Promise(r=>setTimeout(r,420));const {data}=await call('Page.captureScreenshot');
+        await new Promise(r=>setTimeout(r,700));const {data}=await call('Page.captureScreenshot');
         const image=join(screenshots,`portal-morph-${await evaluate('innerWidth')}.png`);
         await writeFile(image,Buffer.from(data,'base64'));console.log(`Screenshot: ${image}`);
       }
     }
     await waitFor('!document.querySelector("#welcome-door") && !document.getElementById("app").hidden && !podium.ext.S.loading', 'dashboard reveal');
+    assert.equal(await evaluate(`document.getElementById('app').parentElement===document.body && !document.getElementById('app').inert`),true,'same dashboard restored and usable');
     if(inspectDoor)assert.equal(await evaluate('window.doorSpeech.ended'),1,'speech completes before the dashboard is revealed');
     if (auto) await waitFor('podium.tourOn()', 'automatic tour');
     else await new Promise(r => setTimeout(r, 1400));

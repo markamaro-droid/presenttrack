@@ -2,7 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   let active = null, clearReveal = null;
-  podium.welcomeEntering = () => !!active;
+  podium.welcomeEntering = () => !!(active || clearReveal);
   podium.welcomeEnterCancel = () => { active?.cancel(); clearReveal?.(); };
 
   podium.welcomeEnter = onEntered => {
@@ -55,6 +55,8 @@
     skip.focus({ preventScroll: true });
 
     let settled = false, narration, approach, speechStarted = false, speechClosed = false, entering = false, audioTimer;
+    let mounted = false, restoreDashboard = null;
+    const mountDashboard = () => { if (!mounted) { mounted = true; onEntered?.(); } };
     const timers = [], animations = [];
     const later = (fn, ms) => timers.push(setTimeout(fn, ms));
     const animate = (el, frames, options) => {
@@ -66,6 +68,7 @@
       timers.forEach(clearTimeout);
       clearTimeout(audioTimer);speechClosed = true; narration?.cancel?.();podium.hushNow?.();
       if (!keepVisuals) clearAnimations();
+      restoreDashboard?.();restoreDashboard = null;
       document.removeEventListener('keydown', keydown, true);
       document.removeEventListener('visibilitychange', visibility);
       window.removeEventListener('resize', resize);
@@ -78,6 +81,7 @@
     };
     const cancel = () => {
       if (settled) return;
+      clearTimeout(window.__auto);
       settled = true; active = null; release(); overlay.remove();
     };
     const finish = (morphed = false) => {
@@ -86,13 +90,9 @@
       settled = true; active = null; release(throughPortal);
       overlay.dataset.morphed = String(throughPortal);
       overlay.dataset.phase = 'revealing';
-      // Keep the expanded portal in place as the real dashboard comes into focus.
+      // The dashboard shown through the portal is the same live page we leave open.
       try {
-        onEntered?.();
-        if (throughPortal && !$('app')?.hidden) animate($('app'), [
-          { opacity: .45, transform: 'scale(1.035)' },
-          { opacity: 1, transform: 'scale(1)' }
-        ], { duration: 520, easing: 'cubic-bezier(.22,.7,.25,1)', fill: 'none' });
+        mountDashboard();
       }
       finally {
         let revealTimer;
@@ -151,20 +151,45 @@
 
     const crossPortal = () => {
       if (settled) return;
-      if (!motion || !doorway.animate) { finish(); return; }
+      const app = $('app');
+      if (!motion || !doorway.animate || !app) { finish(); return; }
       overlay.dataset.phase = 'crossing';
-      const rect = doorway.getBoundingClientRect();
+      const rect = overlay.querySelector('.welcome-door-interior').getBoundingClientRect();
       const width = document.documentElement.clientWidth, height = window.innerHeight;
-      // Bring the portal to the viewer, keeping its inner opening beyond every edge.
-      const scale = Math.max(width / rect.width, height / rect.height) * 1.35;
-      const dx = width / 2 - (rect.left + rect.width / 2);
-      const dy = height / 2 - (rect.top + rect.height / 2);
-      animate(doorway, [
-        { transform: 'translate(0,0) scale(1)' },
-        { transform: `translate(${dx * .18}px,${dy * .18}px) scale(1.18)`, offset: .22 },
-        { transform: `translate(${dx}px,${dy}px) scale(${scale})` }
-      ], { duration: 860, easing: 'cubic-bezier(.55,.04,.22,1)', fill: 'forwards' });
-      later(() => finish(true), 860);
+      const top = Math.max(0,rect.top), left = Math.max(0,rect.left);
+      const right = Math.max(0,width - rect.left - rect.width), bottom = Math.max(0,height - rect.top - rect.height);
+      const opening = `inset(${top}px ${right}px ${bottom}px ${left}px round 18px)`;
+      const viewport = document.createElement('div');viewport.className = 'welcome-dashboard-window';
+      viewport.setAttribute('aria-hidden','true');viewport.style.clipPath = opening;
+      const edge = document.createElement('div');edge.className = 'welcome-dashboard-edge';
+      edge.setAttribute('aria-hidden','true');
+      const flare = document.createElement('div');flare.className = 'welcome-dashboard-flare';
+      const placeholder = document.createComment('Dashboard position');app.before(placeholder);
+      const wasInert = app.inert, botVisibility = bot.style.visibility;
+      restoreDashboard = () => {
+        placeholder.replaceWith(app);app.inert = wasInert;bot.style.visibility = botVisibility;
+        viewport.remove();
+      };
+      app.inert = true;viewport.appendChild(app);viewport.appendChild(flare);
+      overlay.appendChild(viewport);overlay.appendChild(edge);
+      try { mountDashboard(); } catch (error) { finish();console.error(error);return; }
+      bot.style.visibility = 'hidden';
+      overlay.dataset.connected = 'true';
+      // Hold the real page in the doorway briefly, then expand that same aperture.
+      // The page keeps its viewport layout, so cards do not jump or reflow mid-morph.
+      const timing = {duration:1500,easing:'cubic-bezier(.65,0,.22,1)',fill:'forwards'};
+      animate(viewport,[
+        {clipPath:opening,offset:0},{clipPath:opening,offset:.16},
+        {clipPath:'inset(0px 0px 0px 0px round 0px)',offset:1}
+      ],timing);
+      const frame = {left:`${left}px`,top:`${top}px`,width:`${width-left-right}px`,height:`${height-top-bottom}px`,borderRadius:'18px'};
+      animate(edge,[frame,{...frame,offset:.16},
+        {left:'0px',top:'0px',width:`${width}px`,height:`${height}px`,borderRadius:'0px'}
+      ],timing);
+      animate(edge,[{opacity:1,offset:0},{opacity:1,offset:.65},{opacity:0,offset:1}],{duration:1500,fill:'forwards'});
+      animate(app,[{transform:'scale(1.06)',opacity:.35},{transform:'scale(1.035)',opacity:1,offset:.22},{transform:'scale(1)',opacity:1}],timing);
+      animate(flare,[{transform:'translateX(-100%)',opacity:0},{opacity:.65,offset:.35},{transform:'translateX(100%)',opacity:0}],{duration:1350,delay:150,easing:'ease-in-out',fill:'both'});
+      later(() => finish(true), 1500);
     };
     const enter = () => {
       if (settled || entering) return;
