@@ -1,3 +1,26 @@
+/* A short first visit explains the workspace before inviting the user to evaluate.
+   Gated pages are explained as a whole; the tour never bypasses their access rules. */
+window.PTOnboardingSteps = [
+  { nav:'dash', view:'dash', target:'.dh-hero', title:'Welcome to your dashboard',
+    description:'I’m Tracy, your presentation coach. Let me show you around. You can pause, go back, or skip this tour anytime.' },
+  { nav:'dash', view:'dash', target:'.dh-journey', title:'Your path to confident presenting',
+    description:'First, take a short speaking evaluation. Then add a presentation, rehearse aloud, and review your feedback.' },
+  { nav:'dash', view:'dash', target:'.dh-stats', title:'See your practice at a glance',
+    description:'Your presentations, practice time, and latest score appear here. These numbers grow as you rehearse.' },
+  { nav:'decks', view:'decks', target:'#view', title:'My Presentations',
+    description:'After your evaluation, add your slides or create a practice draft here. Choose a presentation to record a rehearsal and get feedback.' },
+  { nav:'perf', view:'perf', target:'#view', title:'Understand your feedback',
+    description:'Performance helps you review speaking pace, filler words, pauses, and scores after each analyzed rehearsal.' },
+  { nav:'prog', view:'prog', target:'#view', title:'Build your progress',
+    description:'Compare your practice attempts here and work toward speaking goals. Your progress appears after you start rehearsing.' },
+  { nav:'hist', view:'hist', target:'#view', title:'Find past practice sessions',
+    description:'Practice History keeps your completed sessions and reports together, so you can return to your feedback anytime.' },
+  { nav:'set', view:'set', target:'#settings-coaching', title:'Tracy is here to help',
+    description:'Choose whether I speak aloud here. Select Tour guide in the menu whenever you want another walkthrough.' },
+  { nav:'eval', view:'eval', target:'#view', title:'Ready for your first evaluation?',
+    description:'This short speaking evaluation establishes your starting point. Read the instructions and start when you are ready. I’ll be here to help.', fin:true }
+].map(step=>({...step,voiceLine:step.description}));
+
 /* Single source for tour targets, visible copy and narration. Unavailable controls are skipped. */
 window.PTTourSteps = [
   {

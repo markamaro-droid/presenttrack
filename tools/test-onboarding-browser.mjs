@@ -1,0 +1,234 @@
+// Offline regression: the actual welcome, doorway, dashboard, and account policy.
+// Uses installed Chrome; cloud accounts, WebGL rendering, and voice are stubbed.
+// Run with CHROME_PATH if Chrome is installed elsewhere.
+// --visual loads the app's existing Three.js CDN assets and model for screenshots.
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
+import { tmpdir } from 'node:os';
+import { extname, join, resolve } from 'node:path';
+
+const root = resolve(import.meta.dirname, '..');
+const visual = process.argv.includes('--visual');
+const scripts = new Set(['identity', 'auth', 'practice-audio', 'workspace-model', 'tour-steps', 'tour-spotlight', 'dashboard', 'assessment', 'evaluation', 'practice-insights', 'dashboard-home', 'workspace', 'greeting-cache', 'settings', 'robot-menu', 'welcome-intro', 'welcome-door']);
+if (visual) scripts.add('robot');
+const server = createServer(async (req, res) => {
+  try {
+    const pathname = new URL(req.url, 'http://localhost').pathname;
+    const file = pathname === '/' ? '/index.html' : pathname;
+    if (!/^\/(index\.html|js\/[\w-]+\.js|css\/[\w-]+\.css|assets\/[\w/.-]+)$/.test(file) || file.includes('..')) { res.writeHead(404).end(); return; }
+    let data = await readFile(join(root, file));
+    if (file === '/index.html') data = data.toString()
+      .replace(/<script src="([^"]+)"><\/script>/g, (tag, src) => {
+        if (visual && src === 'js/robot.js') return '<script>window.PTVoice={active:false,setHooks(){},stop(){},setSpeaker(){},open(){},toggle(){}};</script>' + tag;
+        return scripts.has(src.replace(/^js\//, '').replace(/\.js$/, '')) || src === 'assets/evaluation/study-habits.js' || (visual && (src === 'assets/models/robot-glb.js' || src.startsWith('https://cdn.jsdelivr.net/npm/three@0.128.0/'))) ? tag : '';
+      })
+      .replace(/<link[^>]*href="https:[^>]*>/g, '');
+    res.setHeader('Content-Type', ({ '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' })[extname(file)] || 'application/octet-stream');
+    res.end(data);
+  } catch { res.writeHead(404).end(); }
+});
+await new Promise(r => server.listen(0, '127.0.0.1', r));
+const profile = await mkdtemp(join(tmpdir(), 'presenttrack-onboarding-'));
+const screenshots = visual || process.argv.includes('--screenshots') ? await mkdtemp(join(tmpdir(), 'presenttrack-onboarding-shots-')) : null;
+const chrome = spawn(process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe', [
+  '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'
+], { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
+let socket;
+try {
+  const endpoint = await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(Error('Chrome startup timed out')), 15000);
+    let output = '';
+    chrome.stderr.on('data', chunk => { output += chunk; const match = output.match(/DevTools listening on (ws:\/\/[^\s]+)/); if (match) { clearTimeout(timeout); resolve(match[1]); } });
+    chrome.on('error', error => { clearTimeout(timeout); reject(error); });
+  });
+  socket = new WebSocket(endpoint);
+  await new Promise((resolve, reject) => { socket.addEventListener('open', resolve, { once: true }); socket.addEventListener('error', reject, { once: true }); });
+  let id = 0;
+  const pending = new Map(), errors = [];
+  socket.addEventListener('message', e => {
+    const message = JSON.parse(e.data);
+    if (message.method === 'Runtime.exceptionThrown') errors.push(message.params.exceptionDetails.exception?.description || message.params.exceptionDetails.text);
+    const waiter = pending.get(message.id);
+    if (waiter) { pending.delete(message.id); clearTimeout(waiter.timeout); message.error ? waiter.reject(Error(JSON.stringify(message.error))) : waiter.resolve(message.result); }
+  });
+  const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
+    const n = ++id;
+    const timeout = setTimeout(() => { pending.delete(n); reject(Error(`${method} timed out`)); }, 15000);
+    pending.set(n, { resolve, reject, timeout }); socket.send(JSON.stringify({ id: n, method, params, sessionId }));
+  });
+  const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
+  const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
+  const call = (method, params) => send(method, params, sessionId);
+  await call('Runtime.enable');
+  const evaluate = async expression => {
+    const result = await call('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
+    if (result.exceptionDetails) throw Error(JSON.stringify(result.exceptionDetails));
+    return result.result.value;
+  };
+  const waitFor = async (expression, label, timeout = 9000) => {
+    const deadline = Date.now() + timeout;
+    while (Date.now() < deadline) { if (await evaluate(expression)) return; await new Promise(r => setTimeout(r, 50)); }
+    throw Error(`Timed out waiting for ${label}`);
+  };
+  const media = async reduced => call('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: reduced ? 'reduce' : 'no-preference' }] });
+  const fresh = async (width = 1440, height = 900, reduced = false) => {
+    await call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 768 });
+    await media(reduced);
+    await call('Page.navigate', { url: `http://127.0.0.1:${server.address().port}/` });
+    await waitFor('document.readyState === "complete" && !!window.podium?.welcomeEnter && !!podium.ext', 'application scripts');
+    await evaluate(`
+      window.PTCloud = { enabled: false };
+      podium.assessInit = () => {};
+      podium.prepareNarration = () => {};
+      ${visual ? '' : 'podium.robotReady = () => true;'}
+      podium.robotIntroduce = () => {};
+      ${visual ? '' : 'podium.robotPoint = () => {}; podium.hushNow = () => {};'}
+      podium.narrate = () => {};
+      podium.narState = () => ({ voice: true, started: true, ended: false });
+      ${visual ? '' : `podium.robotShow = (visible, where) => {
+        const bot = document.getElementById('bot');
+        document.body.appendChild(bot); bot.hidden = !visible;
+        bot.classList.toggle('app', where === 'app');
+      };`}
+    `);
+  };
+  const welcome = async (email, registered = false) => {
+    await evaluate(`podium.newUser = ${registered}; podium.enter('Onboarding Tester', ${JSON.stringify(email)});`);
+    await waitFor('!!document.getElementById("leval") && !document.getElementById("land").hidden && document.getElementById("wipe").hidden', 'welcome screen');
+    if (visual) await waitFor('podium.robotReady()', 'actual Tracy model');
+    await evaluate(`document.getElementById('welcome-skip').click();`);
+    assert.equal(await evaluate(`document.getElementById('leval').hidden`), false, 'start action is available');
+  };
+  const enterDashboard = async ({ auto, inspectDoor = false } = {}) => {
+    await evaluate(`document.getElementById('leval').click(); document.getElementById('leval').click();`);
+    if (inspectDoor) {
+      assert.equal(await evaluate(`document.querySelectorAll('#welcome-door').length`), 1, 'duplicate click starts one transition');
+      assert.equal(await evaluate(`document.querySelector('.welcome-door-actor')?.contains(document.getElementById('bot'))`), true, 'the actual Tracy moves into the scene');
+      assert.equal(await evaluate(`document.querySelector('#app').hidden`), true, 'dashboard waits for the doorway');
+      assert.equal(await evaluate(`podium.tourOn()`), false, 'tour does not run behind the door');
+      const geometry = await evaluate(`(() => {const r = document.querySelector('.welcome-door-frame').getBoundingClientRect();return {fits:r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight,overflow:document.documentElement.scrollWidth>innerWidth+1};})()`);
+      assert.equal(geometry.fits, true, 'door fits the viewport');
+      assert.equal(geometry.overflow, false, 'no horizontal overflow');
+      if (screenshots) {
+        await new Promise(r => setTimeout(r, 850));
+        const { data } = await call('Page.captureScreenshot');
+        const image = join(screenshots, `door-${await evaluate('innerWidth')}.png`);
+        await writeFile(image, Buffer.from(data, 'base64'));
+        console.log(`Screenshot: ${image}`);
+      }
+    }
+    await waitFor('!document.querySelector("#welcome-door") && !document.getElementById("app").hidden && !podium.ext.S.loading', 'dashboard reveal');
+    if (auto) await waitFor('podium.tourOn()', 'automatic tour');
+    else await new Promise(r => setTimeout(r, 1400));
+    assert.equal(await evaluate('podium.tourOn()'), auto, 'automatic tour eligibility');
+    assert.equal(await evaluate('podium.ext.S.view'), 'dash', 'dashboard is the destination');
+    assert.equal(await evaluate(`document.getElementById('land').hidden`), true);
+  };
+  const endTour = async () => {
+    await evaluate(`document.querySelector('[data-tact="tskip"]').click();`);
+    assert.equal(await evaluate('podium.tourOn()'), false, 'tour can be skipped');
+  };
+
+  for (const [width, height] of [[1440, 900], [390, 844], [320, 568]]) {
+    await fresh(width, height);
+    await welcome(`new-${width}@example.test`, true);
+    await enterDashboard({ auto: true, inspectDoor: true });
+    assert.equal(await evaluate('podium.ext.pendingEval()'), true, 'tour never unlocks evaluation');
+    assert.match(await evaluate(`document.querySelector('#spot strong').textContent`), /dashboard/i);
+    await endTour();
+    await media(true);
+    await welcome(`new-${width}@example.test`, false);
+    await enterDashboard({ auto: false });
+    await evaluate(`podium.setMin(true);document.getElementById('tour-guide').click();`);
+    assert.equal(await evaluate('podium.tourOn()'), true, 'manual replay works with Tracy minimized');
+    assert.equal(await evaluate(`document.getElementById('bot').hidden`), false);
+    const tourChecks = await evaluate(`(async()=>{
+      const visited=[];
+      for(let i=0;i<PTOnboardingSteps.length;i++){
+        podium.tourPause();await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);
+        const dock=document.getElementById('tour'),rect=dock.getBoundingClientRect();
+        const buttons=[...dock.querySelectorAll('button')].filter(b=>!b.disabled&&b.getBoundingClientRect().width>0);
+        const hit=buttons.every(b=>{const r=b.getBoundingClientRect();return b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))});
+        visited.push({title:document.querySelector('#spot strong').textContent,fits:rect.left>=0&&rect.right<=innerWidth&&rect.top>=0&&rect.bottom<=innerHeight,hit});
+        if(i===1){
+          document.querySelector('[data-tact=tprev]').focus();document.querySelector('[data-tact=tprev]').click();
+          if(document.activeElement?.dataset.tact!=='tnext')throw Error('Back lost keyboard focus');
+          document.querySelector('[data-tact=tnext]').click();podium.tourPause();
+        }
+        if(i<PTOnboardingSteps.length-1)document.querySelector('[data-tact=tnext]').click();
+      }
+      return visited;
+    })()`);
+    assert.equal(tourChecks.length, 9);
+    assert.ok(tourChecks.every(step=>step.fits&&step.hit), JSON.stringify({width,tourChecks}));
+    assert.equal(await evaluate(`document.querySelector('[data-tact=tadd]').getAttribute('aria-label')`), 'Start evaluation');
+    if(screenshots){const {data}=await call('Page.captureScreenshot');await writeFile(join(screenshots,`tour-${width}.png`),Buffer.from(data,'base64'));}
+    await evaluate(`document.querySelector('[data-tact=tadd]').click()`);
+    assert.equal(await evaluate('podium.tourOn()'), false);
+    assert.equal(await evaluate('podium.ext.S.view'), 'eval');
+    assert.equal(await evaluate('podium.ext.pendingEval()'), true);
+    console.log(`PASS ${width}x${height}: doorway, repeat click, first-use auto tour, return visit, manual replay and all 9 tour steps`);
+  }
+
+  await fresh(390, 844, true);
+  await welcome('hidden-tab@example.test', true);
+  await evaluate(`window.testHidden=false;Object.defineProperty(document,'hidden',{configurable:true,get:()=>window.testHidden});document.getElementById('leval').click();window.testHidden=true;document.dispatchEvent(new Event('visibilitychange'));`);
+  await new Promise(r=>setTimeout(r,1400));
+  assert.equal(await evaluate('podium.tourOn()'),false,'hidden tab does not start onboarding');
+  assert.equal(await evaluate('podium.ext.S.isNew'),true,'unseen onboarding is not consumed');
+  await evaluate(`window.testHidden=false;document.dispatchEvent(new Event('visibilitychange'));`);
+  await waitFor('podium.tourOn()','visible tab starts onboarding');
+  await evaluate(`window.testHidden=true;document.dispatchEvent(new Event('visibilitychange'));`);
+  assert.equal(await evaluate(`document.querySelector('[data-tact=tplay]').getAttribute('aria-label')`),'Play','leaving the tab pauses the tour');
+  await evaluate(`window.testHidden=false;document.dispatchEvent(new Event('visibilitychange'));`);
+  await endTour();
+
+  // Email-confirmation sign-in still needs onboarding; legacy accounts do not.
+  for (const [id, marker, onboarded, rowExists, auto] of [
+    ['legacy', false, false, true, false],
+    ['legacy-no-row', false, false, false, false],
+    ['confirmed-signup', true, false, true, true],
+    ['returning', true, true, true, false]
+  ]) {
+    await fresh(390, 844, true);
+    await evaluate(`window.savedOnboarding = [];
+      window.PTCloud = { enabled:true, user:{ id:${JSON.stringify(id)}, user_metadata:${marker ? '{tracy_onboarding:1}' : '{}'} },
+        row:${rowExists ? `{onboarded:${onboarded}, data:{pres:[],ses:[],notes:[],goals:[],nid:20}}` : 'null'},
+        onboarded:${onboarded}, assessmentDone:false, ready:false,
+        save(snapshot){window.savedOnboarding.push(this.onboarded);return Promise.resolve();} };
+    `);
+    await welcome(`${id}@example.test`);
+    await enterDashboard({ auto });
+    if (auto) {
+      assert.equal(await evaluate('PTCloud.onboarded'), true, 'auto tour is remembered immediately');
+      assert.ok((await evaluate('window.savedOnboarding')).includes(true), 'onboarding is saved without waiting for autosave');
+      await endTour();
+    }
+    console.log(`PASS ${id}: ${auto ? 'automatic' : 'manual-only'} tour`);
+  }
+
+  await fresh(320, 568);
+  await welcome('cancel@example.test', true);
+  await evaluate(`window.cancelledNavigation=0;podium.welcomeEnter(()=>window.cancelledNavigation++);podium.welcomeEnterCancel();`);
+  assert.equal(await evaluate(`!!document.querySelector('#welcome-door')`), false, 'cancellation removes the overlay');
+  await new Promise(r => setTimeout(r, 3000));
+  assert.equal(await evaluate('window.cancelledNavigation'), 0, 'cancelled animations cannot navigate later');
+  await welcome('skip@example.test', true);
+  await evaluate(`document.getElementById('leval').click();`);
+  await call('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
+  await waitFor('!document.querySelector("#welcome-door") && podium.tourOn()', 'Escape skips to dashboard and tour');
+  await endTour();
+  assert.deepEqual(errors, [], 'no browser exceptions');
+  console.log('PASS reduced motion, cloud onboarding persistence, cancellation, Escape and browser error checks');
+} finally {
+  socket?.close();
+  chrome.kill();
+  await new Promise(resolve => { if (chrome.exitCode !== null) resolve(); else { chrome.once('exit', resolve); setTimeout(resolve, 1500).unref(); } });
+  server.close();
+  // profile was created above under the OS temporary directory; never derive a user path.
+  if (resolve(profile).startsWith(resolve(tmpdir()) + (process.platform === 'win32' ? '\\' : '/')) && profile.includes('presenttrack-onboarding-')) {
+    await rm(profile, { recursive: true, force: true, maxRetries: 2 }).catch(() => {});
+  }
+}

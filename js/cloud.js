@@ -24,7 +24,7 @@ P.signIn=async(email,pw)=>{
   return error?{error:friendly(error.message)}:load(data.user);
 };
 P.signUp=async(name,email,pw)=>{
-  const {data,error}=await sb.auth.signUp({email,password:pw,options:{data:{full_name:name}}});
+  const {data,error}=await sb.auth.signUp({email,password:pw,options:{data:{full_name:name,tracy_onboarding:1}}});
   if(error)return{error:friendly(error.message)};
   if(data.user&&data.user.identities&&!data.user.identities.length)return{error:friendly('already registered')};
   if(!data.session)return{confirm:true};            // "Confirm email" is ON in Supabase: user must click the email link first

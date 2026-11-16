@@ -26,6 +26,19 @@ function initData(mode){
 }
 initData('default');
 const DB={};   /* in-memory account database, keyed by email */
+function tourReceiptKey(){
+  const cloud=window.PTCloud;
+  return 'presenttrack:tour-seen:v1:'+(cloud?.enabled?'account:'+cloud.user?.id:'demo:'+S.u.email.toLowerCase());
+}
+function hasTourReceipt(){try{return localStorage.getItem(tourReceiptKey())==='1'}catch(e){return false}}
+function consumeOnboarding(){
+  S.toured=true;S.isNew=false;
+  const rec=DB[(S.u.email||'').toLowerCase()];if(rec)rec.onboarded=true;
+  if(window.PTCloud?.enabled)PTCloud.onboarded=true;
+  try{localStorage.setItem(tourReceiptKey(),'1')}catch(e){}
+  // Save at the start, so a skipped or interrupted tour never becomes a login loop.
+  podium.save?.();
+}
 podium.account=(email,registered)=>{
   S.reviewDays=0;S.historyQuery="";S.historyType="all";S.historySort="newest";S.compareA=S.compareB="";S.reviewMetric="score";S.compareDeck="";S.assess=null;S.assessRequired=false;S.ev=null;S.evalRequired=false;
   if(window.PTCloud&&PTCloud.enabled){
@@ -35,12 +48,17 @@ podium.account=(email,registered)=>{
       if(row.data&&row.data.pres){const d=row.data;S.pres=d.pres;S.ses=d.ses;S.notes=d.notes;S.goals=d.goals;S.nid=d.nid;S.ev=d.ev||null}else initData('empty');
       if(row.data&&row.data.ev&&!S.ev)S.ev=row.data.ev;
       S.flash=null;S.warnOff=false;S.loading=false;S.booted=false;S.isNew=!row.onboarded;S.guide=!row.onboarded;S.toured=!!row.onboarded;PTCloud.onboarded=!!row.onboarded}
+    // Legacy accounts can have onboarded=false or no row. Only new signups opt in.
+    // The metadata marker also survives signing up with email confirmation enabled.
+    const eligible=registered||PTCloud.user?.user_metadata?.tracy_onboarding===1;
+    S.toured=!!row?.onboarded||hasTourReceipt();S.isNew=!!eligible&&!S.toured;S.guide=S.isNew;
+    PTCloud.onboarded=!!row?.onboarded||S.toured;
     S.assessRequired=!PTCloud.assessmentDone;S.evalRequired=!PTCloud.assessmentDone;PTCloud.ready=true;return}
   const k=email.toLowerCase(),rec=DB[k];
-  if(registered){DB[k]={onboarded:false,data:null,evalReq:true};initData('empty');S.evalRequired=true;return}
+  if(registered){DB[k]={onboarded:false,data:null,evalReq:true};initData('empty');S.toured=hasTourReceipt();S.isNew=!S.toured;S.guide=S.isNew;S.evalRequired=true;return}
   if(rec){
     if(rec.data){S.pres=rec.data.pres;S.ses=rec.data.ses;S.notes=rec.data.notes;S.goals=rec.data.goals;S.nid=rec.data.nid;S.ev=rec.data.ev||null}else initData(rec.onboarded?'default':'empty');
-    S.flash=null;S.warnOff=false;S.loading=false;S.booted=false;S.isNew=!rec.onboarded;S.guide=!rec.onboarded;S.toured=!!rec.onboarded;S.evalRequired=!!rec.evalReq;return}
+    S.flash=null;S.warnOff=false;S.loading=false;S.booted=false;S.toured=!!rec.onboarded||hasTourReceipt();S.isNew=!S.toured;S.guide=S.isNew;S.evalRequired=!!rec.evalReq;return}
   initData('default');DB[k]={onboarded:true,data:null}};
 podium.snapshot=()=>({pres:S.pres,ses:S.ses,notes:S.notes,goals:S.goals,nid:S.nid,ev:S.ev||null});
 podium.save=()=>{if(window.PTCloud&&PTCloud.enabled){PTCloud.save(podium.snapshot());return}const k=(S.u.email||'').toLowerCase();if(DB[k])DB[k].data=podium.snapshot()};
@@ -62,23 +80,24 @@ const tips=x=>x.analysis?Object.values((podium.measuredReport?.(x.analysis)||x.a
 
 /* ---------- automatic video-style tour (new users, or on request) ---------- */
 const T={on:false,i:0,play:true,t0:0,pAt:0,est:8000,timer:null,steps:[]};
-function tourSteps(){return window.PTTourSteps.map(step=>({...step,v:step.view,t:step.title,x:step.voiceLine}));}
+function tourSteps(){return (pendingEval()&&window.PTOnboardingSteps||window.PTTourSteps).map(step=>({...step,v:step.view,t:step.title,x:step.voiceLine}));}
 let spotlight;
 const tourEl=()=>$('tour');
-function syncGuide(){$('bguide').hidden=!!(T.on||$('app').hidden)}
-function tourUI(){const st=T.steps[T.i],last=!!st.fin;tourEl().hidden=false;
+function syncGuide(){const hidden=!!(T.on||$('app').hidden||window.PTIdentity?.isAdmin(window.PTCloud?.user));$('bguide').hidden=hidden;const guide=$('tour-guide');if(guide){guide.hidden=!!window.PTIdentity?.isAdmin(window.PTCloud?.user);guide.disabled=T.on;guide.setAttribute('aria-label',T.on?'Tour guide is running':'Start Tracy’s tour guide')}}
+function tourUI(){const st=T.steps[T.i],last=!!st.fin,focusedAction=tourEl().contains(document.activeElement)?document.activeElement?.dataset.tact:null;tourEl().hidden=false;
   tourEl().innerHTML=`<div class="tp1"><b>Step ${T.i+1}/${T.steps.length}</b><span>${esc(st.t)}</span></div><div class="tsegs">${T.steps.map((_,k)=>`<i><b id="ts${k}" style="width:${k<T.i?100:0}%"></b></i>`).join('')}</div><div class="tbt"><button type="button" data-tact="tprev" ${T.i?'':'disabled'} aria-label="Previous step">Back</button><button type="button" data-tact="tplay" aria-label="${T.play?'Pause':'Play'}">${T.play?'Pause':'Play'}</button><button type="button" data-tact="tnext">${last?'Finish':'Next'}</button>${last?'<button type="button" class="wide" data-tact="tadd">Add presentation</button>':'<button type="button" class="wide skip" data-tact="tskip">Skip tour</button>'}<button type="button" data-tact="tcc" aria-pressed="${!!T.ccShown}" aria-label="Captions">CC</button></div><button type="button" class="tour-stop" data-tact="tskip">End tour</button><button type="button" class="tcolb" data-tact="tcol" aria-expanded="${!$('bot').classList.contains('tcol')}" aria-label="${$('bot').classList.contains('tcol')?'Show tour controls':'Hide tour controls'}" title="${$('bot').classList.contains('tcol')?'Show tour controls':'Hide tour controls'}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>`;
-  const shortLabels={tprev:'Back',tplay:T.play?'Pause':'Play',tnext:last?'Done':'Next',tskip:'End',tadd:'Add',tcc:'CC'};
+  if(last&&pendingEval())tourEl().querySelector('[data-tact="tadd"]').textContent='Start evaluation';
+  const shortLabels={tprev:'Back',tplay:T.play?'Pause':'Play',tnext:last?'Done':'Next',tskip:'End',tadd:pendingEval()?'Evaluate':'Add',tcc:'CC'};
   tourEl().querySelectorAll('.tbt button').forEach(button=>{
     const text=button.textContent,action=button.dataset.tact;
     if(!button.hasAttribute('aria-label'))button.setAttribute('aria-label',text);
     button.innerHTML='<span class="tour-label-full">'+esc(text)+'</span><span class="tour-label-short" aria-hidden="true">'+esc(shortLabels[action]||text)+'</span>';
   });
   const mobileCopy=document.createElement('p');mobileCopy.className='tour-mobile-copy';mobileCopy.textContent=st.x;mobileCopy.setAttribute('aria-live','polite');tourEl().appendChild(mobileCopy);
-  const sub=$('tsub');if(sub)sub.innerHTML='<span class="sl">'+esc(st.x)+'</span>';if(T.sf)tourSub(T.sf,T.sp)}
+  const sub=$('tsub');if(sub)sub.innerHTML='<span class="sl">'+esc(st.x)+'</span>';if(T.sf)tourSub(T.sf,T.sp);if(focusedAction){const focus=tourEl().querySelector('[data-tact="'+focusedAction+'"]:not(:disabled)')||tourEl().querySelector('[data-tact="tnext"]');focus?.focus({preventScroll:true})}}
 function tourSub(frac,pos){T.sf=frac;T.sp=pos;const st=T.steps[T.i],el=$('tsub');let n=pos>0?pos:Math.round(st.x.length*frac);if(n>=st.x.length)n=st.x.length;else{const sp=st.x.indexOf(' ',n);n=sp<0?st.x.length:sp}n=Math.max(n,T.nmax||0);T.nmax=n;if(el)el.innerHTML='<b>'+esc(st.x.slice(0,n))+'</b>'+esc(st.x.slice(n));T.n=n;return n}
 function spotOff(){spotlight?.stop();$('spot').hidden=true;}
-function tourAct(a){if(a==='tcol'){document.body.classList.toggle('tourcol',$('bot').classList.toggle('tcol'));tourUI();return}if(a==='tprev')tourGo(-1);else if(a==='tnext')tourGo(1);else if(a==='tplay')tourPlay(!T.play);else if(a==='tskip')endTour(true);else if(a==='tcc'){T.cc=!T.ccShown;T.ccShown=T.cc;$('tcap').hidden=!T.cc;tourUI()}else if(a==='tadd'){endTour(false);go('decks');setTimeout(()=>{const u=$('ut');if(u)u.focus()},400)}}
+function tourAct(a){if(a==='tcol'){document.body.classList.toggle('tourcol',$('bot').classList.toggle('tcol'));tourUI();return}if(a==='tprev')tourGo(-1);else if(a==='tnext')tourGo(1);else if(a==='tplay')tourPlay(!T.play);else if(a==='tskip')endTour(true);else if(a==='tcc'){T.cc=!T.ccShown;T.ccShown=T.cc;$('tcap').hidden=!T.cc;tourUI()}else if(a==='tadd'){endTour(false);go(pendingEval()?'eval':'decks');setTimeout(()=>{const u=$('ut');if(u)u.focus()},400)}}
 function tourShow(i,direction=1){
   clearTimeout(T.advanceTimer);T.generation=(T.generation||0)+1;spotOff();
   // Visit each configured page, but never describe a missing or gated control.
@@ -126,14 +145,15 @@ function tourTick(){
 }
 function startTour(){
   if(T.on)return;if($('app').hidden)return;
+  clearTimeout(window.__auto);rts.forEach(clearTimeout);rts=[];
   window.PTVoice?.active&&PTVoice.stop();
   S.guide=true;T.on=true;T.steps=tourSteps();closePops();$('hm').hidden=true;setMin(false);
   $('side').classList.remove('open');
-  clearInterval(T.timer);T.timer=setInterval(tourTick,100);document.body.classList.add('touring');document.body.classList.remove('tourcol');$('bot').classList.remove('tcol');$('bot').classList.add('tourmode');T.cc=null;T.ccShown=false;syncGuide();tourShow(0)}
+  clearInterval(T.timer);T.timer=setInterval(tourTick,100);document.body.classList.add('touring');document.body.classList.remove('tourcol');$('bot').classList.remove('tcol');$('bot').classList.add('tourmode');T.cc=null;T.ccShown=false;syncGuide();tourShow(0);consumeOnboarding();tourEl().querySelector('[data-tact="tplay"]')?.focus({preventScroll:true})}
 function endTour(spoken){
   if(!T.on)return;T.on=false;clearTimeout(T.advanceTimer);T.generation=(T.generation||0)+1;spotOff();clearInterval(T.timer);S.toured=true;S.isNew=false;{const k=(S.u.email||'').toLowerCase();if(DB[k])DB[k].onboarded=true;if(window.PTCloud)PTCloud.onboarded=true}tourEl().hidden=true;$('tcap').hidden=true;$('bot').classList.remove('tourhl','tourmode','tcol');document.body.classList.remove('touring','tourcol');
-  try{podium.hushNow&&podium.hushNow()}catch(e){}nav();$('side').classList.remove('open')}
-podium.tourStop=()=>{T.on=false;clearTimeout(T.advanceTimer);T.generation=(T.generation||0)+1;spotOff();clearInterval(T.timer);tourEl().hidden=true;$('tcap').hidden=true;document.body.classList.remove('touring','tourcol');$('bot').classList.remove('tourhl','tourmode','tcol');syncGuide()};podium.tourPause=()=>tourPlay(false);podium.startTour=startTour;podium.tourOn=()=>T.on;
+  try{podium.hushNow&&podium.hushNow()}catch(e){}nav();$('side').classList.remove('open');const focus=$('view').querySelector('h1, h2');if(focus){focus.tabIndex=-1;focus.focus({preventScroll:true})}}
+podium.tourStop=()=>{clearTimeout(window.__auto);T.on=false;clearTimeout(T.advanceTimer);T.generation=(T.generation||0)+1;spotOff();clearInterval(T.timer);tourEl().hidden=true;$('tcap').hidden=true;document.body.classList.remove('touring','tourcol');$('bot').classList.remove('tourhl','tourmode','tcol');podium.hushNow?.();syncGuide()};podium.tourPause=()=>tourPlay(false);podium.startTour=startTour;podium.tourOn=()=>T.on;
 /* ---------- robot guide: navigate by voice/text and explain each page ---------- */
 const GUIDE={library:'Choose a built-in presentation from Library, then use it for practice. You do not need your own PowerPoint file.',dash:'This is your dashboard. At the top you see your next presentation and how ready you are. Below are your performance numbers, your progress chart, my coaching tip and recent practice.',
  decks:'This is My Presentations. The practice toolkit gives you shortcuts to upload slides, practice, analyze recordings, reports and goals. Type your own title, drop in a PDF or PowerPoint file, then press Add Presentation. You can then practice, rename or open details for each one.',
@@ -157,7 +177,6 @@ podium.command=q=>{
   const t=' '+q.toLowerCase().replace(/[.,!?']/g,' ').replace(/\s+/g,' ').trim()+' ';
   if(/\b(guide me|walk me through|give me a tour|take me on a tour|show me around|how (do|can) i use (the |this )?(system|app|website|site|platform)|how does (this|the) (system|app|site|website|platform) work|help me get started|teach me how|explain the system|replay the tour|start the tour)\b/.test(t)){
     if(T.on)return {say:'I am already guiding you. Say skip to stop the tour.',quiet:true,tour:true};
-    if(S.isNew)return {say:'New accounts get the guided tour automatically. Once it is finished, you can ask me to guide you again.'};
     startTour();return {say:'Starting the guided tour.',quiet:true,tour:true}}
   if(T.on){
     if(/\b(next|continue|go on|skip step)\b/.test(t)){tourGo(1);return {say:'Next.',quiet:true,tour:true}}
@@ -536,6 +555,7 @@ function nav(){
   const navigation=window.PTIdentity?.isAdmin(window.PTCloud?.user)?[['ADMIN',[['admin','Admin Dashboard'],['adminUsers','Users'],['library','Library']]]]:NAV;
   $('nav').innerHTML=navigation.map(([g,items])=>`<p class="ng">${g}</p>`+items.map(([k,l])=>{const dis=false;return `<button class="nv${act===k?' on':''}${hl===k?' tour-hl':''}" data-go="${k}" type="button"${act===k?' aria-current="page"':''}${dis?' disabled title="Complete a practice session first"':''}>${ic(I[k])}<span>${l}</span>${k==='note'&&unread()?`<em>${unread()}</em>`:''}</button>`}).join('')).join('');
   $('help').innerHTML=ic(I.help)+'Help & Support';$('lo').innerHTML=ic(I.out)+'Logout';syncGuide();
+  if($('tour-guide'))$('tour-guide').innerHTML=ic(I.goal)+'<span>Tour guide</span>';
 }
 function renderTop(){
   if($('account-role'))$('account-role').textContent=window.PTIdentity?.isAdmin(window.PTCloud?.user)?'Administrator':'Student';
@@ -558,6 +578,7 @@ function go(v,arg){
 function render(){S.pres.forEach(p=>{if(p.scheduledDate)p.left=PTWorkspaceModel.preparation(p,S.ses).days});nav();renderTop();$('view').innerHTML=(V[S.view]||V.dash)(S.arg);B[S.view]&&B[S.view](S.arg);animateIn()}
 function greetRobot(){
   rts.forEach(clearTimeout);rts=[];
+  if(T.on||S.isNew||$('app').hidden)return;
   {const fn=S.u.name.split(' ')[0];if(S.isNew&&!S.toured){robot('greeting','Welcome! Tap my tour bubble whenever you would like a walkthrough.',5200)}else robot('greeting',empty()?'Hello '+fn+'! I\'ll help you get everything ready!':'Hello '+fn+'! Welcome back. Let\'s get some practice in.',5200)}
   if(!empty()){rts.push(setTimeout(()=>robot('reminder','Have a few minutes? Rehearse one part of your presentation.',5200),9000));rts.push(setTimeout(()=>robot('encouraging','Your next presentation is coming up. You still have time to practice!',5200),24000))}
 }
@@ -607,7 +628,8 @@ $('q').oninput=()=>{const q=$('q').value.trim().toLowerCase();if(!q){$('qr').hid
   const r=[...S.pres.filter(p=>p.t.toLowerCase().includes(q)).map(p=>['📊',p.t,'Presentation','pdet',p.id]),...S.ses.filter(x=>(x.deck+' '+x.d).toLowerCase().includes(q)).map(x=>['📄',x.deck+' · '+x.d,'Report','rdet',x.id])].slice(0,6);
   $('qr').hidden=false;$('qr').innerHTML=r.length?r.map(x=>`<button type="button" data-go="${x[3]}" data-a="${x[4]}"><span>${x[0]}</span><b>${esc(x[1])}</b><small>${x[2]}</small></button>`).join(''):'<p class="em">No results found.</p>'};
 $('q').addEventListener('keydown',e=>{if(e.key==='Escape'){$('q').value='';closePops()}});
-addEventListener('keydown',e=>{if(e.key==='Escape')closePops()});
+addEventListener('keydown',e=>{if(e.key==='Escape'){closePops();if(T.on)endTour(true)}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&T.on&&T.play)tourPlay(false)});
 $('qr').addEventListener('click',()=>{$('q').value=''});
 $('pic').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{S.u.pic=r.result;renderShell();if($('sp'))$('sp').src=r.result;toast('Picture updated')};r.readAsDataURL(f)};
 $('me').onclick=()=>go('set');$('menu').onclick=()=>$('side').classList.toggle('open');
@@ -628,10 +650,27 @@ function transition(p,swap){
   a.onfinish=()=>{run();setTimeout(()=>{const b=w.animate({opacity:[1,0]},{duration:500,easing:'ease',fill:'forwards'});b.onfinish=()=>{w.getAnimations().forEach(q=>q.cancel());w.hidden=true}},280)};
 }
 const shell=()=>document.querySelector('.shell'),land=()=>$('land');
-function showLand(){if(window.PTIdentity?.isAdmin(window.PTCloud?.user)){podium.welcomeStop?.();clearTimeout(window.__auto);shell().hidden=true;land().hidden=true;$('app').hidden=false;document.documentElement.classList.add('clay');go('admin');return;}podium.welcomeStop?.();clearTimeout(window.__auto);document.documentElement.classList.remove('clay');$('app').hidden=true;shell().hidden=true;renderLand();land().hidden=false;try{podium.robotShow&&podium.robotShow(true,'welcome')}catch(e){console.warn(e)}land().classList.remove('in');void land().offsetWidth;land().classList.add('in');scrollTo(0,0);
+function showLand(){podium.welcomeEnterCancel?.();podium.tourStop?.();rts.forEach(clearTimeout);rts=[];if(window.PTIdentity?.isAdmin(window.PTCloud?.user)){podium.welcomeStop?.();clearTimeout(window.__auto);shell().hidden=true;land().hidden=true;$('app').hidden=false;document.documentElement.classList.add('clay');go('admin');return;}podium.welcomeStop?.();clearTimeout(window.__auto);document.documentElement.classList.remove('clay');$('app').hidden=true;shell().hidden=true;renderLand();land().hidden=false;try{podium.robotShow&&podium.robotShow(true,'welcome')}catch(e){console.warn(e)}land().classList.remove('in');void land().offsetWidth;land().classList.add('in');scrollTo(0,0);
   podium.welcomeStart?.()}
-function toApp(v,p){clearTimeout(window.__auto);podium.welcomeStop?.();transition(p,()=>{land().hidden=true;$('app').hidden=false;document.documentElement.classList.add('clay');go(v);try{podium.robotShow&&podium.robotShow(true,'app');podium.setMin&&podium.setMin(innerWidth<900)}catch(e){console.warn(e)}})}
-function signOut(p){podium.practiceCleanup?.();podium.practiceCleanup=null;clearTimeout(window.__auto);podium.welcomeStop?.();clearInterval(tm);transition(p,()=>{try{podium.save&&podium.save();window.PTCloud&&PTCloud.enabled&&PTCloud.signOut();podium.tourStop&&podium.tourStop()}catch(e){}try{podium.robotShow&&podium.robotShow(false)}catch(e){}document.documentElement.classList.remove('clay');$('app').hidden=true;land().hidden=true;shell().hidden=false;lf.reset();rf.reset();setTab('login');S.u.pic=''})}
+function toApp(v,p,direct=false){
+  clearTimeout(window.__auto);podium.welcomeStop?.();
+  const mount=()=>{
+    land().hidden=true;$('app').hidden=false;document.documentElement.classList.add('clay');
+    // Account data is already loaded. Reveal real content behind the doorway.
+    S.booted=true;S.loading=false;go(v);
+    try{podium.robotShow?.(true,'app');podium.setMin?.(innerWidth<900&&!S.isNew)}catch(e){console.warn(e)}
+    const account=S.u.email;
+    const beginTour=()=>{
+      if(account!==S.u.email||$('app').hidden||S.view!=='dash'||T.on||!S.isNew||S.toured)return;
+      // Never consume a first visit while the user is in another tab.
+      if(document.hidden){window.__auto=setTimeout(beginTour,650);return;}
+      startTour();
+    };
+    window.__auto=setTimeout(beginTour,direct?650:1400);
+  };
+  if(direct)mount();else transition(p,mount);
+}
+function signOut(p){podium.welcomeEnterCancel?.();podium.tourStop?.();rts.forEach(clearTimeout);rts=[];podium.practiceCleanup?.();podium.practiceCleanup=null;clearTimeout(window.__auto);podium.welcomeStop?.();clearInterval(tm);transition(p,()=>{try{podium.save&&podium.save();window.PTCloud&&PTCloud.enabled&&PTCloud.signOut();podium.tourStop&&podium.tourStop()}catch(e){}try{podium.robotShow&&podium.robotShow(false)}catch(e){}document.documentElement.classList.remove('clay');$('app').hidden=true;land().hidden=true;shell().hidden=false;lf.reset();rf.reset();setTab('login');S.u.pic=''})}
 function renderLand(){
   const a=avg(S.ses.map(x=>x.score)),f=S.u.name.split(' ')[0],ico=p=>'<span style="color:var(--brand);display:flex">'+ic(p)+'</span>';
   const cards=[['Timer with a target','M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z','Pick 3, 5 or 10 minutes and watch the ring fill as you speak.'],['Pace and filler words','M3 17l6-6 4 4 8-8M15 7h6v6','See your speed live and tap each filler word you catch.'],['Score and next steps','M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7','Every session ends with a score and three clear tips.']];
@@ -641,7 +680,7 @@ function renderLand(){
   <p class="welcome-intro" id="welcome-intro" role="status" aria-live="polite">Tracy is getting ready to say hello…</p>
   <div class="welcome-actions"><button class="bt big" id="leval" type="button" hidden>Start evaluation</button><button class="welcome-skip" id="welcome-skip" type="button">Skip introduction</button><button class="welcome-skip" id="welcome-replay" type="button" hidden>Hear introduction again</button></div></div>
   <footer class="lfoot"><span>PresentTrack · Practice out loud, present with confidence</span><span>© 2026 PresentTrack</span></footer><div class="lf">${cards.map((c,i)=>`<div class="pn" data-r style="--i:${6+i}"><h3>${ico(c[1])}${c[0]}</h3><p>${c[2]}</p></div>`).join('')}</div>`;
-  $('leval').onclick=e=>toApp('eval',ctr(e.currentTarget));$('llo').onclick=e=>signOut(ctr(e.currentTarget));
+  $('leval').onclick=e=>{const p=ctr(e.currentTarget);if(podium.welcomeEnter)podium.welcomeEnter(()=>toApp('dash',p,true));else toApp('dash',p)};$('llo').onclick=e=>signOut(ctr(e.currentTarget));
 }
 podium.enter=(name,email)=>{S.u.name=name.replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());S.u.email=email;podium.name=S.u.name.split(' ')[0];podium.account(email,!!podium.newUser);try{if(!window.PTIdentity?.isAdmin(window.PTCloud?.user))podium.assessInit&&podium.assessInit()}catch(e){console.warn(e)}
   if(!window.PTIdentity?.isAdmin(window.PTCloud?.user))podium.welcomePrepare?.();
