@@ -143,6 +143,17 @@ try {
         console.log(`Screenshot: ${image}`);
       }
     }
+    if(inspectDoor){
+      await waitFor(`document.querySelector('#welcome-door')?.dataset.phase==='crossing'`,'portal morph after Tracy enters');
+      assert.equal(await evaluate(`document.getElementById('app').hidden`),true,'dashboard waits for the portal expansion');
+      const morph=await evaluate(`(()=>{const frame=document.querySelector('.welcome-door-frame');const animation=frame.getAnimations().find(a=>a.effect?.target===frame);const end=animation.effect.getKeyframes().at(-1);return {duration:animation.effect.getTiming().duration,end:end.transform};})()`);
+      assert.equal(morph.duration,860);assert.match(morph.end,/scale\(/);
+      if(screenshots){
+        await new Promise(r=>setTimeout(r,420));const {data}=await call('Page.captureScreenshot');
+        const image=join(screenshots,`portal-morph-${await evaluate('innerWidth')}.png`);
+        await writeFile(image,Buffer.from(data,'base64'));console.log(`Screenshot: ${image}`);
+      }
+    }
     await waitFor('!document.querySelector("#welcome-door") && !document.getElementById("app").hidden && !podium.ext.S.loading', 'dashboard reveal');
     if(inspectDoor)assert.equal(await evaluate('window.doorSpeech.ended'),1,'speech completes before the dashboard is revealed');
     if (auto) await waitFor('podium.tourOn()', 'automatic tour');

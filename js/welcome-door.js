@@ -61,10 +61,11 @@
       if (!motion || !el.animate) return null;
       const animation = el.animate(frames, options); animations.push(animation); return animation;
     };
-    const release = () => {
+    const clearAnimations = () => animations.forEach(animation => animation.cancel());
+    const release = (keepVisuals = false) => {
       timers.forEach(clearTimeout);
       clearTimeout(audioTimer);speechClosed = true; narration?.cancel?.();podium.hushNow?.();
-      animations.forEach(animation => animation.cancel());
+      if (!keepVisuals) clearAnimations();
       document.removeEventListener('keydown', keydown, true);
       document.removeEventListener('visibilitychange', visibility);
       window.removeEventListener('resize', resize);
@@ -79,15 +80,23 @@
       if (settled) return;
       settled = true; active = null; release(); overlay.remove();
     };
-    const finish = () => {
+    const finish = (morphed = false) => {
       if (settled) return;
-      settled = true; active = null; release();
+      const throughPortal = morphed === true && motion;
+      settled = true; active = null; release(throughPortal);
+      overlay.dataset.morphed = String(throughPortal);
       overlay.dataset.phase = 'revealing';
-      // The caller mounts the dashboard underneath this final fade.
-      try { onEntered?.(); }
+      // Keep the expanded portal in place as the real dashboard comes into focus.
+      try {
+        onEntered?.();
+        if (throughPortal && !$('app')?.hidden) animate($('app'), [
+          { opacity: .45, transform: 'scale(1.035)' },
+          { opacity: 1, transform: 'scale(1)' }
+        ], { duration: 520, easing: 'cubic-bezier(.22,.7,.25,1)', fill: 'none' });
+      }
       finally {
         let revealTimer;
-        const remove = () => { clearTimeout(revealTimer); overlay.remove(); if (clearReveal === remove) clearReveal = null; };
+        const remove = () => { clearTimeout(revealTimer); clearAnimations(); overlay.remove(); if (clearReveal === remove) clearReveal = null; };
         clearReveal = remove;
         revealTimer = setTimeout(() => {
           const moveFocus = document.activeElement === skip;
@@ -96,7 +105,7 @@
             const heading = document.querySelector('#view h1, #view h2');
             if (heading) { heading.setAttribute('tabindex', '-1'); heading.focus({ preventScroll: true }); }
           }
-        }, motion ? 380 : 120);
+        }, throughPortal ? 560 : motion ? 380 : 120);
       }
     };
     function keydown(event) {
@@ -140,6 +149,23 @@
       }
     }
 
+    const crossPortal = () => {
+      if (settled) return;
+      if (!motion || !doorway.animate) { finish(); return; }
+      overlay.dataset.phase = 'crossing';
+      const rect = doorway.getBoundingClientRect();
+      const width = document.documentElement.clientWidth, height = window.innerHeight;
+      // Bring the portal to the viewer, keeping its inner opening beyond every edge.
+      const scale = Math.max(width / rect.width, height / rect.height) * 1.35;
+      const dx = width / 2 - (rect.left + rect.width / 2);
+      const dy = height / 2 - (rect.top + rect.height / 2);
+      animate(doorway, [
+        { transform: 'translate(0,0) scale(1)' },
+        { transform: `translate(${dx * .18}px,${dy * .18}px) scale(1.18)`, offset: .22 },
+        { transform: `translate(${dx}px,${dy}px) scale(${scale})` }
+      ], { duration: 860, easing: 'cubic-bezier(.55,.04,.22,1)', fill: 'forwards' });
+      later(() => finish(true), 860);
+    };
     const enter = () => {
       if (settled || entering) return;
       entering = true; speechClosed = true; clearTimeout(audioTimer); narration?.cancel?.();
@@ -150,7 +176,7 @@
         { transform: `translate(${intoDoor * .82}px,${intoY}px) scale(.72)`, opacity: 1, offset: .68 },
         { transform: `translate(${intoDoor}px,${intoY}px) scale(.25)`, opacity: 0 }
       ], { duration: 1600, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
-      later(finish, motion ? 1650 : 150);
+      later(crossPortal, motion ? 1650 : 150);
     };
     const captionOnly = () => {
       if (settled || speechClosed) return;

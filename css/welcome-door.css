@@ -91,9 +91,9 @@
   background:#162f49; color:#c6f3ff; font:600 9px/1.3 Inter,system-ui,sans-serif; letter-spacing:.13em;
   box-shadow:0 0 16px #48c8ff1a; transition:opacity .3s ease;
 }
-#welcome-door:is([data-phase="speaking"],[data-phase="entering"],[data-phase="revealing"]) .welcome-door-panel:first-child { transform:translateX(-96%); }
-#welcome-door:is([data-phase="speaking"],[data-phase="entering"],[data-phase="revealing"]) .welcome-door-panel:nth-child(2) { transform:translateX(96%); }
-#welcome-door:is([data-phase="speaking"],[data-phase="entering"],[data-phase="revealing"]) .welcome-door-badge { opacity:0; }
+#welcome-door:is([data-phase="speaking"],[data-phase="entering"],[data-phase="crossing"],[data-phase="revealing"]) .welcome-door-panel:first-child { transform:translateX(-96%); }
+#welcome-door:is([data-phase="speaking"],[data-phase="entering"],[data-phase="crossing"],[data-phase="revealing"]) .welcome-door-panel:nth-child(2) { transform:translateX(96%); }
+#welcome-door:is([data-phase="speaking"],[data-phase="entering"],[data-phase="crossing"],[data-phase="revealing"]) .welcome-door-badge { opacity:0; }
 #welcome-door[data-phase="entering"] .welcome-door-horizon { animation:door-light 1.6s ease both; }
 .welcome-door-floor {
   position:absolute; left:6%; right:5%; top:294px; height:42px; border-radius:50%;
@@ -113,6 +113,16 @@ html #welcome-door #bot.welcome.door-tracy { position:absolute; inset:0; width:1
 .welcome-door-skip:focus-visible { outline:3px solid var(--brand); outline-offset:4px; }
 #welcome-door[data-phase="revealing"] { pointer-events:none; animation:door-reveal .36s ease both; }
 #welcome-door[data-phase="revealing"] .welcome-door-actor { visibility:hidden; }
+#welcome-door[data-phase="crossing"] .welcome-door-frame { z-index:6; will-change:transform; }
+#welcome-door[data-phase="crossing"] :is(.welcome-door-eyebrow,#welcome-door-title,.welcome-door-caption,.welcome-door-skip,.welcome-door-floor) { animation:door-surroundings-out .3s ease both; }
+#welcome-door[data-phase="crossing"] .welcome-door-rings { animation:door-depth .86s ease-in both; }
+#welcome-door[data-phase="crossing"] .welcome-door-horizon { animation:door-threshold .86s ease both; }
+#welcome-door[data-morphed="true"] { animation-duration:.54s; }
+#welcome-door[data-morphed="true"] :is(.welcome-door-eyebrow,#welcome-door-title,.welcome-door-caption,.welcome-door-skip,.welcome-door-floor) { opacity:0; animation:none; }
+#welcome-door[data-morphed="true"] .welcome-door-rings { opacity:0; }
+@keyframes door-surroundings-out { to { opacity:0; transform:translateY(-6px); } }
+@keyframes door-depth { to { opacity:0; transform:scale(1.35); } }
+@keyframes door-threshold { 45% { opacity:1; transform:scaleY(2); } to { opacity:0; transform:scaleY(3); } }
 @keyframes door-backdrop { from { opacity:0; } to { opacity:1; } }
 @keyframes door-light { 40% { opacity:1; transform:scaleX(1.12); } 100% { opacity:.5; transform:scaleX(.85); } }
 @keyframes door-reveal { from { opacity:1; } to { opacity:0; } }

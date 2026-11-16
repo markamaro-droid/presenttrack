@@ -10,7 +10,7 @@ const copy="Let's dive into your speaking evaluation. Follow me inside, and we'l
 function setup({reducedMotion=false,voice=true,narration=true,throwSpeech=false}={}){
   const elements=new Map(),timers=new Map(),listeners=new Map(),animations=[],poses=[];
   let now=0,timerId=0,speech=null,narrations=0,cancellations=0,navigations=0;
-  const document={hidden:false,activeElement:null};
+  const document={hidden:false,activeElement:null,documentElement:{clientWidth:1440}};
   function element(id,rect={left:0,top:0,width:220,height:240}){
     const classes=new Set(),children=new Map(),attributes=new Map();
     return {id,hidden:false,inert:false,style:{overflow:'auto'},dataset:{},tabIndex:0,
@@ -42,7 +42,7 @@ function setup({reducedMotion=false,voice=true,narration=true,throwSpeech=false}
     speech={text,...hooks};return{cancel(){cancellations++;}};
   };
   const context={podium,document,PTWelcomeDoorSpeech:{text:copy},matchMedia:()=>({matches:reducedMotion}),
-    window:{addEventListener:(type,fn)=>listeners.set(type,fn),removeEventListener:(type,fn)=>{if(listeners.get(type)===fn)listeners.delete(type);}},
+    window:{innerHeight:900,addEventListener:(type,fn)=>listeners.set(type,fn),removeEventListener:(type,fn)=>{if(listeners.get(type)===fn)listeners.delete(type);}},
     getComputedStyle:()=>({backgroundColor:'rgb(29,78,216)',transform:'none'}),
     setTimeout(fn,ms){const id=++timerId;timers.set(id,{at:now+ms,fn});return id;},clearTimeout:id=>timers.delete(id)};
   vm.runInNewContext(source,context);
@@ -70,9 +70,14 @@ test('door forms from the button before narration; approach follows playback and
   assert.equal(s.animations.at(-1).options.duration,3000);
   s.advance(700);assert.equal(s.poses.at(-1),'turn');assert.equal(s.navigations,0);
   s.speech.onend();assert.equal(s.overlay.dataset.phase,'entering');assert.equal(s.poses.at(-1),'enter');
-  s.advance(1649);assert.equal(s.navigations,0);s.advance(1);assert.equal(s.navigations,1);
+  s.advance(1649);assert.equal(s.navigations,0);s.advance(1);
+  assert.equal(s.overlay.dataset.phase,'crossing');assert.equal(s.navigations,0);
+  const zoom=s.animations.at(-1);assert.equal(zoom.element.id,'.welcome-door-frame');
+  s.advance(859);assert.equal(s.navigations,0);s.advance(1);assert.equal(s.navigations,1);
+  assert.equal(zoom.cancelled,false,'portal must stay expanded during dashboard reveal');
+  assert.equal(s.overlay.dataset.morphed,'true');
   assert.equal(s.elements.get('land').inert,false);assert.equal(s.elements.get('bc').tabIndex,0);
-  s.advance(380);assert.equal(s.overlay,undefined);assert.equal(s.timers.size,0);
+  s.advance(560);assert.equal(s.overlay,undefined);assert.equal(s.timers.size,0);assert.equal(zoom.cancelled,true);
 });
 
 test('muted or unavailable narration keeps readable captions, then completes without audio',()=>{
@@ -80,7 +85,7 @@ test('muted or unavailable narration keeps readable captions, then completes wit
     const s=setup(options);s.start();s.advance(850);
     assert.equal(s.overlay.querySelector('.welcome-door-caption').textContent,copy);
     s.advance(2399);assert.equal(s.overlay.dataset.phase,'speaking');s.advance(1);
-    assert.equal(s.overlay.dataset.phase,'entering');s.advance(1650);assert.equal(s.navigations,1);
+    assert.equal(s.overlay.dataset.phase,'entering');s.advance(2510);assert.equal(s.navigations,1);
   }
 });
 
@@ -93,7 +98,7 @@ test('failed, blocked, and stalled playback have bounded caption fallbacks',()=>
     s.speech.onstart();s.speech.onend();
     assert.equal(s.overlay.dataset.phase,'speaking','late speech callbacks cannot bypass caption reading time');
     s.advance(2400);assert.equal(s.overlay.dataset.phase,'entering');
-    s.advance(1650);assert.equal(s.navigations,1);s.advance(100000);assert.equal(s.navigations,1);
+    s.advance(2510);assert.equal(s.navigations,1);s.advance(100000);assert.equal(s.navigations,1);
   }
 });
 
@@ -131,6 +136,16 @@ test('reduced motion removes movement but still waits for actual speech to finis
   s.speech.onstart();s.advance(2000);assert.equal(s.navigations,0);assert.equal(s.animations.length,0);
   s.speech.onend();s.advance(149);assert.equal(s.navigations,0);s.advance(1);assert.equal(s.navigations,1);
   s.advance(120);assert.equal(s.overlay,undefined);
+});
+
+test('cancelling or skipping during the portal morph cannot cause a late second navigation',()=>{
+  for(const skip of [false,true]){
+    const s=setup();s.start();s.advance(850);s.speech.onstart();s.speech.onend();s.advance(1650);
+    assert.equal(s.overlay.dataset.phase,'crossing');
+    if(skip)s.overlay.querySelector('[data-door-skip]').onclick();else s.podium.welcomeEnterCancel();
+    s.advance(100000);assert.equal(s.navigations,skip?1:0);assert.equal(s.overlay,undefined);
+    assert.equal(s.timers.size,0);assert.ok(s.animations.every(a=>a.cancelled));
+  }
 });
 
 test('robot doorway gestures follow voice hooks and cancellation suppresses callbacks',()=>{
