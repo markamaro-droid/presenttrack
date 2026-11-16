@@ -47,6 +47,17 @@ podium.robotIntroduce=(text,done,onstart)=>{
   });
 };
 podium.robotPoint=()=>set('point',0,'');
+podium.robotDoorNarrate=(text,hooks={})=>{
+  clearAll();stopVoice();set('idle',0,'');let live=true;
+  speak(text,()=>{
+    if(!live)return;live=false;
+    if(nar.failed||!nar.started)hooks.onerror?.();else hooks.onend?.();
+  },{
+    onstart:()=>{if(!live)return;set('talking',0,'');hooks.onstart?.()},
+    onpause:()=>{if(live)set('idle',0,'')}
+  });
+  return {cancel(){if(!live)return;live=false;hush();set('idle',0,'')}};
+};
 podium.robotDoorPose=phase=>{clearAll();set(phase==='enter'?'door-enter':phase==='turn'?'door-turn':'idle',0,'')};
 podium.robotReady=()=>ready&&W>0;
 podium.robotWelcomeWave=()=>set('wave',1800,'');
@@ -103,8 +114,8 @@ function frame(){
   else if(s==='thinking'){g.pitch=.16;g.roll=-.14;g.ear=.4}
   else if(s==='talking'&&(speaking||V.on)){g.mouth=1;g.pitch+=Math.sin(t*5)*.06;if(bot.classList.contains('welcome')){g.hR=.55+.25*Math.sin(t*2.5);g.hL=-.4-.2*Math.sin(t*2.5)}}
   else if(s==='point'){g.hR=.2;g.hL=-1.25-.08*Math.sin(t*2);g.pitch=.08;g.roll=-.08;g.yaw=-.18;g.ex=-1;g.ey=-.2}
-  else if(s==='door-turn'){g.yaw=.7;g.hL=-.25;g.hR=.15;g.ex=.4;g.ey=0}
-  else if(s==='door-enter'){g.yaw=2.75;g.pitch=.06;g.hR=.2+Math.sin(t*5)*.12;g.hL=-.2-Math.sin(t*5)*.12;g.ex=0;g.ey=0}
+  else if(s==='door-turn'){g.yaw=-.7;g.hL=-.25;g.hR=.15;g.ex=-.4;g.ey=0}
+  else if(s==='door-enter'){g.yaw=-2.75;g.pitch=.06;g.hR=.2+Math.sin(t*5)*.12;g.hL=-.2-Math.sin(t*5)*.12;g.ex=0;g.ey=0}
   else if(s==='celebrate'){const f=Math.sin(t*14);g.hR=2.9+.25*f;g.hL=-(2.9-.25*f);g.mouth=.6}
   if(speaking)g.mouth=Math.max(g.mouth,1);
   const a=1-Math.exp(-dt*8);for(const k in g)C[k]+=(g[k]-C[k])*a;

@@ -1,4 +1,4 @@
-/* One fixed server-selected voice. Only the generic greeting persists locally. */
+/* One server-selected voice. Only the two fixed welcome clips persist locally. */
 (() => {
   let current = null;
   let loginAudio = null, unlocking = null;
@@ -25,10 +25,11 @@
     if (cache.has(key)) return cache.get(key);
     if (pending.has(key)) return pending.get(key);
     const task = (async () => {
-      const greeting = globalThis.PTGreeting;
-      const persist = greeting && text.trim() === greeting.text && language === 'en-US';
-      if (persist) {
-        const saved = await greeting.read();
+      // Exact allowlist: dynamic tours and conversations never enter device storage.
+      const persistentClip = language === 'en-US' && [globalThis.PTGreeting, globalThis.PTWelcomeDoorSpeech]
+        .find(clip => clip && text.trim() === clip.text);
+      if (persistentClip) {
+        const saved = await persistentClip.read();
         if (globalThis.PTCloud?.user?.id !== owner) throw new Error('Account changed');
         if (saved) { cache.set(key, saved); return saved; }
       }
@@ -41,7 +42,7 @@
         if (!response.ok) throw new Error('Speech unavailable');
         const value = await response.json();
         if (globalThis.PTCloud?.user?.id !== owner) throw new Error('Account changed');
-        if (persist) void greeting.write(value);
+        if (persistentClip) void persistentClip.write(value);
         // Tour clips are often larger than the old 500 KB ceiling. Bound total
         // encoded audio instead, so ordinary narration is actually reused.
         if (value.audio.length <= 4000000) {

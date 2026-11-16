@@ -67,7 +67,7 @@ try {
     if (result.exceptionDetails) throw Error(JSON.stringify(result.exceptionDetails));
     return result.result.value;
   };
-  const waitFor = async (expression, label, timeout = 9000) => {
+  const waitFor = async (expression, label, timeout = 12000) => {
     const deadline = Date.now() + timeout;
     while (Date.now() < deadline) { if (await evaluate(expression)) return; await new Promise(r => setTimeout(r, 50)); }
     throw Error(`Timed out waiting for ${label}`);
@@ -87,6 +87,14 @@ try {
       ${visual ? '' : 'podium.robotPoint = () => {}; podium.hushNow = () => {};'}
       podium.narrate = () => {};
       podium.narState = () => ({ voice: true, started: true, ended: false });
+      window.doorSpeech = { calls: [], started: 0, ended: 0 };
+      const deliverDoorSpeech = (text, hooks = {}) => {
+        window.doorSpeech.calls.push(text);
+        setTimeout(() => { window.doorSpeech.started++; hooks.onstart?.(); }, 100);
+        setTimeout(() => { window.doorSpeech.ended++; hooks.onend?.(); }, 2000);
+        return {cancel(){}};
+      };
+      ${visual ? 'window.TracyAudio={speak:deliverDoorSpeech,cancel(){}};' : 'podium.robotDoorNarrate=deliverDoorSpeech;'}
       ${visual ? '' : `podium.robotShow = (visible, where) => {
         const bot = document.getElementById('bot');
         document.body.appendChild(bot); bot.hidden = !visible;
@@ -102,17 +110,33 @@ try {
     assert.equal(await evaluate(`document.getElementById('leval').hidden`), false, 'start action is available');
   };
   const enterDashboard = async ({ auto, inspectDoor = false } = {}) => {
-    await evaluate(`document.getElementById('leval').click(); document.getElementById('leval').click();`);
+    await evaluate(`window.clickedEvaluationRect=document.getElementById('leval').getBoundingClientRect().toJSON();document.getElementById('leval').click(); document.getElementById('leval').click();`);
     if (inspectDoor) {
       assert.equal(await evaluate(`document.querySelectorAll('#welcome-door').length`), 1, 'duplicate click starts one transition');
       assert.equal(await evaluate(`document.querySelector('.welcome-door-actor')?.contains(document.getElementById('bot'))`), true, 'the actual Tracy moves into the scene');
       assert.equal(await evaluate(`document.querySelector('#app').hidden`), true, 'dashboard waits for the doorway');
       assert.equal(await evaluate(`podium.tourOn()`), false, 'tour does not run behind the door');
+      const morph = await evaluate(`(() => {
+        const frame=document.querySelector('.welcome-door-frame'), animation=frame.getAnimations().find(a=>a.effect?.target===frame);
+        if(!animation)return null;
+        const time=animation.currentTime;animation.pause();animation.currentTime=0;
+        const initial=frame.getBoundingClientRect().toJSON();animation.currentTime=time;animation.play();
+        return {initial,button:window.clickedEvaluationRect};
+      })()`);
+      assert.ok(morph, 'the door morphs from the clicked evaluation button');
+      for(const key of ['left','top','width','height'])assert.ok(Math.abs(morph.initial[key]-morph.button[key])<2,`${key}: portal starts at the button (${JSON.stringify(morph)})`);
+      await new Promise(r=>setTimeout(r,900));
       const geometry = await evaluate(`(() => {const r = document.querySelector('.welcome-door-frame').getBoundingClientRect();return {fits:r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight,overflow:document.documentElement.scrollWidth>innerWidth+1};})()`);
       assert.equal(geometry.fits, true, 'door fits the viewport');
       assert.equal(geometry.overflow, false, 'no horizontal overflow');
+      assert.equal(await evaluate(`(()=>{const door=document.querySelector('.welcome-door-frame').getBoundingClientRect(),bot=document.querySelector('.welcome-door-actor').getBoundingClientRect();return door.left+door.width/2<bot.left+bot.width/2})()`),true,'the portal opens on Tracy’s left');
+      assert.equal(await evaluate('window.doorSpeech.calls.length'),1,'one fixed speech clip per transition');
+      assert.equal(await evaluate('window.doorSpeech.calls[0]'),await evaluate('PTWelcomeDoorSpeech.text'),'narration uses the reusable fixed clip');
+      await waitFor('window.doorSpeech.started===1','door narration starts');
+      assert.equal(await evaluate('window.doorSpeech.started'),1,'speech starts while the portal is open');
+      assert.equal(await evaluate(`document.querySelector('#app').hidden`), true, 'the dashboard waits while Tracy speaks');
       if (screenshots) {
-        await new Promise(r => setTimeout(r, 850));
+        await new Promise(r => setTimeout(r, 550));
         const { data } = await call('Page.captureScreenshot');
         const image = join(screenshots, `door-${await evaluate('innerWidth')}.png`);
         await writeFile(image, Buffer.from(data, 'base64'));
@@ -120,6 +144,7 @@ try {
       }
     }
     await waitFor('!document.querySelector("#welcome-door") && !document.getElementById("app").hidden && !podium.ext.S.loading', 'dashboard reveal');
+    if(inspectDoor)assert.equal(await evaluate('window.doorSpeech.ended'),1,'speech completes before the dashboard is revealed');
     if (auto) await waitFor('podium.tourOn()', 'automatic tour');
     else await new Promise(r => setTimeout(r, 1400));
     assert.equal(await evaluate('podium.tourOn()'), auto, 'automatic tour eligibility');
@@ -169,7 +194,7 @@ try {
     assert.equal(await evaluate('podium.tourOn()'), false);
     assert.equal(await evaluate('podium.ext.S.view'), 'eval');
     assert.equal(await evaluate('podium.ext.pendingEval()'), true);
-    console.log(`PASS ${width}x${height}: doorway, repeat click, first-use auto tour, return visit, manual replay and all 9 tour steps`);
+    console.log(`PASS ${width}x${height}: button morph, left portal, fixed narration, repeat click, first-use auto tour, return visit, manual replay and all 9 tour steps`);
   }
 
   await fresh(390, 844, true);

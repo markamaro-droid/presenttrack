@@ -90,3 +90,15 @@ test('login gesture primes audio without a provider request, then greeting reuse
   assert.equal(started, 1);
   s.audio.cancel();
 });
+
+test('fixed doorway narration plays persisted audio with real playback callbacks and no request', async () => {
+  const s=setup(),events=[];
+  s.context.PTWelcomeDoorSpeech={text:'Fixed doorway narration',read:async()=>({audio:'UklGRg==',mime:'audio/wav'}),write:async()=>{}};
+  s.audio.speak(s.context.PTWelcomeDoorSpeech.text,{onstart:()=>events.push('started'),onend:()=>events.push('ended')});
+  await flush();
+  assert.equal(s.requests.length,0);
+  assert.equal(s.clips.length,1);assert.equal(s.clips[0].playing,true);
+  assert.deepEqual(events,['started']);
+  s.clips[0].onended();await flush();
+  assert.deepEqual(events,['started','ended']);assert.equal(s.clips[0].playing,false);
+});
