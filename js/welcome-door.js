@@ -87,6 +87,7 @@
     const finish = (morphed = false) => {
       if (settled) return;
       const throughPortal = morphed === true && motion;
+      const restoreFocus = document.activeElement === skip;
       settled = true; active = null; release(throughPortal);
       overlay.dataset.morphed = String(throughPortal);
       overlay.dataset.phase = 'revealing';
@@ -99,7 +100,9 @@
         const remove = () => { clearTimeout(revealTimer); clearAnimations(); overlay.remove(); if (clearReveal === remove) clearReveal = null; };
         clearReveal = remove;
         revealTimer = setTimeout(() => {
-          const moveFocus = document.activeElement === skip;
+          // Hiding the portal content can blur Skip before the fade finishes.
+          // Preserve any control the user has focused on the dashboard meanwhile.
+          const moveFocus = document.activeElement === skip || (restoreFocus && document.activeElement === document.body);
           remove();
           if (moveFocus && !$('app')?.hidden && !podium.tourOn?.()) {
             const heading = document.querySelector('#view h1, #view h2');

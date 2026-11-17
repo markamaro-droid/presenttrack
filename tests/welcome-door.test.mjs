@@ -56,7 +56,7 @@ function setup({reducedMotion=false,voice=true,narration=true,throwSpeech=false}
       const [id,timer]=next;now=timer.at;timers.delete(id);timer.fn();}
     now=end;
   };
-  return{podium,elements,timers,listeners,animations,poses,advance,
+  return{podium,document,elements,timers,listeners,animations,poses,advance,
     start:()=>podium.welcomeEnter(()=>{navigations++;elements.get('app').hidden=false;}),
     get overlay(){return elements.get('welcome-door');},
     get speech(){return speech;},get narrations(){return narrations;},get cancellations(){return cancellations;},get navigations(){return navigations;}};
@@ -95,6 +95,20 @@ test('muted or unavailable narration keeps readable captions, then completes wit
     assert.equal(s.overlay.querySelector('.welcome-door-caption').textContent,copy);
     s.advance(2399);assert.equal(s.overlay.dataset.phase,'speaking');s.advance(1);
     assert.equal(s.overlay.dataset.phase,'entering');s.advance(2510);assert.equal(s.navigations,1);
+  }
+});
+
+test('connected reveal restores focus after Skip becomes hidden without stealing dashboard focus',()=>{
+  for(const destination of ['skip','body','dashboard-control']){
+    const s=setup();s.start();s.advance(850);s.speech.onstart();s.speech.onend();s.advance(1650+1500);
+    assert.equal(s.overlay.dataset.phase,'revealing');
+    const control=s.document.createElement('button');
+    if(destination==='body')s.document.body.focus(); // visibility:hidden blurs Skip in the browser.
+    if(destination==='dashboard-control')control.focus();
+    s.advance(560);
+    assert.equal(s.overlay,undefined);
+    if(destination==='dashboard-control')assert.equal(s.document.activeElement,control,'preserve the user-selected control');
+    else assert.equal(s.document.activeElement.id,'heading','move focus to the dashboard after the portal closes');
   }
 });
 

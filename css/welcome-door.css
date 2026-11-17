@@ -1,5 +1,5 @@
-/* JavaScript morphs the clicked button into this frame. Only transforms and
-   opacity animate; the existing Tracy canvas remains the character. */
+/* The button becomes a portal, then its aperture expands over the live dashboard.
+   The existing Tracy canvas remains the character throughout the entrance. */
 #welcome-door {
   --door-cyan:#68e4ff; --door-blue:#387cfa;
   position:fixed; inset:0; z-index:80; display:grid; place-items:center;

@@ -152,6 +152,9 @@ try {
       const morph=await evaluate(`(()=>{const frame=document.querySelector('.welcome-dashboard-window');const animation=frame.getAnimations().find(a=>a.effect?.target===frame);const end=animation.effect.getKeyframes().at(-1);return {duration:animation.effect.getTiming().duration,end:end.clipPath};})()`);
       assert.equal(morph.duration,1500);assert.match(morph.end,/inset\(0px/);
       if(screenshots){
+        const opening=await call('Page.captureScreenshot');
+        const openingImage=join(screenshots,`portal-opening-${await evaluate('innerWidth')}.png`);
+        await writeFile(openingImage,Buffer.from(opening.data,'base64'));console.log(`Screenshot: ${openingImage}`);
         await new Promise(r=>setTimeout(r,700));const {data}=await call('Page.captureScreenshot');
         const image=join(screenshots,`portal-morph-${await evaluate('innerWidth')}.png`);
         await writeFile(image,Buffer.from(data,'base64'));console.log(`Screenshot: ${image}`);
@@ -178,9 +181,10 @@ try {
     assert.equal(await evaluate('podium.ext.pendingEval()'), true, 'tour never unlocks evaluation');
     assert.match(await evaluate(`document.querySelector('#spot strong').textContent`), /dashboard/i);
     await endTour();
-    await media(true);
+    await media(width!==1440);
     await welcome(`new-${width}@example.test`, false);
     await enterDashboard({ auto: false });
+    assert.equal(await evaluate(`document.activeElement?.matches('#view h1, #view h2')`),true,'returning user receives keyboard focus on the dashboard');
     await evaluate(`podium.setMin(true);document.getElementById('tour-guide').click();`);
     assert.equal(await evaluate('podium.tourOn()'), true, 'manual replay works with Tracy minimized');
     assert.equal(await evaluate(`document.getElementById('bot').hidden`), false);
