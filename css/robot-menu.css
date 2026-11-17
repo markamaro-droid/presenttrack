@@ -1,11 +1,11 @@
-/* Keep shortcuts in a clear column beside Tracy's full canvas. */
+/* Follow a roomy arc to Tracy's left, keeping her face and body clear. */
 #bot .bbar{position:absolute;inset:0;display:block;pointer-events:none!important;transform:none!important;z-index:4}
 #bot .bbar .robot-bubble{position:absolute;left:auto;top:auto;right:calc(100% + 12px);display:grid;place-items:center;width:44px;height:44px;padding:0;border:1px solid color-mix(in srgb,var(--brand) 45%,white);border-radius:50%;color:var(--ink);background:radial-gradient(circle at 30% 20%,color-mix(in srgb,var(--brand) 35%,var(--cs)),var(--cs) 75%);box-shadow:inset 0 2px 3px #ffffff40,0 6px 18px #090c2940;opacity:0;transform:translate(8px,0) scale(.7);transition:transform .24s cubic-bezier(.2,.8,.3,1.3),opacity .18s;pointer-events:none;font:500 11px Inter,sans-serif;cursor:pointer}
 #bot .bbar .robot-bubble svg{width:23px;height:23px;filter:none}
-#bot .bbar [data-bubble="0"]{bottom:calc(50% + 56px);--delay:0ms;color:var(--link,var(--brand))}
-#bot .bbar [data-bubble="1"]{bottom:calc(50% + 4px);--delay:35ms}
-#bot .bbar [data-bubble="2"]{bottom:calc(50% - 48px);--delay:70ms}
-#bot .bbar [data-bubble="3"]{bottom:calc(50% - 100px);--delay:105ms}
+#bot .bbar [data-bubble="0"]{right:calc(100% - 74px);bottom:calc(50% + 86px);--delay:0ms;color:var(--link,var(--brand))}
+#bot .bbar [data-bubble="1"]{right:calc(100% - 30px);bottom:calc(50% + 50px);--delay:35ms}
+#bot .bbar [data-bubble="2"]{right:100%;bottom:50%;--delay:70ms}
+#bot .bbar [data-bubble="3"]{right:calc(100% + 8px);bottom:calc(50% - 56px);--delay:105ms}
 #bot.menu .bbar .robot-bubble{opacity:1;transform:translate(0,0) scale(1);pointer-events:auto;transition-delay:var(--delay)}
 #bot.menu .bbar .robot-bubble:hover{transform:scale(1.08);border-color:var(--brand)}
 #bot .robot-bubble:focus-visible{outline:3px solid var(--brand);outline-offset:4px}
