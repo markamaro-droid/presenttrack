@@ -78,7 +78,7 @@ function addRot(n,ax,a){if(!n||Math.abs(a)<.002)return;
   n.parent.getWorldQuaternion(q1);q2.copy(root.quaternion).invert();q1.premultiply(q2);
   q3.setFromAxisAngle(ax,a).premultiply(q2.copy(q1).invert()).multiply(q1);n.quaternion.premultiply(q3)}
 function size(){const w=cv.clientWidth,h=cv.clientHeight;
-  if(w!==W||h!==H){W=w;H=h;R.setSize(w,h,false);cam.aspect=w/h;cam.position.z=(h/2)/Math.tan(Math.PI/12);cam.far=cam.position.z*4;cam.updateProjectionMatrix();RH=bot.classList.contains('welcome')?h*.82:clamp(h*.5,100,135)}
+  if(w!==W||h!==H){W=w;H=h;R.setSize(w,h,false);cam.aspect=w/h;cam.position.z=(h/2)/Math.tan(Math.PI/12);cam.far=cam.position.z*4;cam.updateProjectionMatrix();RH=bot.classList.contains('welcome')||bot.classList.contains('app')?h*.82:clamp(h*.5,100,135)}
   root.scale.setScalar(RH)}
 function init(){
   R=new T.WebGLRenderer({canvas:cv,alpha:true,antialias:true});R.outputEncoding=T.sRGBEncoding;R.toneMapping=T.ACESFilmicToneMapping;R.toneMappingExposure=1.1;R.setPixelRatio(Math.min(devicePixelRatio||1,2));

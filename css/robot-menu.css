@@ -1,17 +1,16 @@
-/* Follow a roomy arc to Tracy's left, keeping her face and body clear. */
+/* Four independent controls follow the reference arc above and beside Tracy. */
 #bot .bbar{position:absolute;inset:0;display:block;pointer-events:none!important;transform:none!important;z-index:4}
-#bot .bbar .robot-bubble{position:absolute;left:auto;top:auto;right:calc(100% + 12px);display:grid;place-items:center;width:44px;height:44px;padding:0;border:1px solid color-mix(in srgb,var(--brand) 45%,white);border-radius:50%;color:var(--ink);background:radial-gradient(circle at 30% 20%,color-mix(in srgb,var(--brand) 35%,var(--cs)),var(--cs) 75%);box-shadow:inset 0 2px 3px #ffffff40,0 6px 18px #090c2940;opacity:0;transform:translate(8px,0) scale(.7);transition:transform .24s cubic-bezier(.2,.8,.3,1.3),opacity .18s;pointer-events:none;font:500 11px Inter,sans-serif;cursor:pointer}
+#bot .bbar .robot-bubble{position:absolute;left:auto;top:auto;display:grid;place-items:center;width:44px;height:44px;padding:0;border:1.25px solid #86ddff;border-radius:50%;color:#f4fbff;background:radial-gradient(ellipse at 30% 8%,#2363a5 0%,#123764 40%,#091c35 82%);box-shadow:inset 0 1px 3px #c2f1ff80,inset 0 -2px 5px #020e1d66,0 5px 12px #020d2840,0 0 7px #54caff24;opacity:0;transform:translate(6px,4px) scale(.85);transition:transform .24s cubic-bezier(.2,.8,.3,1),opacity .18s;pointer-events:none;font:500 11px Inter,sans-serif;cursor:pointer}
 #bot .bbar .robot-bubble svg{width:23px;height:23px;filter:none}
-#bot .bbar [data-bubble="0"]{right:calc(100% - 74px);bottom:calc(50% + 86px);--delay:0ms;color:var(--link,var(--brand))}
-#bot .bbar [data-bubble="1"]{right:calc(100% - 30px);bottom:calc(50% + 50px);--delay:35ms}
-#bot .bbar [data-bubble="2"]{right:100%;bottom:50%;--delay:70ms}
-#bot .bbar [data-bubble="3"]{right:calc(100% + 8px);bottom:calc(50% - 56px);--delay:105ms}
+#bot .bbar [data-bubble="0"]{right:calc(50% - 22px);bottom:calc(50% + 96px);--delay:0ms}
+#bot .bbar [data-bubble="1"]{right:calc(50% + 48px);bottom:calc(50% + 64px);--delay:35ms}
+#bot .bbar [data-bubble="2"]{right:calc(50% + 78px);bottom:calc(50% + 4px);--delay:70ms}
+#bot .bbar [data-bubble="3"]{right:calc(50% + 74px);bottom:calc(50% - 60px);--delay:105ms}
 #bot.menu .bbar .robot-bubble{opacity:1;transform:translate(0,0) scale(1);pointer-events:auto;transition-delay:var(--delay)}
-#bot.menu .bbar .robot-bubble:hover{transform:scale(1.08);border-color:var(--brand)}
-#bot .robot-bubble:focus-visible{outline:3px solid var(--brand);outline-offset:4px}
+#bot.menu .bbar .robot-bubble:hover{transform:scale(1.06);border-color:#c6f4ff}
+#bot .robot-bubble:focus-visible{outline:2px solid #9ceaff;outline-offset:4px}
 #bot .robot-bubble[hidden]{display:none!important}
-#bot .robot-bubble .bubble-label{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%) translateY(4px);padding:6px 9px;border-radius:8px;background:var(--cs);color:var(--ink);border:1px solid color-mix(in srgb,var(--ink) 15%,transparent);box-shadow:0 3px 10px #0002;white-space:nowrap;font-size:10px;opacity:0;visibility:hidden;pointer-events:none;transition:.15s}
-#bot .robot-bubble:hover .bubble-label,#bot .robot-bubble:focus-visible .bubble-label{opacity:1;visibility:visible;transform:translateX(-50%)}
-#bot .robot-bubble[aria-pressed=true]{background:color-mix(in srgb,var(--brand) 30%,var(--cs));border-color:var(--brand)}
+#bot .robot-bubble[aria-pressed=true]{background:linear-gradient(150deg,#1a436c,#0a1d35);border-color:#b1d7ea}
+#bot.app:not(.tourmode)::before{content:"";position:absolute;left:50%;bottom:8px;width:78px;height:12px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(ellipse,#9dedff85 0%,#379fff55 28%,#1879ff18 54%,transparent 74%);filter:blur(2px);pointer-events:none}
 #bc:focus-visible{outline:2px solid var(--brand);outline-offset:-14px}
-@media(prefers-reduced-motion:reduce){#bot .bbar .robot-bubble,#bot .robot-bubble .bubble-label{transition:none}}
+@media(prefers-reduced-motion:reduce){#bot .bbar .robot-bubble{transition:none}}

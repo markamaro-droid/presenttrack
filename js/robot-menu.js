@@ -12,11 +12,11 @@
   const svg = key => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${paths[key]}"/></svg>`;
   const talk = document.getElementById('bvoice'), tour = document.getElementById('bguide'), mute = document.getElementById('bmute'), mini = bar.querySelector('.bmin');
   const buttons = [talk, tour, mini, mute];
-  function label(button, key, text) { button.innerHTML = svg(key) + `<span class="bubble-label">${text}</span>`; button.setAttribute('aria-label', text); button.title = text; }
+  function label(button, key, text) { button.innerHTML = svg(key); button.setAttribute('aria-label', text); button.removeAttribute('title'); }
   label(talk, 'talk', 'Conversation'); label(tour, 'tour', 'Guided tour'); label(mini, 'minimize', 'Minimize Tracy');
   buttons.forEach((b, i) => { b.classList.add('robot-bubble'); b.dataset.bubble = String(i); });
   bar.id = 'tracy-shortcuts'; bar.setAttribute('role', 'group'); bar.setAttribute('aria-label', 'Tracy shortcuts');
-  trigger.setAttribute('aria-controls', panel.id); trigger.setAttribute('aria-label', 'Tracy. Open conversation. Press ArrowDown for shortcuts.'); trigger.title = 'Talk with Tracy';
+  trigger.setAttribute('aria-controls', panel.id); trigger.setAttribute('aria-label', 'Tracy. Open conversation. Press ArrowDown for shortcuts.'); trigger.removeAttribute('title');
   let open = false;
   function setOpen(value, focus = false) {
     if (!panel.hidden && !bot.hidden && !bot.classList.contains('welcome') && !bot.classList.contains('tourmode')) value = true;
