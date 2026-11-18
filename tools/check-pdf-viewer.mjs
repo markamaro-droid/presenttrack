@@ -17,12 +17,16 @@ try{
   const call=(method,params={})=>new Promise((resolve,reject)=>{pending.set(++id,message=>message.error?reject(Error(message.error.message)):resolve(message.result));ws.send(JSON.stringify({id,method,params}))});
   const evaluate=async expression=>{const result=await call('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true,userGesture:true});if(result.exceptionDetails)throw Error(result.exceptionDetails.exception?.description||result.exceptionDetails.text);return result.result?.value};
   const run=(fn,args)=>evaluate(`(${fn.toString()})(${JSON.stringify(args)??''})`);
-  const until=async expression=>{for(let i=0;i<220;i++){if(await evaluate(expression))return;await delay(100)}throw Error('Timed out: '+expression)};
+  const until=async expression=>{for(let i=0;i<220;i++){if(await evaluate(expression))return;await delay(100)}
+    console.error(await evaluate(`JSON.stringify({view:window.podium?.ext?.S.view,covers:[...document.querySelectorAll('[data-deck-cover]')].map(el=>({id:el.dataset.deckCover,state:el.dataset.state,text:el.textContent,box:el.getBoundingClientRect().toJSON()})),coverErrors:window.fixtureCoverErrors,presentations:window.podium?.ext?.S.pres.map(p=>({id:p.id,status:p.conversion?.conversion_status,thumb:!!p.thumb})),coverModule:!!window.PTPresentationCovers})`));
+    throw Error('Timed out: '+expression)};
   await call('Runtime.enable');await call('Page.enable');await call('Page.navigate',{url:'http://127.0.0.1:3000'});
   await until('!!window.podium?.ext && !!window.PTPresentations && document.readyState==="complete"');
   await run(async()=>{
     window.fixtureFiles={};
     for(const type of ['pdf','pptx'])fixtureFiles[type]=new File([await(await fetch('/assets/library/confident-introductions.'+type)).blob()],'introduction.'+type);
+    window.fixtureConvertedPdf=fixtureFiles.pdf;
+    window.fixtureCoverErrors=[];const cover=PTPDF.cover;PTPDF.cover=(...args)=>cover(...args).catch(error=>{fixtureCoverErrors.push(error.message);throw error});
     window.fixtureRows=new Map();window.fixtureStorage=new Map();window.fixtureCalls=[];window.fixtureReady=false;
     const originalFetch=window.fetch.bind(window);
     window.fetch=async(url,options)=>{
@@ -39,7 +43,7 @@ try{
         if(body.action==='retry'){row.conversion_status='queued';row.manual_retries++}
         if(body.action==='status'&&fixtureReady){row.conversion_status='completed';row.total_slides=row.file_type==='pdf'&&row.original_filename==='portrait.pdf'?1:5}
         if(body.action==='download'){
-          const file=body.kind==='original'||row.file_type==='pdf'?fixtureStorage.get(row.original_file_path):fixtureFiles.pdf;
+          const file=body.kind==='original'||row.file_type==='pdf'?fixtureStorage.get(row.original_file_path):fixtureConvertedPdf;
           return Response.json({url:URL.createObjectURL(file),filename:body.kind==='preview'?row.original_filename.replace(/\.pptx$/i,'.pdf'):row.original_filename});
         }
         if(body.action==='delete'){fixtureRows.delete(body.id);return Response.json({deleted:true})}
@@ -114,8 +118,38 @@ try{
   assert.ok(await run(()=>{const b=document.querySelector('#vst canvas').getBoundingClientRect(),h=document.getElementById('vst').getBoundingClientRect();return Math.abs(b.width/b.height-595/842)<.01&&b.height<=h.height&&b.width<=h.width}),'portrait remains proportional and uncropped');
   await evaluate(`document.getElementById('vpreviewfs').click();podium.ext.S.pres=[]`);
   assert.equal(await evaluate('PTPresentations.restore(podium.ext.S)'),true);assert.equal(await evaluate('podium.ext.S.pres.length'),3,'metadata restores after losing a local snapshot');
+  // Existing uploads must acquire a real first-page cover without another conversion.
+  await evaluate(`podium.ext.go('decks');document.querySelector('.presentation-grid').scrollIntoView({block:'start'})`);
+  for(let i=0;i<3;i++){
+    await evaluate(`document.querySelectorAll('.deck-cover')[${i}].scrollIntoView({block:'center'})`);
+    await until(`document.querySelectorAll('.deck-cover')[${i}].dataset.state==='ready'`);
+  }
+  await until(`document.querySelectorAll('.deck-cover[data-state="ready"] img').length===3 && [...document.querySelectorAll('.deck-cover img')].every(img=>img.complete&&img.naturalWidth>0)`);
+  const covers=await run(()=>[...document.querySelectorAll('.deck-cover img')].map(img=>({width:img.naturalWidth,height:img.naturalHeight,fit:getComputedStyle(img).objectFit,alt:img.alt})));
+  assert.ok(covers.every(img=>img.width>300&&img.fit==='contain'&&img.alt.startsWith('First slide of ')),JSON.stringify(covers));
+  assert.ok(Math.abs(covers[0].width/covers[0].height-16/9)<.01,'PPTX cover uses the converted landscape PDF');
+  assert.ok(Math.abs(covers[2].width/covers[2].height-595/842)<.01,'portrait cover is not cropped or stretched');
+  const counts=await evaluate(`({downloads:fixtureCalls.filter(c=>c.action==='download').length,conversions:fixtureCalls.filter(c=>['submit','retry'].includes(c.action)).length})`);
+  await evaluate(`podium.ext.go('dash');podium.ext.go('decks');document.querySelector('.presentation-grid').scrollIntoView({block:'start'})`);await delay(600);
+  assert.equal(await evaluate(`fixtureCalls.filter(c=>c.action==='download').length`),counts.downloads,'saved covers are reused on return');
+  assert.equal(await evaluate(`fixtureCalls.filter(c=>['submit','retry'].includes(c.action)).length`),counts.conversions,'library viewing never reconverts slides');
+  for(const [width,height] of [[1440,1000],[390,844]]){
+    await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<900});
+    await evaluate(`document.querySelector('.presentation-grid').scrollIntoView({block:'start'})`);await delay(300);
+    const layout=await run(()=>{const card=document.querySelector('.deck-card'),r=card.getBoundingClientRect(),cover=card.querySelector('.deck-cover').getBoundingClientRect();return {width:r.width,height:cover.height,overflow:document.documentElement.scrollWidth>innerWidth,buttons:[...card.querySelectorAll('.deck-actions>.bt')].every(b=>b.getBoundingClientRect().height>=38)}});
+    assert.ok(layout.width<600&&layout.height<340&&layout.buttons&&!layout.overflow,JSON.stringify({width,...layout}));
+    const shot=await call('Page.captureScreenshot',{format:'png'});await writeFile(path.join(tmpdir(),`presenttrack-covers-${width}.png`),Buffer.from(shot.data,'base64'));
+  }
+  await evaluate(`document.querySelector('.deck-menu summary').click();document.querySelector('.deck-menu [data-act=ren]').click()`);
+  await until(`!!document.getElementById('rtitle')`);
+  await evaluate(`document.getElementById('rtitle').value='Renamed introduction';document.getElementById('rs2').click()`);
+  assert.equal(await evaluate(`document.querySelector('.deck-title h3').textContent`),'Renamed introduction');
+  await evaluate(`const search=document.getElementById('ws-find-deck');search.value='Renamed';search.dispatchEvent(new Event('input'))`);
+  assert.equal(await evaluate(`document.querySelectorAll('.deck-card:not([hidden])').length`),1,'search remains above the card grid and filters correctly');
   assert.deepEqual(errors,[]);
   console.log('Passed: private upload client, original byte preservation, queued PPTX, real PDF.js pages/context, keyboard bounds, fidelity warning, desktop/mobile/fullscreen landscape and portrait sizing, metadata restore.');
   console.log('Preview screenshot: '+path.join(tmpdir(),'presenttrack-pdf-viewer.png'));
+  console.log('Passed: first-slide covers for existing PPTX/PDF uploads, cached reuse without conversion, portrait fit, responsive cards, rename and search.');
+  console.log('Card screenshots: '+path.join(tmpdir(),'presenttrack-covers-1440.png')+' and '+path.join(tmpdir(),'presenttrack-covers-390.png'));
   await call('Browser.close');
 }finally{ws?.close();chrome.kill();await delay(500);await rm(profile,{recursive:true,force:true,maxRetries:3})}

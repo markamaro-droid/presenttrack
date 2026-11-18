@@ -19,7 +19,7 @@
     return {
       n:doc.numPages,
       cancel(){version++;rendering?.cancel?.();rendering=null;},
-      async destroy(){if(disposed)return;disposed=true;this.cancel();await doc.destroy();},
+      async destroy(){if(disposed)return;disposed=true;this.cancel();await task.destroy();},
       async show(index,host,maxHeight) {
         this.cancel();const current=version;
         const page=await doc.getPage(index+1);
@@ -49,5 +49,21 @@
       }
     };
   }
-  window.PTPDF={load,open,options};
+  async function cover(file,signal) {
+    signal?.throwIfAborted();
+    const deck=await open(file);
+    const cancel=()=>deck.cancel();signal?.addEventListener('abort',cancel,{once:true});
+    const host=document.createElement('div');host.style.cssText='position:fixed;left:-10000px;top:0;width:800px;visibility:hidden;pointer-events:none';
+    document.body.appendChild(host);
+    try{
+      signal?.throwIfAborted();
+      const canvas=await deck.show(0,host,600);
+      signal?.throwIfAborted();
+      const out=document.createElement('canvas'),scale=Math.min(1,800/canvas.width,800/canvas.height);
+      out.width=Math.max(1,Math.round(canvas.width*scale));out.height=Math.max(1,Math.round(canvas.height*scale));
+      out.getContext('2d').drawImage(canvas,0,0,out.width,out.height);
+      return out.toDataURL('image/jpeg',.86);
+    }finally{signal?.removeEventListener('abort',cancel);host.remove();await deck.destroy();}
+  }
+  window.PTPDF={load,open,options,cover};
 })();

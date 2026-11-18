@@ -275,17 +275,19 @@ const gated=()=>pendingEval();
 const fdate=iso=>{const d=new Date(iso);return isNaN(d)?'':d.toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'})};
 const gatePage=t=>page(t,'One quick step comes first.',`<section class="pn rise gate" style="--i:1"><h3 class="sh">EVALUATION REQUIRED</h3><p class="sub" style="margin:0 0 14px">Before you upload and practice your own presentations, take the short speaking evaluation. It takes about 3 minutes and shows us how fast you speak, how many filler words you use and how long your pauses are.</p><div class="acts"><button class="bt" data-go="eval" type="button">START EVALUATION</button><button class="bt gh" data-go="decks" type="button">My Presentations</button></div></section>`);
 function thumbOf(p){
-  if(p.thumb)return `<img class="th" src="${p.thumb}" alt="Preview of ${esc(p.t)}">`;
-  const t=p.file?ftype(p.file.name):{l:'Draft',c:'ppt'};return `<div class="th pv ph" aria-hidden="true"><b>${esc(t.l)}</b></div>`}
+  return `<div class="deck-cover" data-deck-cover="${p.id}"${p.thumb?' data-state="ready"':''}>${p.thumb?`<img src="${esc(p.thumb)}" alt="First slide of ${esc(p.t)}" decoding="async">`:`<span class="deck-cover-message">${p.file?'Preparing your first slide…':'Add slides when you’re ready'}</span>`}</div>`}
 function deckCard(p,i){
   const t=p.file?ftype(p.file.name):{l:'Draft',c:'ppt'},busy=S.deleting==p.id,n=att(p);
-  const when=p.created?'Added '+fdate(p.created):(p.left!=null?p.date:'');
+  const when=p.created?fdate(p.created):(p.left!=null?p.date:'');
   const stat=gated()?['Practice unlocks after the evaluation','warn']:n?[n+(n===1?' practice session':' practice sessions'),'ok']:['Not practiced yet',''];
-  return `<section class="pn rise dcard" style="--i:${i+2}" data-pid="${p.id}">${thumbOf(p)}<div class="dk"><span class="ftp ${t.c}">${t.l}</span><div class="dkt">${S.ren===p.id?`<input type="text" id="rtitle" value="${esc(p.t)}" maxlength="80" aria-label="Presentation title"><div class="acts" style="margin-top:8px"><button class="bt sm" id="rs2" data-act="rsave" data-a="${p.id}" type="button">SAVE</button><button class="bt gh sm" data-act="rcancel" type="button">Cancel</button></div>`:`<b>${esc(p.t)}</b><small>${p.file?esc(p.file.name)+' · '+fsize(p.file.size):'No file yet'}</small><small class="presentation-status" data-presentation-status="${p.id}">${esc(window.PTPresentations?.label(p.conversion)||'')}</small>${when?`<small>${esc(when)}</small>`:''}`}</div></div>
-  <div class="rd0">${ring(readiness(p),84,'Ready')}<div><p class="sub" style="margin:0 0 8px"><span class="st ${stat[1]}">${busy?'Deleting…':stat[0]}</span></p><div class="acts"><button class="bt sm" data-go="prac" data-a="${p.id}" type="button"${busy?' disabled':''}>PRACTICE</button><button class="bt gh sm" data-act="del" data-a="${p.id}" type="button"${busy?' disabled':''}>DELETE</button><button class="bt gh sm" data-go="pdet" data-a="${p.id}" type="button"${busy?' disabled':''}>DETAILS</button><button class="bt gh sm" data-act="ren" data-a="${p.id}" type="button"${busy?' disabled':''}>RENAME</button></div></div></div></section>`}
+  return `<section class="pn rise dcard deck-card" style="--i:${i+2}" data-pid="${p.id}">${thumbOf(p)}<div class="deck-card-body"><div class="deck-meta"><span class="ftp ${t.c}">${t.l}</span>${when?`<span>${esc(when)}</span>`:''}</div>
+  <div class="deck-title">${S.ren===p.id?`<input type="text" id="rtitle" value="${esc(p.t)}" maxlength="80" aria-label="Presentation title"><div class="acts"><button class="bt sm" id="rs2" data-act="rsave" data-a="${p.id}" type="button">Save</button><button class="bt gh sm" data-act="rcancel" type="button">Cancel</button></div>`:`<h3 title="${esc(p.t)}">${esc(p.t)}</h3><p title="${esc(p.file?.name||'')}">${p.file?esc(p.file.name)+' · '+fsize(p.file.size):'No file attached'}</p>`}</div>
+  <small class="presentation-status" data-presentation-status="${p.id}">${p.conversion?.conversion_status==='completed'?'':esc(window.PTPresentations?.label(p.conversion)||'')}</small>
+  <div class="deck-progress"><div><span>${busy?'Deleting…':stat[0]}</span><span>${readiness(p)}% ready</span></div><progress max="100" value="${readiness(p)}" aria-label="Presentation readiness"></progress></div>
+  <div class="deck-actions"><button class="bt" data-go="prac" data-a="${p.id}" type="button"${busy?' disabled':''}>${ic(I.prac)}Practice</button><button class="bt gh" data-go="pdet" data-a="${p.id}" type="button"${busy?' disabled':''}>Details</button><details class="deck-menu"><summary aria-label="More actions for ${esc(p.t)}" title="More actions">${ic('M5 12h.01M12 12h.01M19 12h.01')}</summary><div class="deck-menu-items"><button data-act="ren" data-a="${p.id}" type="button"${busy?' disabled':''}>Rename</button><button data-act="del" data-a="${p.id}" type="button"${busy?' disabled':''}>Delete</button></div></details></div></div></section>`}
 function deckList(){
   if(!S.pres.length)return sec('YOUR PRESENTATIONS',2,nodata('No presentation uploaded yet.','<p class="sub" style="margin:0">Add your first file above.</p>'));
-  return `<div class="g2">${S.pres.map((p,i)=>deckCard(p,i)).join('')}</div>`}
+  return `<div class="presentation-grid">${S.pres.map((p,i)=>deckCard(p,i)).join('')}</div>`}
 /* confirmation dialog: Cancel is focused first so Enter or a stray click never deletes by accident */
 function confirmDlg({title,text,yes='Delete'}){return new Promise(res=>{
   const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="mc" role="alertdialog" aria-modal="true" aria-labelledby="cdt" aria-describedby="cdx"><h2 id="cdt"></h2><p id="cdx" style="color:var(--muted)"></p><div class="acts" style="justify-content:flex-end;margin-top:14px"><button class="bt gh" data-r="0" type="button">Cancel</button><button class="bt dnb" data-r="1" type="button"></button></div></div>`;
@@ -310,8 +312,7 @@ async function delPres(id){
 /* Thumbnail is rendered from the display PDF, never reconstructed from slide text. */
 async function makePreview(file){
   try{
-    if(/\.pdf$/i.test(file.name)){const d=await pdfDeck(file),h=document.createElement('div');h.style.cssText='position:absolute;left:-9999px;top:0;width:360px';document.body.appendChild(h);
-      try{const c=await d.show(0,h,220),o=document.createElement('canvas'),w=320;o.width=w;o.height=Math.round(w*c.height/c.width);o.getContext('2d').drawImage(c,0,0,o.width,o.height);return{thumb:o.toDataURL('image/jpeg',.6)}}finally{h.remove();await d.destroy()}}
+    if(/\.pdf$/i.test(file.name))return {thumb:await PTPDF.cover(file)};
   }catch(e){}
   return{}}
 const V={
@@ -451,12 +452,23 @@ async function viewer(){const host=$('vst');if(!host)return;const my=++VT;dispos
   if(!/\.pdf$/i.test(file.name))return state('Only original PDF files and converted PowerPoint previews can be displayed.');
   try{await showPDF(file)}catch(error){if(alive())state(error.message,viewer,'Reload preview')}
 }
-let presentationWatch=0;
+let presentationWatch=0,stopPresentationWatch=()=>{};
 function watchPresentations(){
+  stopPresentationWatch();
   const serial=++presentationWatch,owner=window.PTCloud?.user?.id;
-  if(!window.PTCloud?.enabled||!owner)return;
   let timer;
-  podium.practiceCleanup=()=>{presentationWatch++;clearTimeout(timer)};
+  const covers=window.PTPresentationCovers?.mount({root:$('view'),presentations:()=>S.pres,
+    isCurrent:()=>serial===presentationWatch&&window.PTCloud?.user?.id===owner,
+    save:()=>podium.save(),loadFile:async(p,signal)=>{
+      if(p.remoteId)return /\.pdf$/i.test(FILES[p.id]?.name||'')?FILES[p.id]:PTPresentations.file(p,'preview',signal);
+      const local=p.slideFile?SLIDE_FILES[p.id]:FILES[p.id];if(/\.pdf$/i.test(local?.name||''))return local;
+      const stored=p.slideFile||p.file,path=p.slidePath||p.path;
+      if(path&&/\.pdf$/i.test(stored?.name||'')&&window.PTCloud?.enabled){const result=await PTCloud.download(path);if(result.error)throw Error(result.error);return new File([result.blob],stored.name,{type:'application/pdf'})}
+      return null;
+    }});
+  stopPresentationWatch=()=>{presentationWatch++;clearTimeout(timer);covers?.destroy()};
+  podium.practiceCleanup=stopPresentationWatch;
+  if(!window.PTCloud?.enabled||!owner)return;
   const refresh=async()=>{
     if(serial!==presentationWatch||PTCloud.user?.id!==owner)return;
     if(!S.uploading&&!S.deleting){try{
@@ -465,7 +477,8 @@ function watchPresentations(){
       if(changed){podium.save();if(!S.ren&&!S.uploading&&!$('ut')?.value&&!$('f')?.files.length){render();return;}}
       const usage=await PTPresentations.usage?.().catch(()=>null);
       if(usage&&serial===presentationWatch&&$('conversion-usage'))$('conversion-usage').textContent=`Shared allowance: ${usage.spent} of ${usage.dailyLimit} credits used today, ${usage.reserved} reserved. PDFs and saved previews use no conversion credits.`;
-      document.querySelectorAll('[data-presentation-status]').forEach(el=>{const p=S.pres.find(p=>p.id==el.dataset.presentationStatus);el.textContent=PTPresentations.label(p?.conversion)});
+      document.querySelectorAll('[data-presentation-status]').forEach(el=>{const p=S.pres.find(p=>p.id==el.dataset.presentationStatus);el.textContent=p?.conversion?.conversion_status==='completed'?'':PTPresentations.label(p?.conversion)});
+      covers?.refresh();
     }catch(error){if(error.name!=='AbortError')console.warn('Presentation status refresh unavailable.');}}
     if(serial===presentationWatch)timer=setTimeout(refresh,document.hidden?30000:15000);
   };

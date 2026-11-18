@@ -172,7 +172,7 @@
   V.decks = () => head('YOUR PRESENTATION LIBRARY', 'My Presentations', 'Prepare your content. Rehearse with purpose.', btn('Create without slides', 'create', '', 'gh')) + practiceToolkit() + decksView().replace(/^<h1[^>]*>.*?<\/h1><p[^>]*>.*?<\/p>/, '') + `<div class="ws-filters"><div><label for="ws-find-deck">Find a presentation</label><input type="search" id="ws-find-deck" placeholder="Search your titles"></div><span class="ws-caption" id="ws-deck-count">${S.pres.length} presentations</span></div>`;
   // Put the library search before the presentation cards, retaining their existing controls.
   const deckSearchView = V.decks;
-  V.decks = () => { const html = deckSearchView(), start = html.lastIndexOf('<div class="ws-filters">'), filter = html.slice(start); return html.slice(0, start).replace('<div class="g2">', filter + '<div class="g2">'); };
+  V.decks = () => { const html = deckSearchView(), start = html.lastIndexOf('<div class="ws-filters">'), filter = html.slice(start); return html.slice(0, start).replace('<div class="presentation-grid">', filter + '<div class="presentation-grid">'); };
   B.decks = () => { decksBind?.(); if (!$('ws-find-deck')) return; $('ws-find-deck').oninput = e => { const q = e.target.value.toLowerCase(); let count = 0; document.querySelectorAll('[data-pid]').forEach(card => { const p = S.pres.find(p => String(p.id) === card.dataset.pid); card.hidden = !p?.t.toLowerCase().includes(q); if (!card.hidden) count++; }); $('ws-deck-count').textContent = count + ' matching presentations'; }; };
   V.up = V.decks; B.up = B.decks;
   const report = V.rdet;
