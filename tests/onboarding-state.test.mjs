@@ -86,7 +86,6 @@ test('starting onboarding saves immediately without unlocking the server evaluat
   assert.equal(s.state.isNew, false);
   assert.equal(s.state.toured, true);
   assert.equal(s.state.evalRequired, true);
-  assert.equal(s.state.assessRequired, true);
   assert.equal(s.cloud.assessmentDone, false);
   assert.equal(s.pending(), true, 'a client-side evaluation object cannot bypass the gate');
   s.login();

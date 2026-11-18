@@ -8,7 +8,7 @@ import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
 
 const root = resolve(import.meta.dirname, '..');
-const scripts = new Set(['auth','practice-audio','workspace-model','tour-steps','tour-spotlight','dashboard','assessment','evaluation','practice-insights','dashboard-home','workspace','settings','robot-menu']);
+const scripts = new Set(['auth','practice-audio','workspace-model','tour-steps','tour-spotlight','dashboard','evaluation','practice-insights','dashboard-home','workspace','settings','robot-menu']);
 const server = createServer(async (req, res) => {
   try {
     const path = req.url === '/' ? '/index.html' : req.url;

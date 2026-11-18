@@ -70,8 +70,6 @@ P.completeEvaluation=async results=>{
     P.assessmentDone=true;return{}}
   catch(e){return{error:'Network error. Please check your connection and try again.',retryable:true}}
 };
-P.assessment=(action)=>P.call('assessment-ensure',{action});
-P.submitAssessment=(blob,name,durationSec)=>{const f=new FormData();f.append('audio',blob,name);f.append('duration_sec',String(Math.round(durationSec)));return P.call('assessment-submit',f)};
 
 /* ---- file storage (private bucket, one folder per user, enforced by RLS) ---- */
 const BUCKET='presentations';

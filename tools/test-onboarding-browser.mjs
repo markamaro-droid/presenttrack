@@ -11,7 +11,7 @@ import { extname, join, resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
 const visual = process.argv.includes('--visual');
-const scripts = new Set(['identity', 'auth', 'practice-audio', 'workspace-model', 'tour-steps', 'tour-spotlight', 'dashboard', 'assessment', 'evaluation', 'practice-insights', 'dashboard-home', 'workspace', 'greeting-cache', 'settings', 'robot-menu', 'welcome-intro', 'welcome-door']);
+const scripts = new Set(['identity', 'auth', 'practice-audio', 'workspace-model', 'tour-steps', 'tour-spotlight', 'dashboard', 'evaluation', 'practice-insights', 'dashboard-home', 'workspace', 'greeting-cache', 'settings', 'robot-menu', 'welcome-intro', 'welcome-door']);
 if (visual) scripts.add('robot');
 const server = createServer(async (req, res) => {
   try {
@@ -80,7 +80,7 @@ try {
     await waitFor('document.readyState === "complete" && !!window.podium?.welcomeEnter && !!podium.ext', 'application scripts');
     await evaluate(`
       window.PTCloud = { enabled: false };
-      podium.assessInit = () => {};
+      window.PTPresentations = { restore: async () => false };
       podium.prepareNarration = () => {};
       ${visual ? '' : 'podium.robotReady = () => true;'}
       podium.robotIntroduce = () => {};
@@ -250,7 +250,14 @@ try {
       assert.ok((await evaluate('window.savedOnboarding')).includes(true), 'onboarding is saved without waiting for autosave');
       await endTour();
     }
-    console.log(`PASS ${id}: ${auto ? 'automatic' : 'manual-only'} tour`);
+    for (const view of ['dash', 'decks']) {
+      await evaluate(`podium.ext.go(${JSON.stringify(view)});`);
+      assert.doesNotMatch(await evaluate(`document.getElementById('view').textContent`), /Initial Presentation Assessment|We could not prepare your assessment/, `${id}: ${view} has no retired assessment module`);
+    }
+    await evaluate(`podium.ext.go('eval');`);
+    assert.ok(await evaluate(`document.getElementById('eslide')?.textContent.trim()`), 'the current evaluation still displays its speaking slides');
+    assert.equal(await evaluate(`!!document.getElementById('econsent')`), true, 'recording consent remains available');
+    console.log(`PASS ${id}: ${auto ? 'automatic' : 'manual-only'} tour, retired module absent, speaking evaluation available`);
   }
 
   await fresh(320, 568);

@@ -5,7 +5,7 @@ const ic=p=>`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke=
 const I={dash:'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',decks:'M3 4h18v12H3zM8 20h8M12 16v4',prac:'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3',rep:'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7',perf:'M4 20V10M10 20V4M16 20v-7M22 20H2',prog:'M3 17l6-6 4 4 8-8M15 7h6v6',hist:'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',note:'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4',set:'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M14 4v4M8 10v4M16 16v4',help:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6M12 17h.01',out:'M9 4H5v16h4M16 8l4 4-4 4M20 12H9',up:'M12 16V4m0 0l-4 4m4-4l4 4M4 20h16',plus:'M12 5v14M5 12h14',vid:'M3 6h12v12H3zM15 10l6-3v10l-6-3',goal:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 12h.01',pace:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',fill:'M4 5h16v11H9l-5 4z',pause:'M8 5v14M16 5v14',star:'M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.8 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z',search:'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5'};
 I.eval=I.goal;I.library='M4 3h6v18H4zM14 3h6v18h-6zM4 7h6M14 7h6';I.admin=I.set;I.adminUsers=I.dash;
 const NAV=[['MAIN',[['dash','Dashboard'],['eval','Evaluation'],['decks','My Presentations'],['library','Library'],['perf','Performance'],['prog','Progress'],['hist','Practice History']]],['SYSTEM',[['note','Notifications'],['set','Settings']]]];
-const PARENT={pdet:'decks',create:'decks',up:'decks',ready:'decks',prac:'decks',rec:'decks',weak:'decks',assess:'decks',assres:'decks',rdet:'hist',rep:'hist',coach:'perf',goals:'prog'};
+const PARENT={pdet:'decks',create:'decks',up:'decks',ready:'decks',prac:'decks',rec:'decks',weak:'decks',rdet:'hist',rep:'hist',coach:'perf',goals:'prog'};
 const $$=q=>[...document.querySelectorAll(q)];
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt=x=>Math.floor(x/60)+':'+String(Math.floor(x%60)).padStart(2,'0');
@@ -43,7 +43,7 @@ podium.account=(email,registered)=>{
   for(const key of Object.keys(FILES))delete FILES[key];
   for(const key of Object.keys(SLIDE_FILES))delete SLIDE_FILES[key];
   S.uploading=false;S.deleting=null;
-  S.reviewDays=0;S.historyQuery="";S.historyType="all";S.historySort="newest";S.compareA=S.compareB="";S.reviewMetric="score";S.compareDeck="";S.assess=null;S.assessRequired=false;S.ev=null;S.evalRequired=false;
+  S.reviewDays=0;S.historyQuery="";S.historyType="all";S.historySort="newest";S.compareA=S.compareB="";S.reviewMetric="score";S.compareDeck="";S.ev=null;S.evalRequired=false;
   if(window.PTCloud&&PTCloud.enabled){
     const row=PTCloud.row;
     if(registered||!row){initData('empty');PTCloud.onboarded=false}
@@ -56,7 +56,7 @@ podium.account=(email,registered)=>{
     const eligible=registered||PTCloud.user?.user_metadata?.tracy_onboarding===1;
     S.toured=!!row?.onboarded||hasTourReceipt();S.isNew=!!eligible&&!S.toured;S.guide=S.isNew;
     PTCloud.onboarded=!!row?.onboarded||S.toured;
-    S.assessRequired=!PTCloud.assessmentDone;S.evalRequired=!PTCloud.assessmentDone;PTCloud.ready=true;return}
+    S.evalRequired=!PTCloud.assessmentDone;PTCloud.ready=true;return}
   const k=email.toLowerCase(),rec=DB[k];
   if(registered){DB[k]={onboarded:false,data:null,evalReq:true};initData('empty');S.toured=hasTourReceipt();S.isNew=!S.toured;S.guide=S.isNew;S.evalRequired=true;return}
   if(rec){
@@ -270,7 +270,7 @@ const find=id=>S.pres.find(x=>x.id==id)||S.pres[0];
 const sesById=id=>S.ses.find(x=>x.id==id)||S.ses.at(-1);
 
 /* ---------- My Presentations: cards, delete, previews, practice gate ---------- */
-const pendingEval=()=>window.PTCloud&&PTCloud.enabled?!PTCloud.assessmentDone:!!(S.evalRequired&&!(S.ev&&S.ev.done));   /* cloud: ONLY the server flag (user_data.initial_assessment_completed) unlocks. S.ev is user-editable, so it is ignored. Either flow sets PTCloud.assessmentDone after the server accepts it. */
+const pendingEval=()=>window.PTCloud&&PTCloud.enabled?!PTCloud.assessmentDone:!!(S.evalRequired&&!(S.ev&&S.ev.done));   /* cloud: ONLY the server flag (user_data.initial_assessment_completed) unlocks. S.ev is user-editable, so it is ignored. PTCloud.assessmentDone is set after the server accepts the recorded evaluation. */
 const gated=()=>pendingEval();
 const fdate=iso=>{const d=new Date(iso);return isNaN(d)?'':d.toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'})};
 const gatePage=t=>page(t,'One quick step comes first.',`<section class="pn rise gate" style="--i:1"><h3 class="sh">EVALUATION REQUIRED</h3><p class="sub" style="margin:0 0 14px">Before you upload and practice your own presentations, take the short speaking evaluation. It takes about 3 minutes and shows us how fast you speak, how many filler words you use and how long your pauses are.</p><div class="acts"><button class="bt" data-go="eval" type="button">START EVALUATION</button><button class="bt gh" data-go="decks" type="button">My Presentations</button></div></section>`);
@@ -315,7 +315,7 @@ async function makePreview(file){
   }catch(e){}
   return{}}
 const V={
-dash:()=>S.loading?skeleton():(podium.assessBanner?podium.assessBanner():'')+(podium.baselineBanner?podium.baselineBanner():'')+dashHTML(),
+dash:()=>S.loading?skeleton():(podium.baselineBanner?podium.baselineBanner():'')+dashHTML(),
 decks:()=>page('My Presentations','Upload a PDF or PowerPoint file. Your original file is kept unchanged.',(pendingEval()?sec('EVALUATION FIRST',1,`<div class="fr" style="max-width:600px;margin:0 auto;text-align:center"><p class="sub" style="margin:0">Before you upload a presentation, take the short speaking evaluation (about 3 minutes). It measures your speaking speed, filler words and long pauses, so we know how to analyze your presentations.</p><div class="acts" style="justify-content:center"><button class="bt" data-go="eval" type="button">START EVALUATION</button></div></div>`):sec('UPLOAD A PRESENTATION',1,`<div class="fr" style="max-width:600px;margin:0 auto"><div><label for="ut" style="text-align:center">Presentation title</label><input type="text" id="ut" style="text-align:center" placeholder="Type your own title" maxlength="80" autocomplete="off"></div><label class="drop" id="dz" for="f"><b>Drop a PPTX or PDF here, or select one</b><span id="fn">One PPTX or PDF - up to 50 MB</span></label><input type="file" id="f" accept=".pdf,.pptx" hidden><p class="hint">PDFs display directly and stay in your private storage. CloudConvert prepares PowerPoint previews; fonts and effects may differ. Your original is always kept.</p><label class="hint" id="conversion-consent" hidden><input type="checkbox" id="uconvert"> I agree to send this PowerPoint to CloudConvert to prepare a PDF preview.</label><p class="hint" id="conversion-usage" role="status">PowerPoint previews share a daily conversion allowance. PDFs and saved previews use no conversion credits.</p><div class="acts" style="justify-content:center"><button class="bt" id="ua" type="button">ADD PRESENTATION</button><button class="bt gh" id="uc" type="button">Cancel</button></div></div>`))+deckList()),
 pdet:a=>{const p=find(a);if(!p)return V.decks();const l=S.ses.filter(x=>x.deck===p.short);return page(esc(p.t),(p.file?esc(p.file.name)+' · '+fsize(p.file.size):'')+(p.left!=null?' · '+p.date+' · '+p.time+' · '+p.left+' days left':''),`<div class="g-next">${sec('OVERVIEW',1,`<dl class="kv"><div><dt>Target Duration</dt><dd>${Math.round(p.target/60)} minutes</dd></div><div><dt>Practice Sessions</dt><dd>${l.length} completed</dd></div><div><dt>Readiness</dt><dd>${readiness(p)}%</dd></div></dl><div class="acts"><button class="bt" data-go="prac" data-a="${p.id}" type="button">PRACTICE NOW</button><button class="bt gh" data-go="up" type="button">UPLOAD PPT</button></div>`)}${sec('READINESS',2,chkHTML(p)+`<div class="acts"><button class="bt gh" data-go="ready" data-a="${p.id}" type="button">VIEW CHECKLIST</button></div>`)}</div>`+sec('PRACTICE SESSIONS',3,recentRows(l.slice().reverse(),false)))},
 ready:a=>{const p=find(a);if(!p)return V.decks();return page('Presentation Readiness',esc(p.t),`<div class="g-next">${sec('OVERALL',1,`<div class="rd0">${ring(readiness(p),150,'Ready')}<p class="sub" style="margin:0">${p.final?'Final rehearsal recorded. Readiness reflects preparation activities, not a guarantee of performance.':'Complete the checklist to document your preparation.'}</p></div>`)}${sec('CHECKLIST',2,chkHTML(p)+`<div class="acts"><button class="bt" data-go="prac" data-a="${p.id}" type="button">START FINAL REHEARSAL</button></div>`)}</div>`)},
@@ -728,7 +728,7 @@ function renderLand(){
   <footer class="lfoot"><span>PresentTrack · Practice out loud, present with confidence</span><span>© 2026 PresentTrack</span></footer><div class="lf">${cards.map((c,i)=>`<div class="pn" data-r style="--i:${6+i}"><h3>${ico(c[1])}${c[0]}</h3><p>${c[2]}</p></div>`).join('')}</div>`;
   $('leval').onclick=e=>{const p=ctr(e.currentTarget);if(podium.welcomeEnter)podium.welcomeEnter(()=>toApp('dash',p,true));else toApp('dash',p)};$('llo').onclick=e=>signOut(ctr(e.currentTarget));
 }
-podium.enter=(name,email)=>{S.u.name=name.replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());S.u.email=email;podium.name=S.u.name.split(' ')[0];podium.account(email,!!podium.newUser);try{if(!window.PTIdentity?.isAdmin(window.PTCloud?.user))podium.assessInit&&podium.assessInit()}catch(e){console.warn(e)}
+podium.enter=(name,email)=>{S.u.name=name.replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());S.u.email=email;podium.name=S.u.name.split(' ')[0];podium.account(email,!!podium.newUser);
   if(!window.PTIdentity?.isAdmin(window.PTCloud?.user))podium.welcomePrepare?.();
   transition(ctr(document.querySelector('#authView form:not([hidden]) .btn')),showLand)};
 $('lo').onclick=e=>signOut(ctr(e.currentTarget));

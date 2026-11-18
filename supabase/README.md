@@ -1,4 +1,10 @@
-# Initial Presentation Assessment: backend
+# Legacy Initial Presentation Assessment: backend reference
+
+This generated-presentation module has been removed from the app. Its card,
+screens, dashboard banner, and automatic sign-in requests are no longer loaded.
+The current speaking evaluation is documented in [Evaluation setup](../docs/EVALUATION.md).
+The functions and migrations below are retained for historical data and migration
+compatibility; do not deploy these legacy functions for a new setup.
 
 Supabase SQL + two Edge Functions (Deno). The OpenAI key lives only in function secrets.
 
