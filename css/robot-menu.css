@@ -8,11 +8,23 @@
 #bot .bbar [data-bubble="3"]{right:calc(50% + 74px);bottom:calc(50% - 60px);--delay:105ms}
 #bot.menu .bbar .robot-bubble{opacity:1;transform:translate(0,0) scale(1);pointer-events:auto;transition-delay:var(--delay)}
 #bot.menu .bbar .robot-bubble:hover{transform:scale(1.06);border-color:#c6f4ff}
+#bot .bbar .robot-bubble:is(:hover,:focus-visible){z-index:10}
 #bot .robot-bubble:focus-visible{outline:2px solid #9ceaff;outline-offset:4px}
 #bot .robot-bubble[hidden]{display:none!important}
-#bot .robot-bubble .bubble-label{position:absolute;bottom:calc(100% + 9px);left:50%;transform:translate(-50%,4px);padding:7px 10px;border:1px solid #86ddff66;border-radius:8px;background:#0c213a;color:#f4fbff;box-shadow:0 4px 12px #020d2840;font:500 11px/1.4 Inter,sans-serif;white-space:nowrap;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .15s,transform .15s,visibility .15s}
-#bot .robot-bubble:is(:hover,:focus-visible) .bubble-label{opacity:1;visibility:visible;transform:translate(-50%,0)}
+#bot .robot-bubble .bubble-label{position:absolute;bottom:auto;top:50%;left:auto;right:calc(100% + 12px);transform:translate(4px,-50%);padding:0;border:0;border-radius:0;background:transparent;color:var(--ink);box-shadow:none;text-shadow:0 1px 5px var(--bg),0 0 12px var(--bg);font:500 12px/1.5 Inter,sans-serif;white-space:nowrap;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .15s,transform .15s,visibility .15s}
+#bot.menu .robot-bubble:is(:hover,:focus-visible) .bubble-label{opacity:1;visibility:visible;transform:translate(0,-50%)}
+#bot .bbar:has(.robot-bubble:hover) .robot-bubble:not(:hover) .bubble-label{opacity:0;visibility:hidden}
 #bot .robot-bubble[aria-pressed=true]{background:linear-gradient(150deg,#1a436c,#0a1d35);border-color:#b1d7ea}
 #bot.app:not(.tourmode)::before{content:"";position:absolute;left:50%;bottom:8px;width:78px;height:12px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(ellipse,#9dedff85 0%,#379fff55 28%,#1879ff18 54%,transparent 74%);filter:blur(2px);pointer-events:none}
 #bc:focus-visible{outline:2px solid var(--brand);outline-offset:-14px}
+/* On phones the leftmost control has little room beside it. Keep every label
+   in the same clear space above the arc instead of covering a neighboring button. */
+@media(max-width:600px){
+  #bot .bbar [data-bubble="0"]{--label-rise:0px;--label-shift:0px}
+  #bot .bbar [data-bubble="1"]{--label-rise:32px;--label-shift:70px}
+  #bot .bbar [data-bubble="2"]{--label-rise:92px;--label-shift:100px}
+  #bot .bbar [data-bubble="3"]{--label-rise:156px;--label-shift:96px}
+  #bot .robot-bubble .bubble-label{top:auto;bottom:calc(100% + 14px + var(--label-rise));right:auto;left:calc(50% + var(--label-shift));transform:translate(-50%,4px)}
+  #bot.menu .robot-bubble:is(:hover,:focus-visible) .bubble-label{transform:translate(-50%,0)}
+}
 @media(prefers-reduced-motion:reduce){#bot .bbar .robot-bubble,#bot .robot-bubble .bubble-label{transition:none}}
