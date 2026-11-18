@@ -2,7 +2,7 @@ import {timingSafeEqual,createHmac} from 'node:crypto';
 import {readLimited} from './presentation-files.mjs';
 export const DAILY_CREDITS=10,RESERVED_CREDITS=2;
 export class ConversionError extends Error {
-  constructor(code,status=503,retryAfter=0){super(code);this.code=code;this.status=status;this.retryAfter=retryAfter;}
+  constructor(code,status=503,retryAfter=0,reason=null){super(code);this.code=code;this.status=status;this.retryAfter=retryAfter;this.reason=reason;}
 }
 export function validSignature(raw,signature,secret){
   if(!secret||!/^[a-f0-9]{64}$/i.test(signature||''))return false;
@@ -16,15 +16,20 @@ export function exportUrl(value){
   return url.href;
 }
 export function createCloudConvertClient({env=process.env,fetchImpl=fetch}={}){
+  const key=(env.CLOUDCONVERT_API_KEY||'').trim();
   const request=async(route,method='GET',body)=>{
-    if(!env.CLOUDCONVERT_API_KEY)throw new ConversionError('cloudconvert_setup');
+    if(!key)throw new ConversionError('cloudconvert_setup');
     const response=await fetchImpl('https://api.cloudconvert.com/v2'+route,{method,redirect:'error',signal:AbortSignal.timeout(12000),
-      headers:{Authorization:'Bearer '+env.CLOUDCONVERT_API_KEY,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
+      headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
     if(!response.ok){
       // Bound error bodies as well as successful JSON responses.
       const bytes=await readLimited(new Response(response.body,{headers:response.headers}),2_000_000);
       let data={};try{data=JSON.parse(bytes.toString())}catch{}
-      throw new ConversionError(String(data.code||'provider_error').slice(0,80),response.status,Math.min(86400,Math.max(0,Number(response.headers.get('retry-after'))||0)));
+      // Recognize this account-level restriction without forwarding arbitrary
+      // provider messages, which may contain email addresses or private URLs.
+      const reason=response.status===403&&typeof data.message==='string'&&/^Your email address is not verified\.?$/i.test(data.message.trim())?'email_unverified':null;
+      const code=typeof data.code==='string'&&/^[A-Z][A-Z0-9_]{1,63}$/.test(data.code)?data.code:'provider_error';
+      throw new ConversionError(code,response.status,Math.min(86400,Math.max(0,Number(response.headers.get('retry-after'))||0)),reason);
     }
     if(response.status===204)return null;
     const value=JSON.parse((await readLimited(response,2_000_000)).toString());return value.data;

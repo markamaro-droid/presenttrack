@@ -67,6 +67,12 @@ try{
   assert.equal(await evaluate(`document.getElementById('vfs').disabled`),true);
   await evaluate(`Object.assign(fixtureRows.values().next().value,{conversion_status:'failed',conversion_error:'Temporary conversion interruption',retryable:true});podium.ext.go('prac',podium.ext.S.pres[0].id)`);
   await until(`document.querySelector('#vst button')?.textContent==='Retry preview'`);
+  // A preview can fail after fullscreen was entered. Its exit must still work.
+  await evaluate(`document.getElementById('vw').classList.add('fs','fsx');document.body.classList.add('vfsx');document.dispatchEvent(new Event('fullscreenchange'))`);
+  assert.equal(await evaluate(`document.getElementById('vpreviewfs').disabled`),false,'failed previews must keep the fullscreen exit available');
+  assert.equal(await evaluate(`document.getElementById('vpreviewfs').textContent`),'Exit full screen');
+  await evaluate(`document.getElementById('vpreviewfs').click()`);
+  assert.equal(await evaluate(`document.getElementById('vw').classList.contains('fs')`),false);
   await evaluate(`document.querySelector('#vst button').click()`);
   await until(`document.getElementById('vst').textContent.includes('queued')`);
   assert.equal(await evaluate('fixtureRows.values().next().value.manual_retries'),1);

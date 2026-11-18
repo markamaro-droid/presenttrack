@@ -84,6 +84,26 @@ test('rate limits are safely delayed; explicit authentication failures can be re
     if(status===401){const before=x.calls.length;await x.service.processCache(id);assert.ok(!x.calls.slice(before).some(c=>c[0]==='find'))}
   }
 });
+test('an unverified CloudConvert email has an actionable message and releases the reserved credits',async()=>{
+  const x=setup();x.cloud.create=async()=>{throw new ConversionError('FORBIDDEN',403,0,'email_unverified')};
+  await x.service.processCache(id);
+  assert.equal(x.c.error_code,'cloudconvert_email_unverified');assert.match(x.c.error,/email is not verified/);
+  assert.equal(x.c.state,'failed');assert.equal(x.c.retryable,true);assert.equal(x.c.dispatch_started_at,null);
+  assert.equal(x.c.provider_deleted,true);assert.equal(x.total,0);assert.equal(x.reserved,0);
+  assert.equal(x.calls.filter(c=>c[0]==='export-download').length,0);
+});
+test('CloudConvert account errors are classified without exposing raw provider messages',async()=>{
+  const messages=['Your email address is not verified.','Account blocked for PRIVATE_EMAIL at https://private.example?secret=PRIVATE_SECRET'];
+  for(const message of messages){
+    const client=createCloudConvertClient({env:{CLOUDCONVERT_API_KEY:' private-key\n'},fetchImpl:async(url,options)=>{
+      assert.equal(options.headers.Authorization,'Bearer private-key');return Response.json({code:'FORBIDDEN',message},{status:403});
+    }});
+    await assert.rejects(client.create('test-tag','https://supabase.example/signed'),error=>{
+      assert.equal(error.status,403);assert.equal(error.reason,message===messages[0]?'email_unverified':null);
+      assert.doesNotMatch(error.message,/PRIVATE|https:|email address/);return true;
+    });
+  }
+});
 test('a cached file survives provider expiry and a temporary database publication failure',async()=>{
   const x=setup();await x.service.processCache(id);x.saved.set(user+'/cache/'+id+'.pdf',pdf);
   x.cloud.get=async()=>{throw new ConversionError('not_found',404)};

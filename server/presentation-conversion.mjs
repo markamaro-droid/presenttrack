@@ -6,12 +6,18 @@ const quotaError=error=>error.status===402||/^(CREDITS_EXCEEDED|QUOTA_EXCEEDED|D
 const nextDay=()=>{const day=new Date();day.setUTCDate(day.getUTCDate()+1);day.setUTCHours(0,5,0,0);return day.toISOString()};
 const later=seconds=>new Date(Date.now()+seconds*1000).toISOString();
 const tag=c=>'pt-'+c.id+'-'+c.attempt_id;
+const rejection=error=>{
+  if(error.reason==='email_unverified')return {error_code:'cloudconvert_email_unverified',error:'The CloudConvert account email is not verified. The site owner must verify it in CloudConvert, then choose Retry preview. Your original file is saved.'};
+  if(error.status===401)return {error_code:'cloudconvert_credentials',error:'CloudConvert rejected the API key. The site owner needs to update the server key and redeploy, then retry this saved presentation.'};
+  if(error.status===403)return {error_code:'cloudconvert_permissions',error:'CloudConvert denied permission to create this preview. The site owner needs to check the account access and task.write permission, then retry.'};
+  return {error_code:'provider_rejected',error:'CloudConvert could not accept this job. Check the API configuration or upload a PDF export.'};
+};
 const usageOf=job=>{
   const tasks=job.tasks||[],convert=tasks.find(task=>task.operation==='convert');
   return Number.isInteger(convert?.credits)?Math.min(100,tasks.reduce((total,task)=>total+(Number.isInteger(task.credits)?Math.max(0,task.credits):0),0)):RESERVED_CREDITS;
 };
 export function createPresentationConversion({env=process.env,fetchImpl=fetch,storage,provider,log=console}={}){
-  const db=storage||createPresentationStorage({env,fetchImpl}),cloud=provider||createCloudConvertClient({env,fetchImpl});
+  const db=storage||createPresentationStorage({env,fetchImpl,log}),cloud=provider||createCloudConvertClient({env,fetchImpl});
 
   async function processCache(id,{cleanup=false}={}){
     let c=await db.cache(id);if(!c)return {done:true};
@@ -92,7 +98,11 @@ export function createPresentationConversion({env=process.env,fetchImpl=fetch,st
           try{job=await cloud.create(tag(c),url)}catch(error){
             if(quotaError(error)){await deferQuota();return {waiting:true};}
             if(error.status===429){await settle(0);await patch({state:'queued',attempt_id:null,dispatch_started_at:null,error_code:'provider_busy',error:'The conversion service is busy. The saved job will retry shortly.',next_attempt_at:later(Math.max(60,error.retryAfter||0)),poll_after:later(Math.max(60,error.retryAfter||0))});await sync();return {waiting:true};}
-            if(error.status>=400&&error.status<500&&error.status!==408){await settle(0);await patch({state:'failed',dispatch_started_at:null,provider_deleted:true,error_code:'provider_rejected',error:'CloudConvert could not accept this job. Check the API configuration or upload a PDF export.',retryable:true});await sync();return {done:true};}
+            if(error.status>=400&&error.status<500&&error.status!==408){
+              const failure=rejection(error);
+              log.warn(JSON.stringify({event:'cloudconvert_job_rejected',status:error.status,reason:failure.error_code}));
+              await settle(0);await patch({state:'failed',dispatch_started_at:null,provider_deleted:true,...failure,retryable:true});await sync();return {done:true};
+            }
             // A network/5xx error may have created a job. Preserve the attempt.
             throw error;
           }

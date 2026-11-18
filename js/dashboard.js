@@ -358,7 +358,7 @@ const vnote=(m,persistent=false)=>{const n=$('vnote');if(!n)return;n.textContent
 /* one place that decides which presentation buttons are visible/enabled */
 function vui(){const vw=$('vw');if(!vw)return;const fs=inFS(),n=VD?VD.n:0,last=n>0&&VI>=n-1;
   const selected=S.pres.find(x=>x.id==$('pd')?.value),withoutSlides=!selected?.file;
-  $('vb').disabled=!n||VI<=0;$('vn').disabled=!n||last;$('vfs').disabled=!n&&!withoutSlides;$('vfs').textContent='Start';if($('vpreviewfs')){$('vpreviewfs').disabled=!n&&!withoutSlides;$('vpreviewfs').textContent=fs?'Exit full screen':'Full screen';}
+  $('vb').disabled=!n||VI<=0;$('vn').disabled=!n||last;$('vfs').disabled=!n&&!withoutSlides;$('vfs').textContent='Start';if($('vpreviewfs')){$('vpreviewfs').disabled=!fs&&!n&&!withoutSlides;$('vpreviewfs').textContent=fs?'Exit full screen':'Full screen';}
   $('vtmw').hidden=!fs;$('vpr').hidden=!fs;$('vfin').hidden=!fs;
   if(PR){PR.sync();PR.draw()}}
 function fsChanged(){vui();clearTimeout(window.__vr);window.__vr=setTimeout(vshow,80)}
