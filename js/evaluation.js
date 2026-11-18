@@ -46,7 +46,7 @@ B.eval=()=>{
 };
 function showSlide(){
   const host=$('eslide');if(!host)return;
-  E.slide=Math.max(0,Math.min(E.slide,DECK.slides.length-1));
+  E.slide=Math.max(0,Math.min(E.slide,DECK.slides.length-1));window.PTLearning?.markSlide(E.slide+1);
   const slide=DECK.slides[E.slide];
   host.innerHTML=`<div class="sld${DECK.narrative?' evaluation-script':E.slide===0?' stitle':''}"><h4>${esc(slide.title)}</h4>${DECK.narrative?slide.bullets.map(t=>`<p>${esc(t)}</p>`).join(''):`<ul>${slide.bullets.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`}</div>`;
   $('eslide-count').textContent='Slide '+(E.slide+1)+' / '+DECK.slides.length;
@@ -109,7 +109,7 @@ async function start(){
     await E.capture.start();
     if(generation!==E.generation)return;
     if(window.PTCloud?.user?.id!==owner||S.view!=='eval'){halt();E.st='idle';return}
-    E.t0=performance.now();setE({st:'rec'});E.iv=setInterval(tick,250);
+    E.t0=performance.now();window.PTLearning?.startNavigation(()=>E.st==='rec'?(performance.now()-E.t0)/1000:E.total,E.slide+1);setE({st:'rec'});E.iv=setInterval(tick,250);
   }catch(error){if(generation===E.generation){halt();setE({st:'err',msg:error.message||'Microphone permission was blocked. Please allow it and retry.'})}}
 }
 function tick(){
@@ -148,26 +148,30 @@ async function analyze(){
    If that fails nothing is unlocked and the user can retry saving without recording again. */
 async function commit(results){
   const generation=E.generation,owner=E.owner;
+  const original=S.ev?.done?S.ev:null;
   const cloud=window.PTCloud&&PTCloud.enabled;
   if(cloud){
     setE({st:'busy'});
-    const c=await PTCloud.completeEvaluation(results);
+    const c=results.persisted?{data:results}:await PTCloud.completeEvaluation(results);
+    if(results.persisted)PTCloud.assessmentDone=true;
     if(generation!==E.generation||window.PTCloud?.user?.id!==owner)return;
     if(c.error){E.pend=c.invalid?null:results;return setE({st:'err',msg:c.error,warn:[],save:!c.invalid&&c.retryable!==false})}
   }
   E.pend=null;E.save=false;
   const metrics=results.metrics||{};
-  S.ev={done:true,at:results.created_at,results};S.evalRequired=false;
+  S.ev=results.persisted&&original?original:{done:true,at:results.created_at,results};S.evalRequired=false;
   const x={id:S.nid++,deck:'Initial Evaluation',d:today(),at:results.created_at||new Date().toISOString(),dur:Math.round(metrics.totalDurationSec||0),wpm:Math.round(metrics.wpm||0),fill:metrics.fillerCount||0,pau:metrics.pauseCount||0,score:results.score,tg:150,assess:true,source:'recorded-evaluation',contentValidation:results.contentValidation};
-  const i=S.ses.findIndex(q=>q.assess);if(i>=0)S.ses.splice(i,1);S.ses.push(x);
+  if(results.persisted){x.remoteSessionId=results.sessionId;x.analysis=results;x.deck=results.sessionKind==='reassessment'?'Reassessment':'Initial Evaluation';}
+  const i=S.ses.findIndex(q=>q.assess);if(i>=0&&!results.persisted)S.ses.splice(i,1);S.ses.push(x);
   E.retake=false;E.st='idle';
   let saved=true;
   if(window.PTCloud&&PTCloud.enabled){const r=await PTCloud.saveNow(podium.snapshot());if(r.error)saved=false}else podium.save&&podium.save();
   if(generation!==E.generation||window.PTCloud?.user?.id!==owner)return;
-  notify('✅','Evaluation completed','Your baseline is ready. You can upload your presentations now.');
-  flash('Evaluation completed!','success','Great job! Your baseline is ready.');
+  notify('✅',original?'Reassessment completed':'Evaluation completed',original?'Your new result is saved separately. Your original baseline is unchanged.':'Your baseline is ready. You can upload your presentations now.');
+  flash(original?'Reassessment completed':'Evaluation completed','success',original?'Your original baseline is preserved.':'Your baseline is ready.');
   if(!saved)toast('Your result is shown, but saving failed. It will retry automatically.');
-  go('evres');
+  go(results.persisted?(original?'rdet':'dash'):'evres',x.id);
+  if(results.persisted&&!original&&S.isNew&&!S.toured)setTimeout(()=>{if(S.view==='dash'&&window.PTCloud?.user?.id===owner)podium.startTour?.()},800);
 }
 
 /* ---------- results ---------- */
@@ -205,7 +209,7 @@ V.evres=()=>{
   const targetMin=num(d.targetMinSec)||120,targetMax=num(d.targetMaxSec)||180;
   const list=a=>(a&&a.length)?`<ul>${a.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:'<p class="sub">No additional observations.</p>';
   const metric=(icon,title,value,unit,note)=>`<article class="er-metric"><span class="er-icon">${reportIcon(icon)}</span><h3>${title}</h3><div class="er-value">${value}<small>${unit}</small></div><p>${esc(note)}</p></article>`;
-  const dims=Object.entries(r.dims||{}).filter(([,v])=>v&&Number.isFinite(v.points));
+  const dims=Object.entries(r.dims||{}).filter(([,v])=>v&&v.scored!==false&&Number.isFinite(v.points));
   const dimNames={pace:'Speaking pace',fillers:'Filler control',pauses:'Pause control',duration:'Talk duration'};
   const date=r.created_at&&!Number.isNaN(Date.parse(r.created_at))?new Date(r.created_at).toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'}):'Baseline assessment';
   return page('Evaluation results','Your starting point. Your next step.',`<div class="evaluation-report">
@@ -219,7 +223,7 @@ V.evres=()=>{
       ${metric('words','Words spoken',num(m.words),'words','Recognized in this evaluation')}
       ${metric('time','Talk duration',mm(duration),'',`Target ${mm(targetMin)} to ${mm(targetMax)}`)}
       ${metric('fill','Filler words',Number.isFinite(m.fillerCount)?m.fillerCount:'—','detected',CV.fillerDetails(m))}
-      ${metric('pause','Long pauses',Number.isFinite(m.pauseCount)?m.pauseCount:'—','detected','Audio timestamp gaps of 2 seconds or longer')}
+      ${metric('pause','Long pauses',Number.isFinite(m.pauseCount)?m.pauseCount:'—','detected',`Audio timestamp gaps of ${m.pauseThreshold||2} seconds or longer`)}
     </div>
     <div class="er-analysis">
       <section class="er-panel"><span class="er-eyebrow">DELIVERY INSIGHTS</span><h3>Find your speaking rhythm</h3><div class="er-chart-title"><b>${wpm} <small>WPM</small></b><span>Reference ${min}&ndash;${max} WPM</span></div>
@@ -234,7 +238,7 @@ V.evres=()=>{
       <ol class="er-steps">${(f.recommendations||[]).map((t,i)=>`<li><span>${String(i+1).padStart(2,'0')}</span><p>${esc(t)}</p></li>`).join('')}</ol>
       <div class="er-actions"><button class="bt" data-go="up" type="button">Practice with your presentation ${reportIcon('arrow')}</button><button class="bt gh" data-go="hist" type="button">Practice history</button><button class="bt gh" data-act="eretake" type="button">Retake evaluation</button></div>
     </section>
-    <details class="er-panel er-method" ${q.level==='low'?'open':''}><summary>${reportIcon('words')} Recognition quality &amp; how this was measured${q.level==='low'?' - Low-confidence recording':''}</summary><p>${esc(r.explanation||'This is a baseline, not a definitive judgment of your speaking ability.')}</p>${list(q.warnings)}<p>Pace is recognized words divided by recorded audio minutes, including pauses. Long pauses are gaps of at least 2 seconds between timestamped words, excluding leading and trailing silence. Fillers are estimated from the audio transcript and an additional verbatim pass when available. Zero detected does not prove none occurred. Eye contact, confidence and body language are not evaluated.</p>${f.summary?`<p>${esc(f.summary)}</p>`:''}<p>The 100-160 WPM range is a presentation coaching reference, not a universal standard. Clarity depends on content and audience. The speech check requires enough meaningful speech before a delivery score is awarded. Topic feedback uses vocabulary overlap, not semantic grading. Limited topic coverage does not block results; paraphrasing and recognition errors can affect the topic feedback.</p>${r.transcript?`<details><summary>Review recognized transcript</summary><p>${esc(r.verbatimTranscript||r.transcript)}</p></details>`:''}</details>
+    <details class="er-panel er-method" ${q.level==='low'?'open':''}><summary>${reportIcon('words')} Recognition quality &amp; how this was measured${q.level==='low'?' - Low-confidence recording':''}</summary><p>${esc(r.explanation||'This is a baseline, not a definitive judgment of your speaking ability.')}</p>${list(q.warnings)}<p>Pace is recognized words divided by recorded audio minutes, including pauses. Long pauses are gaps of at least ${esc(m.pauseThreshold||2)} seconds between timestamped words, excluding leading and trailing silence. Fillers are estimated from the audio transcript and an additional verbatim pass when available. Zero detected does not prove none occurred. Eye contact, confidence and body language are not evaluated.</p>${f.summary?`<p>${esc(f.summary)}</p>`:''}<p>The 100-160 WPM range is a presentation coaching reference, not a universal standard. Clarity depends on content and audience. The speech check requires enough meaningful speech before a delivery score is awarded. ${r.explanationQuality?.status==='completed'?'Explanation quality uses a separate semantic rubric, rewards valid paraphrases and cites transcript evidence.':'This older result used vocabulary overlap for topic feedback; no semantic explanation score was saved.'}</p>${r.transcript?`<details><summary>Review recognized transcript</summary><p>${esc(r.verbatimTranscript||r.transcript)}</p></details>`:''}</details>
   </div>`);
 };
 

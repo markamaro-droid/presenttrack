@@ -12,6 +12,7 @@
     { "source": "/api/:path*", "headers": [{ "key": "Cache-Control", "value": "private, no-store" }] }
   ],
   "functions": {
+    "api/learning.js": { "maxDuration": 60, "includeFiles": "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs" },
     "api/cloudconvert-webhook.js": { "maxDuration": 60 },
     "api/presentation-maintenance.js": { "maxDuration": 60 },
     "api/presentations.js": {

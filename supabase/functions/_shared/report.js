@@ -32,7 +32,7 @@ export function measuredReport(saved) {
   if (!saved) return null;
   const metrics = saved.metrics || {};
   const result = classify(metrics, saved.quality, saved.criteria || CRITERIA);
-  const feedback = withTopicFeedback(ruleBasedFeedback(metrics, result), saved.source === 'recorded-evaluation' ? saved.contentValidation : null);
+  const feedback = saved.criteriaVersion==='delivery-v2'?{...saved.feedback,...Object.fromEntries(['strengths','improvements','recommendations'].map(k=>[k,[...(saved.feedback?.[k]||[])]]))}:withTopicFeedback(ruleBasedFeedback(metrics, result), saved.source === 'recorded-evaluation' ? saved.contentValidation : null);
   if (saved.source !== 'recorded-evaluation' && saved.criteria?.duration) {
     const { targetMinSec, targetMaxSec } = saved.criteria.duration;
     const target = `${Math.round(targetMinSec)}–${Math.round(targetMaxSec)} second`;
@@ -42,7 +42,7 @@ export function measuredReport(saved) {
   }
   // Preserve historical scoring; refresh wording only, without saving or re-transcribing.
   return { ...saved, feedback, comments: contentOnlyComments(saved.comments), dims: Object.fromEntries(Object.entries(saved.dims || {}).map(([key, dim]) =>
-    [key, { ...dim, ...(result.dims[key] ? { label: result.dims[key].label, detail: result.dims[key].detail } : {}) }])) };
+    [key, { ...dim, ...(result.dims[key]&&saved.criteriaVersion!=='delivery-v2' ? { label: result.dims[key].label, detail: result.dims[key].detail } : {}) }])) };
 }
 
 export function fillerDetails(metrics = {}) {

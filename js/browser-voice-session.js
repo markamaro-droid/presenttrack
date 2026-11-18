@@ -181,6 +181,7 @@
         while (run.history.length > 8 || run.history.reduce((sum, item) => sum + item.content.length, 0) > 12000) run.history.splice(0, 2);
         this.options.onCaption?.('assistant', data.reply);
         this.append('assistant', data.reply.slice(0, 6000));
+        if(data.memoryStatus==='failed')globalThis.podium?.ext?.toast?.('Tracy replied, but this conversation could not be saved.');
         if (this.language === 'auto') run.language = /\b(ang|mga|iyong|ako|ikaw|naman|salamat|kumusta|maaari|paano|magandang)\b/i.test(data.reply) ? 'fil-PH' : 'en-US';
         this.speak(run, data.reply);
         return true;

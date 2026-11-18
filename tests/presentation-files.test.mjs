@@ -34,6 +34,17 @@ test('PowerPoint fingerprints use server-read content',async()=>{
   const a=await validatePptx(zip(base)),b=await validatePptx(zip([...base,['docProps/custom.xml','<custom>changed</custom>']]));
   assert.match(a.hash,/^[a-f0-9]{64}$/);assert.notEqual(a.hash,b.hash);assert.equal(a.pages,1);
 });
+
+test('content extraction associates speaker notes and chart labels with their slide',async()=>{
+  const bytes=zip([...base.slice(0,-1),
+    ['ppt/slides/slide1.xml','<p:sld xmlns:p="urn:p" xmlns:a="urn:a"><a:t>Revenue overview</a:t></p:sld>'],
+    ['ppt/slides/_rels/slide1.xml.rels','<Relationships><Relationship Id="n1" Type="urn:type/notesSlide" Target="../notesSlides/notesSlide1.xml"/><Relationship Id="c1" Type="urn:type/chart" Target="../charts/chart1.xml"/></Relationships>'],
+    ['ppt/notesSlides/notesSlide1.xml','<p:notes xmlns:p="urn:p" xmlns:a="urn:a"><a:t>Explain the annual change.</a:t></p:notes>'],
+    ['ppt/charts/chart1.xml','<c:chart xmlns:c="urn:c"><c:v>2026</c:v></c:chart>']
+  ]);
+  const value=await validatePptx(bytes,{includeText:true});
+  assert.equal(value.slides[0].text,'Revenue overview');assert.equal(value.slides[0].notes,'Explain the annual change.');assert.equal(value.slides[0].visualText,'2026');
+});
 test('damaged archives, missing slides, duplicate names and traversal entries are rejected',async()=>{
   await rejected(Buffer.from('not a powerpoint'));
   await rejected(zip(base.slice(0,-1)),'invalid_pptx');

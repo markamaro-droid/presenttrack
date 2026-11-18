@@ -30,7 +30,7 @@ export async function validatePdf(bytes,limit=MAX_ORIGINAL){
 const array=value=>value==null?[]:Array.isArray(value)?value:[value];
 const parser=new XMLParser({ignoreAttributes:false,processEntities:false,parseAttributeValue:false,parseTagValue:false});
 const local=(object,name)=>Object.entries(object||{}).find(([key])=>key.replace(/^.*:/,'')===name)?.[1];
-export async function validatePptx(bytes){
+export async function validatePptx(bytes,{includeText=false}={}){
   if(!bytes.length||bytes.length>MAX_ORIGINAL)fail('file_size','Choose a PowerPoint file up to 50 MB.');
   const names=new Set(),documents=new Map();let expanded=0,count=0,hasMedia=false,hasAnimation=false;
   try{
@@ -60,25 +60,38 @@ export async function validatePptx(bytes){
             if(Object.keys(node).some(key=>/(^|:)timing$/.test(key)))hasAnimation=true;
             stack.push(...Object.values(node).filter(value=>value&&typeof value==='object'));
           }
-          if(['[Content_Types].xml','ppt/presentation.xml','ppt/_rels/presentation.xml.rels'].includes(name))documents.set(name,document);
+          if(['[Content_Types].xml','ppt/presentation.xml','ppt/_rels/presentation.xml.rels'].includes(name)||includeText&&/^ppt\/(slides|notesSlides|charts|diagrams)\//.test(name))documents.set(name,document);
           zip.readEntry();
         })().catch(stop)});
         zip.readEntry();
       });
     });
-    if(documents.size!==3)fail('invalid_pptx','This file is not a complete PowerPoint presentation.');
+    if(!['[Content_Types].xml','ppt/presentation.xml','ppt/_rels/presentation.xml.rels'].every(n=>documents.has(n)))fail('invalid_pptx','This file is not a complete PowerPoint presentation.');
     const types=local(documents.get('[Content_Types].xml'),'Types');
     if(!array(local(types,'Override')).some(type=>type['@_PartName']==='/ppt/presentation.xml'&&type['@_ContentType']==='application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml'))fail('invalid_pptx','Choose a standard PPTX presentation.');
     const presentation=local(documents.get('ppt/presentation.xml'),'presentation'),slides=array(local(local(presentation,'sldIdLst'),'sldId'));
     if(slides.length<1||slides.length>500)fail('slide_limit','Use a PowerPoint with 1 to 500 slides.');
     const relationships=array(local(local(documents.get('ppt/_rels/presentation.xml.rels'),'Relationships'),'Relationship'));
+    const extracted=[];
+    const collect=node=>{if(!node||typeof node!=='object')return '';return Object.entries(node).flatMap(([key,value])=>/(^|:)(t|v)$/.test(key)&&typeof value==='string'?[value]:typeof value==='object'?[collect(value)]:[]).join(' ').replace(/\s+/g,' ').trim()};
     for(const slide of slides){
       const relation=relationships.find(item=>item['@_Id']===Object.entries(slide).find(([key])=>/^@_.*:id$/.test(key))?.[1]);
       const target=relation?.['@_Target']||'',resolved=path.posix.normalize(target.startsWith('/')?target.slice(1):'ppt/'+target);
       if(!String(relation?.['@_Type']).endsWith('/slide')||!resolved.startsWith('ppt/slides/')||!names.has(resolved))fail('invalid_pptx','The PowerPoint contains a missing slide relationship.');
+      if(includeText){
+        const relPath=path.posix.dirname(resolved)+'/_rels/'+path.posix.basename(resolved)+'.rels';
+        const rels=array(local(local(documents.get(relPath),'Relationships'),'Relationship'));
+        const content={number:extracted.length+1,text:collect(documents.get(resolved)).slice(0,6000),notes:'',visualText:''};
+        for(const rel of rels){
+          const target=rel['@_Target']||'',file=path.posix.normalize(target.startsWith('/')?target.slice(1):path.posix.dirname(resolved)+'/'+target);
+          if(String(rel['@_Type']).endsWith('/notesSlide'))content.notes=collect(documents.get(file)).slice(0,3000);
+          if(/\/(chart|diagramData)$/.test(rel['@_Type']||''))content.visualText+=(content.visualText?' ':'')+collect(documents.get(file)).slice(0,2000);
+        }
+        extracted.push(content);
+      }
     }
     const warnings=['Prepared by CloudConvert. Fonts, spacing and some PowerPoint effects may differ from the original. Download the original to compare.'];
     if(hasMedia||hasAnimation)warnings.push('Animations, audio and video are static in this PDF preview.');
-    return {pages:slides.length,warnings,hash:createHash('sha256').update(bytes).digest('hex')};
+    return {pages:slides.length,warnings,hash:createHash('sha256').update(bytes).digest('hex'),...(includeText?{slides:extracted}:{})};
   }catch(error){if(error instanceof DocumentError)throw error;fail('invalid_pptx','This PowerPoint is damaged or has an unsupported structure.');}
 }

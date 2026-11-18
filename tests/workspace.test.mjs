@@ -134,7 +134,7 @@ test('activity excludes unknown and future dates and uses four calendar periods'
 
 test('progress analytics render for samples and honor the real-data selection', () => {
   const { S, V } = setup();
-  for (const title of ['Latest score', 'Average score', 'First attempt vs latest', 'Your practice rhythm', 'A focus for your next attempt']) assert.ok(V.prog().includes(title));
+  for (const title of ['Latest delivery score', 'Average delivery score', 'First attempt vs latest', 'Your practice rhythm', 'A focus for your next attempt']) assert.ok(V.prog().includes(title));
   S.ses = [session(1, 1), session(2, 2, { score: 99 })];
   S.compareDeck = '1';
   assert.match(V.prog(), /Highest score: 75% across 1 scored attempts/);

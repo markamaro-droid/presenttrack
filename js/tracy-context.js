@@ -37,7 +37,7 @@
       presentations: decks.slice(0, 10).map(p => ({ id: String(p.id ?? '').slice(0, 100), title: text(p.t, 160), targetSeconds: number(p.target), scheduledDate: text(p.scheduledDate || (p.left != null ? p.date : ''), 80), hasSlideText: !!p.context?.text })),
       goals: goals.slice(0, 5).map(g => { const progress = M?.goal(g, sessions); return { title: text(g.t, 200), metric: text(g.metric || 'manual', 80), target: number(g.target), progressPercent: number(progress?.percent), measured: !!progress?.measured }; }),
       notifications: notes.slice(0, 3).map(n => ({ title: text(n.t, 160), detail: text(n.s, 300), read: !!n.r })),
-      presentation: presentation ? { title: text(presentation.t, 160), text: text(presentation.context?.text, 8000), truncated: (presentation.context?.text?.length || 0) > 8000 } : null,
+      presentation: presentation ? { ...(presentation.remoteId?{id:presentation.remoteId}:{}),title: text(presentation.t, 160), text: text(presentation.context?.text, 8000), truncated: (presentation.context?.text?.length || 0) > 8000 } : null,
       results: (report ? [report] : selected.slice(-4)).map(result), comparison: comparison.map(result),
       baseline: result(base), filters: { deck: String(deckId || '').slice(0, 100), days: review ? Math.max(0, Math.min(36500, Number(S.reviewDays) || 0)) : 0 } };
     // Keep the full bounded inventory and measurements; trim verbose text to the API budget.

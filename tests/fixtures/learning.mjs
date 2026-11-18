@@ -1,0 +1,9 @@
+import {dimensions} from '../../server/learning-analysis.mjs';
+import {computeMetrics} from '../../supabase/functions/_shared/metrics.js';
+import {classify} from '../../supabase/functions/_shared/classify.js';
+import {ruleBasedFeedback} from '../../supabase/functions/_shared/feedback.js';
+import '../../assets/evaluation/study-habits.js';
+export const spoken=globalThis.PT_EVALUATION_DECK.slides.flatMap(s=>s.bullets).join(' ').split(/\s+/).slice(0,240);
+export const audioResult={duration:120,text:spoken.join(' '),words:spoken.map((word,i)=>({word,start:i*.5,end:i*.5+.4})),segments:[{avg_logprob:-.1,no_speech_prob:0}]};
+export const explanation=()=>({summary:'The explanation connects the main ideas to a practical example.',criteria:Object.fromEntries(dimensions.map(key=>[key,{score:3,reason:'Relevant ideas were explained.',evidence:[{quote:spoken.slice(0,12).join(' '),slide:1}],suggestion:'Connect the example to your main idea.'}])),missing:[],corrections:[],goals:[{title:'Connect examples',dimension:'examples',exercise:'Explain why your example illustrates the concept.'},{title:'Explain each main idea',dimension:'coverage',exercise:'Summarize one main idea from every slide.'}],limitations:['Synthetic test fixture, not a real assessment.']});
+export function result(){const metrics=computeMetrics({words:audioResult.words,totalDurationSec:120});metrics.wpm=metrics.overallWpm;metrics.fillersPer100Words=metrics.fillerCount/metrics.words*100;metrics.pauseThreshold=2;const quality={level:'ok',warnings:[]},assessment=classify(metrics,quality);return {...assessment,metrics,quality,feedback:ruleBasedFeedback(metrics,assessment),explanationQuality:{...explanation(),status:'completed',version:'explanation-v1',score:75},transcript:audioResult.text,contentValidation:{eligible:true},source:'recorded-audio',created_at:new Date().toISOString()};}

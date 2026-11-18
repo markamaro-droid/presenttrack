@@ -1,5 +1,10 @@
 # Built-in recorded evaluation
 
+The current server-saved baseline and semantic explanation rubric are documented in
+[Learning system setup](LEARNING_SYSTEM.md). After the 20261119 migration, new clients
+save through the service-only learning RPC; the old browser result RPC described below
+is retired. The remaining notes also describe historical results and their older rubric.
+
 Evaluation records the five-slide study-habits talk in
 `assets/evaluation/study-habits.js`. The server imports the same deck as the page;
 client-supplied presentation text cannot replace the evaluation reference.

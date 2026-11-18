@@ -9,6 +9,7 @@ import speech from '../api/speech.js';
 import practice from '../api/practice.js';
 import admin from '../api/admin.js';
 import presentations from '../api/presentations.js';
+import learning from '../api/learning.js';
 import cloudconvertWebhook from '../api/cloudconvert-webhook.js';
 import presentationMaintenance from '../api/presentation-maintenance.js';
 import { pdfAsset, pdfRoot } from './pdf-assets.mjs';
@@ -23,6 +24,7 @@ createServer(async (req, res) => {
     if (pathname === '/api/voice') return await voice(req, res);
     if (pathname === '/api/admin') return await admin(req, res);
     if (pathname === '/api/presentations') return await presentations(req, res);
+    if (pathname === '/api/learning') return await learning(req, res);
     if (pathname === '/api/cloudconvert-webhook') return await cloudconvertWebhook(req,res);
     if (pathname === '/api/presentation-maintenance') return await presentationMaintenance(req,res);
     if (pathname === '/api/practice') return await practice(req, res);

@@ -1,6 +1,7 @@
 /* Large uploads use private temporary storage; reports are saved separately. */
 (() => {
   const captures = new Set();
+  const sessionIds=new WeakMap();
   class Capture {
     constructor() { this.chunks = []; this.cancelled = false; }
     async start() {
@@ -42,8 +43,11 @@
     try {
     signal?.throwIfAborted();
     const payload = { mime, target, consent:true };
+    if(window.PTLearning){if(!sessionIds.has(blob))sessionIds.set(blob,crypto.randomUUID());payload.sessionId=sessionIds.get(blob);}
     if (purpose === 'evaluation') payload.purpose = 'evaluation';
     if (presentation?.text) payload.presentation = {title:String(presentation.title||'').slice(0,160),text:String(presentation.text).slice(0,20000)};
+    if(presentation?.remoteId)payload.presentationId=presentation.remoteId;
+    if(window.PTLearning?.navigation)payload.slideNavigation=PTLearning.navigation();
     if (blob.size > 3000000) {
       if (!bucket) throw new Error('Large uploads are not configured yet.');
       storagePath = session.data.session.user.id + '/' + crypto.randomUUID();

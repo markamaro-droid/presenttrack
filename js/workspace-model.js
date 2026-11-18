@@ -35,9 +35,9 @@
       fill: numeric(m.fillerCount), pau: numeric(m.pauseCount), score: null, tg: null };
   }
   function goal(g, sessions) {
-    const list = select(sessions, { deck: g.deckId }), latest = list.at(-1);
+    const list = select(sessions, { deck: g.deckId }).filter(s=>!g.createdAt||date(s)>Date.parse(g.createdAt)), latest = list.at(-1);
     if (!g.metric || g.metric === 'manual') return { percent: clamp(numeric(g.p) || 0), actual: null, measured: false };
-    const actual = g.metric === 'sessions' ? list.length : value(latest, g.metric);
+    const actual = g.metric.startsWith('explanation:') ? numeric(latest?.analysis?.explanationQuality?.criteria?.[g.metric.slice(12)]?.score) : g.metric === 'sessions' ? list.length : value(latest, g.metric);
     const validTarget = Number.isFinite(Number(g.target)) && (g.metric === 'fillerRate' ? g.target >= 0 : g.target > 0);
     if (actual === null || !validTarget) return { percent: 0, actual, measured: true };
     const percent = g.metric === 'fillerRate' ? (actual <= g.target ? 100 : g.target / actual * 100) : actual / g.target * 100;

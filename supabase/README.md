@@ -1,5 +1,9 @@
 # Legacy Initial Presentation Assessment: backend reference
 
+For the current permanent baseline, separate explanation reports and optional Tracy memory,
+see [Learning system setup](../docs/LEARNING_SYSTEM.md). Its additive migration runs after
+the existing recorded-evaluation and CloudConvert migrations.
+
 This generated-presentation module has been removed from the app. Its card,
 screens, dashboard banner, and automatic sign-in requests are no longer loaded.
 The current speaking evaluation is documented in [Evaluation setup](../docs/EVALUATION.md).

@@ -1,0 +1,62 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {randomUUID} from 'node:crypto';
+import {PGlite} from '@electric-sql/pglite';
+test('learning storage isolates accounts, locks the original baseline and preserves reassessments',async()=>{
+  const db=new PGlite(),alice=randomUUID(),bob=randomUUID(),presentation=randomUUID(),first=randomUUID(),second=randomUUID();
+  const query=async(sql,args=[])=>(await db.query(sql,args)).rows;
+  const as=async(role,user='')=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user]);await db.exec('set role '+role)};
+  try{
+    await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create table auth.users(id uuid primary key);
+    create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
+    create table public.user_data(user_id uuid primary key,data jsonb default '{}',initial_assessment_completed boolean default false,initial_assessment_completed_at timestamptz,created_at timestamptz default now(),updated_at timestamptz default now());
+    create table public.presentations(id uuid primary key,user_id uuid references auth.users(id),deleted_at timestamptz);
+    create table public.ai_usage(user_id uuid,kind text,created_at timestamptz default now());
+    create function public.complete_recorded_evaluation(jsonb) returns void language sql as $$select$$;
+    grant usage on schema auth,public to anon,authenticated,service_role;
+    insert into auth.users values('${alice}'),('${bob}');insert into user_data(user_id) values('${alice}'),('${bob}');insert into presentations values('${presentation}','${alice}',null);`);
+    const migration=await readFile(new URL('../supabase/migrations/20261119_learning_system.sql',import.meta.url),'utf8');await db.exec(migration);await db.exec(migration);
+    const result={source:'recorded-evaluation',score:72,quality:{level:'ok'},contentValidation:{eligible:true},explanationQuality:{status:'completed'},created_at:new Date().toISOString()};
+    await as('service_role');
+    const save=(user,id,evaluation=true,r=result)=>query('select public.save_learning_session($1,$2,null,$3,$4,$5) as value',[user,id,'Evaluation',evaluation,JSON.stringify(r)]);
+    assert.equal((await save(alice,first))[0].value.kind,'baseline');
+    assert.equal((await save(alice,first))[0].value.id,first,'duplicate request keeps one record');
+    assert.equal((await save(alice,second,true,{...result,score:90}))[0].value.kind,'reassessment');
+    assert.equal((await save(bob,randomUUID()))[0].value.kind,'baseline');
+    await assert.rejects(save(alice,randomUUID(),true,{...result,explanationQuality:{status:'failed'}}),/incomplete_evaluation/);
+    assert.equal((await query('select public.claim_presentation_understanding($1,$2) as value',[alice,presentation]))[0].value,true);
+    assert.equal((await query('select public.claim_presentation_understanding($1,$2) as value',[alice,presentation]))[0].value,false);
+    await assert.rejects(query('select public.claim_presentation_understanding($1,$2)',[bob,presentation]),/presentation_not_owned/);
+    const prefs={conversation_history:true,retention_days:30,pause_threshold:3,coaching_style:'Specific'};
+    await query('select set_learning_preferences($1,$2)',[alice,JSON.stringify(prefs)]);
+    assert.equal((await query('select save_tracy_conversation($1,$2,$3,$4) as saved',[alice,randomUUID(),'Help with examples','Connect the example to the concept.']))[0].saved,true);
+    await query('insert into tracy_memories(user_id,content) values($1,$2)',[alice,'Explain programming examples']);
+    for(let n=0;n<10;n++)assert.equal((await query('select take_learning_slot($1,$2) as allowed',[alice,'explanation']))[0].allowed,true);
+    assert.equal((await query('select take_learning_slot($1,$2) as allowed',[alice,'explanation']))[0].allowed,false);
+    await as('authenticated',alice);assert.equal((await query('select * from learning_sessions')).length,2);
+    await assert.rejects(save(alice,randomUUID()),/permission denied/);
+    await assert.rejects(query("update learning_sessions set title='forged'"),/permission denied/);
+    await assert.rejects(query("delete from learning_sessions"),/permission denied/);
+    for(const table of ['presentation_understanding','learning_preferences','tracy_conversations','tracy_memories']){
+      assert.equal((await query('select * from '+table)).length,1);
+      await assert.rejects(query('delete from '+table),/permission denied/);
+    }
+    await as('authenticated',bob);
+    for(const table of ['presentation_understanding','learning_preferences','tracy_conversations','tracy_memories','learning_deletions'])assert.equal((await query('select * from '+table)).length,0);
+    await as('anon');await assert.rejects(query('select * from learning_sessions'),/permission denied/);
+    await as('postgres');await query("update user_data set data='{}',initial_assessment_completed=false where user_id=$1",[alice]);
+    const account=(await query('select * from user_data where user_id=$1',[alice]))[0];assert.equal(account.data.ev.results.score,72);assert.equal(account.initial_assessment_completed,true);
+    await as('service_role');
+    await query('select set_learning_preferences($1,$2)',[alice,JSON.stringify({...prefs,conversation_history:false})]);
+    assert.equal((await query('select * from tracy_conversations')).length,0);
+    assert.equal((await query('select save_tracy_conversation($1,$2,$3,$4) as saved',[alice,randomUUID(),'In-flight question','Late answer']))[0].saved,false);
+    assert.equal((await query('select delete_learning_session($1,$2) as deleted',[bob,second]))[0].deleted,false);
+    assert.equal((await query('select delete_learning_session($1,$2) as deleted',[alice,first]))[0].deleted,false);
+    assert.equal((await query('select delete_learning_session($1,$2) as deleted',[alice,second]))[0].deleted,true);
+    await assert.rejects(save(alice,second),/session_deleted/);
+    await as('postgres');
+    await query('update user_data set data=$2 where user_id=$1',[alice,JSON.stringify({ses:[{remoteSessionId:second,transcript:'Stale deleted transcript'}]})]);
+    assert.deepEqual((await query('select data from user_data where user_id=$1',[alice]))[0].data.ses,[]);
+  }finally{await db.close()}
+});
