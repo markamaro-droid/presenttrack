@@ -8,3 +8,7 @@ dist/
 *.key
 coverage/
 benchmarks/private/
+.local-converter-deps/
+__pycache__/
+*.pyc
+.venv/

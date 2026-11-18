@@ -11,7 +11,7 @@ begin
   if v_user is null then
     raise exception 'authentication_required' using errcode = '42501';
   end if;
-  if p_results is null or octet_length(p_results::text) > 100000
+  if p_results is null or octet_length(p_results.::text) > 100000
      or jsonb_typeof(p_results) <> 'object'
      or p_results->>'source' is distinct from 'recorded-evaluation'
      or coalesce(p_results->>'classification', '') not in ('proficient','developing','needs_improvement')

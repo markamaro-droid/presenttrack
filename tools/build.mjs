@@ -2,6 +2,7 @@ import { cp, mkdir, rm, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { stagePdfAssets } from './pdf-assets.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const out = path.join(root, 'dist');
@@ -11,6 +12,7 @@ await mkdir(out, { recursive: true });
 for (const file of ['index.html', 'css', 'js', 'assets']) {
   await cp(path.join(root, file), path.join(out, file), { recursive: true });
 }
+await stagePdfAssets(out);
 // Browser evaluation imports these existing modules dynamically.
 const shared = 'supabase/functions/_shared';
 await mkdir(path.join(out, shared), { recursive: true });

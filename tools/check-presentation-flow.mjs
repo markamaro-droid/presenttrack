@@ -1,5 +1,5 @@
 // Run the local dev server first. Provider calls, PDF loading, and capture are
-// stubbed; this checks real UI wiring without uploading user data or recording.
+// stubbed; real PDF.js rendering is also checked by check-pdf-viewer.mjs.
 import {spawn} from 'node:child_process';
 import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -22,6 +22,13 @@ try{
  const S=podium.ext.S;S.pres=[];S.ses=[];S.notes=[];S.goals=[];S.booted=true;S.loading=false;S.u.name='Preview';S.nid=100;
  document.querySelector('.shell').hidden=true;document.getElementById('app').hidden=false;document.documentElement.classList.add('clay');podium.save=()=>{};
  window.uploads=[];window.PTCloud={enabled:true,user:{id:'preview'},assessmentDone:true,upload:async(path,file)=>{uploads.push({path,name:file.name,bytes:await file.text()});return{}},saveNow:async()=>({}),remove:async()=>({})};
+ window.PTPresentations={
+  usage:async()=>({dailyLimit:10,spent:0,reserved:0,available:10}),
+  apply:(p,row)=>{p.remoteId=row.id;p.conversion=row;return p},
+  upload:async(file,title,{onRegistered=()=>{}}={})=>{uploads.push({name:file.name,bytes:await file.text()});const row={id:crypto.randomUUID(),file_type:/\.pdf$/i.test(file.name)?'pdf':'pptx',upload_completed:true,conversion_status:'completed',warnings:[]};onRegistered(row);return row},
+  status:async p=>p.conversion,restore:async()=>false,label:row=>row?'Preview ready':'',
+  file:async()=>new File(['preview'],'preview.pdf'),remove:async()=>({})
+ };
  window.pdfjsLib={GlobalWorkerOptions:{},getDocument:()=>({promise:Promise.resolve({numPages:2,getPage:async i=>({getTextContent:async()=>({items:[{str:'Original slide '+i+' research findings'}]}),getViewport:({scale})=>({width:960*scale,height:540*scale}),render:({canvasContext})=>{canvasContext.fillStyle='#fff';canvasContext.fillRect(0,0,960,540);return{promise:Promise.resolve()} }}),destroy:async()=>{}})})};
  window.JSZip={loadAsync:async()=>({files:{'ppt/slides/slide1.xml':{},'ppt/slides/slide2.xml':{}},file:()=>({async:async()=>'<p:sld xmlns:p="urn:p" xmlns:a="urn:a"><a:p><a:t>Original slide research findings</a:t></a:p></p:sld>'})})};
  const append=document.head.appendChild.bind(document.head);document.head.appendChild=el=>{if(el.src?.includes('/pdf.min.js')||el.src?.includes('/jszip.min.js')){queueMicrotask(()=>el.onload());return el;}return append(el)};
@@ -51,10 +58,12 @@ try{
  assert.deepEqual(await evaluate(`({title:document.getElementById('ut').value,original:document.getElementById('f').files.length,pickers:document.querySelectorAll('#view input[type=file]').length})`),{title:'',original:0,pickers:1});
  await evaluate(`document.getElementById('ua').click()`);assert.equal(await evaluate('uploads.length'),0);
  await evaluate(`pick('f',[new File(['ORIGINAL POWERPOINT BYTES'],'research.pptx')]);document.getElementById('ut').value='Research';document.getElementById('ua').click()`);
+ assert.equal(await evaluate('uploads.length'),0,'PowerPoint needs explicit conversion consent');
+ await evaluate(`document.getElementById('uconvert').checked=true;document.getElementById('ua').click()`);
  for(let i=0;i<40;i++){if(await evaluate('podium.ext.S.pres.length===1'))break;await new Promise(r=>setTimeout(r,50));}
  assert.equal(await evaluate('podium.ext.S.pres.length'),1,'PPTX uploads without a PDF');
  assert.deepEqual(await evaluate('uploads.map(x=>x.bytes)'),['ORIGINAL POWERPOINT BYTES']);
- assert.match(await evaluate('podium.ext.S.pres[0].context.text'),/Original slide research findings/);
+
  await evaluate(`pick('f',[new File(['ORIGINAL PDF BYTES'],'research.pdf',{type:'application/pdf'})]);document.getElementById('ut').value='PDF Research';document.getElementById('ua').click()`);
  for(let i=0;i<40;i++){if(await evaluate('podium.ext.S.pres.length===2'))break;await new Promise(r=>setTimeout(r,50));}
  assert.equal(await evaluate('podium.ext.S.pres.length'),2,'PDF is a separate presentation');
@@ -68,7 +77,7 @@ try{
   await evaluate(`podium.ext.go('prac',${deckId})`);
   for(let i=0;i<40;i++){if(await evaluate(`!document.getElementById('vfs').disabled`))break;await new Promise(r=>setTimeout(r,50));}
   assert.equal(await evaluate(`document.getElementById('vfs').textContent`),'Start');
-  assert.match(await evaluate(`document.getElementById('vst').textContent`),/text preview/);
+  assert.equal(await evaluate(`!!document.querySelector('#vst canvas')`),true);
   assert.equal(await evaluate(`document.querySelectorAll('#vw input[type=file]').length`),0,'PPTX practice never requests another file');
   assert.equal(await evaluate(`document.getElementById('pgo')===null && document.getElementById('pfin')===null`),true);
   const before=await evaluate('recordStarts');
@@ -79,7 +88,7 @@ try{
   assert.equal(await evaluate(`document.getElementById('vw').classList.contains('fs')`),true);
   assert.equal(await evaluate(`document.getElementById('vc').textContent`),'Slide 1 / 2');
   assert.equal(await evaluate(`document.getElementById('vfin').hidden`),false);
-  await evaluate(`document.getElementById('vfs').click()`);
+  await evaluate(`document.getElementById('vpreviewfs').click()`);
   await new Promise(r=>setTimeout(r,100));
   assert.equal(await evaluate(`document.getElementById('vfin').hidden`),false,'single Finish remains available outside fullscreen');
   await evaluate('previewShift+=21000');await new Promise(r=>setTimeout(r,250));

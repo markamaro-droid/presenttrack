@@ -15,6 +15,7 @@ function setup({ enabled = true, id = 'alice', marker, row = null, assessmentDon
   };
   const context = {
     window: { PTCloud: cloud }, PTCloud: cloud, podium: {},
+    FILES: {}, SLIDE_FILES: {},
     localStorage: {
       getItem(key) { if (storageFails) throw Error('Storage unavailable'); return storage.get(key); },
       setItem(key, value) { if (storageFails) throw Error('Storage unavailable'); storage.set(key, value); }
@@ -31,6 +32,11 @@ function setup({ enabled = true, id = 'alice', marker, row = null, assessmentDon
   };
   return { ...context, context, cloud, writes, storage, login };
 }
+
+test('switching accounts clears private in-memory presentation files',()=>{
+  const s=setup();s.FILES[100]={name:'private.pdf'};s.SLIDE_FILES[100]={name:'private-preview.pdf'};
+  s.login();assert.deepEqual(s.FILES,{});assert.deepEqual(s.SLIDE_FILES,{});
+});
 
 test('successful registration is eligible even before the cloud row is loaded', () => {
   const s = setup();

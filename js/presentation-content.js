@@ -15,7 +15,8 @@
     const pages=[];let length=0;
     const add=text=>{const remaining=limit-length;if(remaining<=0)return;const value=String(text).replace(/\s+/g,' ').trim().slice(0,remaining);pages.push(value);length+=value.length;};
     if(/\.pdf$/i.test(file.name)) {
-      const doc=await pdf.getDocument({data:await file.arrayBuffer()}).promise;
+      const data=new Uint8Array(await file.arrayBuffer());
+      const doc=await pdf.getDocument(globalThis.PTPDF?.options?globalThis.PTPDF.options(data):{data,isEvalSupported:false}).promise;
       try {for(let i=1;i<=Math.min(doc.numPages,100)&&length<limit;i++){const page=await doc.getPage(i);const content=await page.getTextContent();add(content.items.map(x=>x.str||'').join(' '));}}
       finally {await doc.destroy?.();}
     } else if(/\.pptx$/i.test(file.name)) {

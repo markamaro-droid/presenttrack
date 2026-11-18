@@ -1,0 +1,75 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {randomUUID} from 'node:crypto';
+import {PGlite} from '@electric-sql/pglite';
+test('CloudConvert migration: private cache, consent, owner deduplication, atomic daily budget, retry fencing and safe retirement',async()=>{
+  const db=new PGlite(),alice=randomUUID(),bob=randomUUID();
+  const rows=async(sql,args=[])=>(await db.query(sql,args)).rows;
+  const as=async(role,user='')=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user]);await db.exec('set role '+role)};
+  const scalar=async(sql,args=[])=>(await rows(sql,args))[0].value;
+  try{
+    await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;
+      create schema auth;create schema storage;create table auth.users(id uuid primary key);
+      create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
+      create table public.user_data(user_id uuid primary key,initial_assessment_completed boolean);
+      create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
+      create table storage.objects(bucket_id text,name text,metadata jsonb,primary key(bucket_id,name));alter table storage.objects enable row level security;
+      grant usage on schema auth,storage,public to anon,authenticated,service_role;grant all on storage.objects to authenticated,service_role;
+      insert into auth.users values('${alice}'),('${bob}');insert into public.user_data values('${alice}',true),('${bob}',true);`);
+    await db.exec(await readFile(new URL('../supabase/migrations/20261117_presentation_conversion.sql',import.meta.url),'utf8'));
+    const legacy=randomUUID();
+    await db.query("insert into public.presentations(id,user_id,title,original_filename,original_file_path,file_type,file_size,upload_completed,conversion_status,conversion_error,error_code) values($1,$2,'Old upload','old.pptx',$3,'pptx',100,true,'failed','Worker interrupted','worker_interrupted')",[legacy,alice,alice+'/'+legacy+'.pptx']);
+    await db.exec(await readFile(new URL('../supabase/migrations/20261118_cloudconvert.sql',import.meta.url),'utf8'));
+    const resumed=(await rows('select conversion_status,conversion_error,conversion_consent_at from public.presentations where id=$1',[legacy]))[0];
+    assert.equal(resumed.conversion_status,'queued');assert.equal(resumed.conversion_error,null);assert.equal(resumed.conversion_consent_at,null,'legacy failures can resume only after new consent');
+    const create=async(user,type='pptx')=>{
+      const id=randomUUID();await as('authenticated',user);
+      await db.query('select public.presentation_create($1,$2,$3,$4,100)',[id,'Talk','talk.'+type,type]);
+      await db.query("insert into storage.objects values('presentation-originals',$1,'{\"size\":100}')",[`${user}/${id}.${type}`]);
+      await db.query('select public.presentation_submit($1)',[id]);return id;
+    };
+    const bind=async(user,hash='a'.repeat(64))=>{
+      const p=await create(user);await as('service_role');
+      assert.equal((await rows('select * from public.presentation_validation_claim($1)',[p])).length,0,'no PowerPoint processing before consent');
+      await db.query('update public.presentations set conversion_consent_at=now() where id=$1',[p]);
+      const claim=(await rows('select * from public.presentation_validation_claim($1)',[p]))[0];
+      const c=await scalar("select public.presentation_cloud_bind($1,$2,$3,5,'[]') as value",[p,claim.lease_token,hash]);return {p,c};
+    };
+    const first=await bind(alice),copy=await bind(alice),foreign=await bind(bob);
+    assert.equal(first.c,copy.c);assert.notEqual(first.c,foreign.c,'cache is never shared between users');
+    await as('authenticated',alice);
+    await assert.rejects(rows('select * from public.presentation_conversion_cache'),/permission denied/);
+    await assert.rejects(rows('select * from public.presentation_conversion_usage'),/permission denied/);
+    await assert.rejects(rows('select public.presentation_cloud_reserve($1,$2)',[first.c,randomUUID()]),/permission denied/);
+    await assert.rejects(rows('select public.presentation_submit($1,true)',[first.p]),/retry_through_api/);
+    const pdf=await create(alice,'pdf');await as('service_role');
+    await assert.rejects(rows('select * from public.presentation_claim_job()'),/permission denied/,'old Railway queue is disabled');
+    const pdfClaim=(await rows('select * from public.presentation_validation_claim($1)',[pdf]))[0];
+    assert.equal(await scalar('select public.presentation_finish($1,$2,3,null) as value',[pdf,pdfClaim.lease_token]),true);
+    assert.equal((await rows('select * from public.presentation_conversion_usage')).length,0,'PDF validation spends no CloudConvert credits');
+    const caches=[first.c,foreign.c];for(let i=0;i<4;i++)caches.push((await bind(alice,String(i).repeat(64))).c);
+    await as('service_role');const claims=[];
+    for(const id of caches){claims.push((await rows('select * from public.presentation_cloud_lock($1)',[id]))[0]);}
+    assert.equal((await rows('select * from public.presentation_cloud_lock($1)',[first.c])).length,0,'overlapping requests cannot claim the same job');
+    for(let i=0;i<claims.length;i++)assert.equal(await scalar('select public.presentation_cloud_reserve($1,$2) as value',[claims[i].id,claims[i].lock_token]),i<5);
+    const usage=(await rows('select * from public.presentation_conversion_usage'))[0];assert.equal(usage.reserved,10);assert.equal(usage.spent,0);
+    assert.equal((await rows('select error_code from public.presentation_conversion_cache where id=$1',[caches[5]]))[0].error_code,'daily_quota');
+    assert.equal(await scalar('select public.presentation_cloud_settle($1,$2,2) as value',[first.c,randomUUID()]),false);
+    assert.equal(await scalar('select public.presentation_cloud_settle($1,$2,2) as value',[first.c,claims[0].lock_token]),true);
+    await scalar('select public.presentation_cloud_settle($1,$2,2) as value',[first.c,claims[0].lock_token]);
+    assert.equal((await rows('select spent from public.presentation_conversion_usage'))[0].spent,2,'duplicate callback is not double-charged');
+    await db.query("update public.presentation_conversion_cache set state='completed',total_slides=5,preview_pdf_path=user_id::text||'/cache/'||id::text||'.pdf',lock_until=null,lock_token=null where id=$1",[first.c]);
+    await db.query('select public.presentation_cloud_sync($1)',[first.c]);
+    assert.equal((await rows('select conversion_status from public.presentations where conversion_id=$1',[first.c])).filter(row=>row.conversion_status==='completed').length,2);
+    assert.equal(await scalar('select public.presentation_cloud_retire($1) as value',[first.c]),false);
+    await as('authenticated',alice);await db.query('select public.presentation_delete($1)',[first.p]);
+    await as('service_role');assert.equal(await scalar('select public.presentation_cloud_retire($1) as value',[first.c]),false,'duplicate owner copy retains cached PDF');
+    await as('authenticated',alice);await db.query('select public.presentation_delete($1)',[copy.p]);
+    await as('service_role');assert.equal(await scalar('select public.presentation_cloud_retire($1) as value',[first.c]),true);
+    const replacement=await bind(alice);assert.notEqual(replacement.c,first.c,'new uploads cannot attach to a cache being deleted');
+    await as('service_role');await db.query("update public.presentation_conversion_cache set state='failed',reservation_settled=true,provider_deleted=true,lock_until=null,lock_token=null,next_attempt_at=now() where id=$1",[replacement.c]);
+    assert.equal(await scalar('select public.presentation_cloud_retry($1,$2) as value',[replacement.p,bob]),false);
+    assert.equal(await scalar('select public.presentation_cloud_retry($1,$2) as value',[replacement.p,alice]),true);
+  }finally{await db.close()}
+});

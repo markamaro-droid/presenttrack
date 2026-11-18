@@ -1,0 +1,11 @@
+/* Page pixels retain their own colors and proportions in every app theme. */
+html #vst canvas{border-radius:0!important;object-fit:contain;max-width:100%;height:auto;box-shadow:0 4px 18px #0003}
+#vst .presentation-state{max-width:560px;padding:24px;text-align:center;display:grid;gap:12px}
+#vst .presentation-state p{margin:0;line-height:1.5}
+#vst .presentation-state .acts{justify-content:center;flex-wrap:wrap}
+.presentation-status{display:block;font-size:12px;color:var(--muted);margin-top:6px}
+.presentation-warning{margin:12px 0 0;padding:12px;border:1px solid var(--line);border-radius:10px;color:var(--muted);font-size:12px;line-height:1.5}
+.presentation-warning p{margin:0}.presentation-warning p+p{margin-top:6px}
+.presentation-download{margin-left:auto;flex-shrink:0}
+#vw.fs .presentation-warning{display:none}
+@media(max-width:600px){.vwh{flex-wrap:wrap}.presentation-download{font-size:11px}#vw .vbt{flex-wrap:wrap}#vw.fs{grid-template-columns:minmax(0,1fr)}#vw.fs .vwh{grid-area:1/1}#vw.fs .vctl{grid-area:2/1;padding:4px 8px 8px}#vw.fs .vst{grid-area:3/1;min-height:0}#vw.fs{grid-template-rows:auto auto minmax(0,1fr)}}

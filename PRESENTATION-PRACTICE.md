@@ -2,11 +2,13 @@
 
 New presentation uploads accept one PDF or one PPTX, up to 50 MB. Each file creates its own presentation. A PPTX never requires a companion PDF. The original File bytes are uploaded unchanged.
 
-PDF uploads use the existing PDF.js renderer and preserve the original slide layout. PPTX-only uploads extract text per slide for an explicitly labelled text-only practice preview. Formatting, images, charts and animations are not reproduced. Image-only PowerPoint slides display a no-readable-text notice; text is never invented. For an exact visual layout, upload a PDF export as its own presentation.
+PDF uploads render the original file with PDF.js without using conversion credits. PowerPoint uploads are converted to PDF by CloudConvert through authenticated Vercel routes after the student accepts the processing disclosure; the same PDF.js canvas viewer displays the resulting slides. Slide layout is never recreated as HTML text. Fonts and unsupported effects can differ, so converted previews show a fidelity notice. Successful PDFs are cached privately and reused without another conversion.
 
-Existing entries with an attached slide PDF keep using it. Legacy PPT entries can still attach a PDF from Practice; new PPT uploads are not accepted. Existing Word uploads remain in the library, but new Word uploads are not accepted.
+Existing paired slide PDFs remain usable. Older PPTX files without previews offer the new conversion workflow when opened in Practice, with explicit CloudConvert consent first. New PPT, Word and other unsupported uploads are rejected. Existing unsupported originals remain downloadable, with a clear viewer message.
 
-Text is extracted read-only for practice context (up to 100 slides/pages and 20,000 characters). PPTX previews indicate truncation when the text limit is reached. Image-only PDFs have no OCR, so they retain their appearance but provide no text context. PDF exports are static: PowerPoint animations, transitions and embedded media are not played.
+Text is extracted separately and read-only for practice context (up to 100 pages and 20,000 characters). Image-only slides have no OCR context. PDF previews are static: animations, transitions and embedded media do not play. The original PowerPoint remains available through Download original.
+
+**Full screen** previews slides without recording. Previous/Next, arrow keys, PageUp/PageDown, Home/End and swipe navigate pages. Portrait and landscape slides preserve their proportions on desktop and mobile. Queued or failed previews show status and bounded retry actions.
 
 In Practice, choose a target and accept the audio/text processing consent, then select **Start** under **Your slides**. The app requests full screen directly from that gesture and starts microphone capture. Browsers without usable native fullscreen use the existing window-filling fallback. Pause/Resume and Finish are available during the session; Finish works from any slide. Audio permission and sign-in requirements still apply. Recorded analysis supports 20 seconds to 10 minutes per attempt.
 
@@ -16,14 +18,12 @@ If a Gemini key is configured, the original audio also receives a separate verba
 
 If extracted presentation text is available, the endpoint also requests bounded JSON comments from Groq comparing that text to the transcript. These comments cannot change the measured metrics or score. Chat quota/provider failures preserve the measured report and show that presentation comments were unavailable. Uploaded slide text is treated as data, never model instructions. Source PPT/PDF binaries are not sent to the comment model.
 
-Reports separate **Comments on your presentation** from measured speech feedback. No new API key or conversion service is required. Deploy the updated frontend and backend together; apply the bucket restriction below to enforce the allowed formats for older clients too.
+Reports separate **Comments on your presentation** from measured speech feedback. Those metrics and provider settings are unchanged by the new viewer.
 
-## Activate strict file restrictions
+## Activate presentation conversion
 
-Apply `supabase/migrations/20261109_presentation_file_types.sql` in the Supabase SQL Editor (or via your normal migration workflow). It restricts the `presentations` bucket to PDF and PPTX MIME types so the Storage API rejects DOCX uploads from older clients. It updates bucket configuration only, with no changes to existing files or ownership policies. Then deploy the current app build to Vercel so the file picker and drop handler show the same restriction. MIME restrictions check the declared media type; current frontend validation also parses PDF/PPTX structure before upload.
+Follow the [CloudConvert deployment guide](docs/CLOUDCONVERT.md) for migrations, private buckets and RLS, server variables, webhook setup, shared free credits and acceptance checks. Apply `20261117_presentation_conversion.sql` if not already applied, then `20261118_cloudconvert.sql`, and deploy the frontend/backend together. No separate worker is required. Files upload to `presentation-originals`, with generated PDFs in `presentation-previews`. The older `20261109_presentation_file_types.sql` restrictions remain relevant to the legacy bucket.
 
-Equivalent dashboard configuration: Storage → presentations → bucket settings → Allowed MIME types: `application/pdf`, `application/vnd.openxmlformats-officedocument.presentationml.presentation`.
-
-Validation: unit coverage includes allowed formats, read-only PDF scanning, context bounds, authentication/consent, optional comment failures, and unchanged metric scores. `tools/check-presentation-flow.mjs` checks uploads, original byte preservation, Start/consent/fullscreen/capture and contextual reports at desktop and phone widths using mocked audio, PDF rendering and providers. Live microphone, real account storage, real document rendering and Groq responses require deployment verification.
+Validation includes the SQL migrations in local PostgreSQL, API ownership, private downloads, file validation, CloudConvert quotas and request recovery, and real PDF.js browser rendering. `tools/check-pdf-viewer.mjs` covers original bytes, conversion consent, queued conversion, metadata restore, landscape/portrait and responsive/fullscreen sizing with simulated storage. `tools/check-presentation-flow.mjs` checks recording consent, microphone lifecycle, retained-audio retry and contextual reports with mocked audio/PDF/providers. Live microphone, Supabase and CloudConvert responses still require deployment verification. The named school reference PPTX has not been supplied for visual comparison.
 
 Navigation cleanup: dashboard journey steps are informational, repeated next-step/upload/goals shortcuts are removed, and chart data directs readers to the existing report links in Recent attempts. Practice uses one Finish control in the slide toolbar, available during recording both inside and outside fullscreen. Primary sidebar navigation and distinct actions (save, reset, delete, previous/next) remain available.

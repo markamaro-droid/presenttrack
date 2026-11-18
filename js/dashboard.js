@@ -40,6 +40,9 @@ function consumeOnboarding(){
   podium.save?.();
 }
 podium.account=(email,registered)=>{
+  for(const key of Object.keys(FILES))delete FILES[key];
+  for(const key of Object.keys(SLIDE_FILES))delete SLIDE_FILES[key];
+  S.uploading=false;S.deleting=null;
   S.reviewDays=0;S.historyQuery="";S.historyType="all";S.historySort="newest";S.compareA=S.compareB="";S.reviewMetric="score";S.compareDeck="";S.assess=null;S.assessRequired=false;S.ev=null;S.evalRequired=false;
   if(window.PTCloud&&PTCloud.enabled){
     const row=PTCloud.row;
@@ -273,13 +276,12 @@ const fdate=iso=>{const d=new Date(iso);return isNaN(d)?'':d.toLocaleDateString(
 const gatePage=t=>page(t,'One quick step comes first.',`<section class="pn rise gate" style="--i:1"><h3 class="sh">EVALUATION REQUIRED</h3><p class="sub" style="margin:0 0 14px">Before you upload and practice your own presentations, take the short speaking evaluation. It takes about 3 minutes and shows us how fast you speak, how many filler words you use and how long your pauses are.</p><div class="acts"><button class="bt" data-go="eval" type="button">START EVALUATION</button><button class="bt gh" data-go="decks" type="button">My Presentations</button></div></section>`);
 function thumbOf(p){
   if(p.thumb)return `<img class="th" src="${p.thumb}" alt="Preview of ${esc(p.t)}">`;
-  if(p.preview&&(p.preview.title||(p.preview.lines||[]).length))return `<div class="th pv" aria-label="Preview of ${esc(p.t)}"><b>${esc(p.preview.title||p.t)}</b>${(p.preview.lines||[]).slice(0,3).map(l=>`<span>${esc(l)}</span>`).join('')}</div>`;
   const t=p.file?ftype(p.file.name):{l:'Draft',c:'ppt'};return `<div class="th pv ph" aria-hidden="true"><b>${esc(t.l)}</b></div>`}
 function deckCard(p,i){
   const t=p.file?ftype(p.file.name):{l:'Draft',c:'ppt'},busy=S.deleting==p.id,n=att(p);
   const when=p.created?'Added '+fdate(p.created):(p.left!=null?p.date:'');
   const stat=gated()?['Practice unlocks after the evaluation','warn']:n?[n+(n===1?' practice session':' practice sessions'),'ok']:['Not practiced yet',''];
-  return `<section class="pn rise dcard" style="--i:${i+2}" data-pid="${p.id}">${thumbOf(p)}<div class="dk"><span class="ftp ${t.c}">${t.l}</span><div class="dkt">${S.ren===p.id?`<input type="text" id="rtitle" value="${esc(p.t)}" maxlength="80" aria-label="Presentation title"><div class="acts" style="margin-top:8px"><button class="bt sm" id="rs2" data-act="rsave" data-a="${p.id}" type="button">SAVE</button><button class="bt gh sm" data-act="rcancel" type="button">Cancel</button></div>`:`<b>${esc(p.t)}</b><small>${p.file?esc(p.file.name)+' · '+fsize(p.file.size):'No file yet'}</small>${when?`<small>${esc(when)}</small>`:''}`}</div></div>
+  return `<section class="pn rise dcard" style="--i:${i+2}" data-pid="${p.id}">${thumbOf(p)}<div class="dk"><span class="ftp ${t.c}">${t.l}</span><div class="dkt">${S.ren===p.id?`<input type="text" id="rtitle" value="${esc(p.t)}" maxlength="80" aria-label="Presentation title"><div class="acts" style="margin-top:8px"><button class="bt sm" id="rs2" data-act="rsave" data-a="${p.id}" type="button">SAVE</button><button class="bt gh sm" data-act="rcancel" type="button">Cancel</button></div>`:`<b>${esc(p.t)}</b><small>${p.file?esc(p.file.name)+' · '+fsize(p.file.size):'No file yet'}</small><small class="presentation-status" data-presentation-status="${p.id}">${esc(window.PTPresentations?.label(p.conversion)||'')}</small>${when?`<small>${esc(when)}</small>`:''}`}</div></div>
   <div class="rd0">${ring(readiness(p),84,'Ready')}<div><p class="sub" style="margin:0 0 8px"><span class="st ${stat[1]}">${busy?'Deleting…':stat[0]}</span></p><div class="acts"><button class="bt sm" data-go="prac" data-a="${p.id}" type="button"${busy?' disabled':''}>PRACTICE</button><button class="bt gh sm" data-act="del" data-a="${p.id}" type="button"${busy?' disabled':''}>DELETE</button><button class="bt gh sm" data-go="pdet" data-a="${p.id}" type="button"${busy?' disabled':''}>DETAILS</button><button class="bt gh sm" data-act="ren" data-a="${p.id}" type="button"${busy?' disabled':''}>RENAME</button></div></div></div></section>`}
 function deckList(){
   const a=podium.assessCard?podium.assessCard(2):'';
@@ -296,11 +298,13 @@ function confirmDlg({title,text,yes='Delete'}){return new Promise(res=>{
 async function delPres(id){
   const p=S.pres.find(q=>q.id==id);if(!p||S.deleting)return;
   if(!await confirmDlg({title:'Delete presentation?',text:'Are you sure you want to delete this presentation? This action cannot be undone.',yes:'Delete'}))return;
-  const cloud=window.PTCloud&&PTCloud.enabled;S.deleting=p.id;render();
-  const fail=m=>{S.deleting=null;render();toast(m)};
+  const cloud=window.PTCloud&&PTCloud.enabled,owner=window.PTCloud?.user?.id;S.deleting=p.id;render();
+  const fail=m=>{if(cloud&&PTCloud.user?.id!==owner)return;S.deleting=null;render();toast(m)};
   if(cloud&&p.path){const r=await PTCloud.remove([p.path,p.slidePath].filter(Boolean));if(r.error)return fail('Could not delete the file. Nothing was removed. Please try again.')}
+  if(cloud&&PTCloud.user?.id!==owner)return;
+  if(cloud&&p.remoteId){try{await PTPresentations.remove(p)}catch(error){return fail(error.message)}if(PTCloud.user?.id!==owner)return;}
   const i=S.pres.indexOf(p);if(i>=0)S.pres.splice(i,1);
-  if(cloud){const r=await PTCloud.saveNow(podium.snapshot());if(r.error){S.pres.splice(i,0,p);return fail('Could not delete this presentation. Please try again.')}}
+  if(cloud){const r=await PTCloud.saveNow(podium.snapshot());if(r.error&&!p.remoteId){S.pres.splice(i,0,p);return fail('Could not delete this presentation. Please try again.')}}
   else podium.save();
   delete FILES[p.id];delete SLIDE_FILES[p.id];S.deleting=null;if(S.ren===p.id)S.ren=null;render();flash('Presentation deleted.','success');toast('Presentation deleted');
 }
@@ -308,12 +312,12 @@ async function delPres(id){
 async function makePreview(file){
   try{
     if(/\.pdf$/i.test(file.name)){const d=await pdfDeck(file),h=document.createElement('div');h.style.cssText='position:absolute;left:-9999px;top:0;width:360px';document.body.appendChild(h);
-      try{const c=await d.show(0,h,220),o=document.createElement('canvas'),w=320;o.width=w;o.height=Math.round(w*c.height/c.width);o.getContext('2d').drawImage(c,0,0,o.width,o.height);return{thumb:o.toDataURL('image/jpeg',.6)}}finally{h.remove()}}
+      try{const c=await d.show(0,h,220),o=document.createElement('canvas'),w=320;o.width=w;o.height=Math.round(w*c.height/c.width);o.getContext('2d').drawImage(c,0,0,o.width,o.height);return{thumb:o.toDataURL('image/jpeg',.6)}}finally{h.remove();await d.destroy()}}
   }catch(e){}
   return{}}
 const V={
 dash:()=>S.loading?skeleton():(podium.assessBanner?podium.assessBanner():'')+(podium.baselineBanner?podium.baselineBanner():'')+dashHTML(),
-decks:()=>page('My Presentations','Upload a PDF or PowerPoint file. Your original file is kept unchanged.',(pendingEval()?sec('EVALUATION FIRST',1,`<div class="fr" style="max-width:600px;margin:0 auto;text-align:center"><p class="sub" style="margin:0">Before you upload a presentation, take the short speaking evaluation (about 3 minutes). It measures your speaking speed, filler words and long pauses, so we know how to analyze your presentations.</p><div class="acts" style="justify-content:center"><button class="bt" data-go="eval" type="button">START EVALUATION</button></div></div>`):sec('UPLOAD A PRESENTATION',1,`<div class="fr" style="max-width:600px;margin:0 auto"><div><label for="ut" style="text-align:center">Presentation title</label><input type="text" id="ut" style="text-align:center" placeholder="Type your own title" maxlength="80" autocomplete="off"></div><label class="drop" id="dz" for="f"><b>Drop a PPTX or PDF here, or select one</b><span id="fn">One PPTX or PDF - up to 50 MB</span></label><input type="file" id="f" accept=".pdf,.pptx" hidden><p class="hint">Upload either file independently. PDFs display the original slide layout. PPTX files provide a text-only slide preview for practice; images, formatting and animations are not displayed. Your uploaded file is kept unchanged.</p><div class="acts" style="justify-content:center"><button class="bt" id="ua" type="button">ADD PRESENTATION</button><button class="bt gh" id="uc" type="button">Cancel</button></div></div>`))+deckList()),
+decks:()=>page('My Presentations','Upload a PDF or PowerPoint file. Your original file is kept unchanged.',(pendingEval()?sec('EVALUATION FIRST',1,`<div class="fr" style="max-width:600px;margin:0 auto;text-align:center"><p class="sub" style="margin:0">Before you upload a presentation, take the short speaking evaluation (about 3 minutes). It measures your speaking speed, filler words and long pauses, so we know how to analyze your presentations.</p><div class="acts" style="justify-content:center"><button class="bt" data-go="eval" type="button">START EVALUATION</button></div></div>`):sec('UPLOAD A PRESENTATION',1,`<div class="fr" style="max-width:600px;margin:0 auto"><div><label for="ut" style="text-align:center">Presentation title</label><input type="text" id="ut" style="text-align:center" placeholder="Type your own title" maxlength="80" autocomplete="off"></div><label class="drop" id="dz" for="f"><b>Drop a PPTX or PDF here, or select one</b><span id="fn">One PPTX or PDF - up to 50 MB</span></label><input type="file" id="f" accept=".pdf,.pptx" hidden><p class="hint">PDFs display directly and stay in your private storage. CloudConvert prepares PowerPoint previews; fonts and effects may differ. Your original is always kept.</p><label class="hint" id="conversion-consent" hidden><input type="checkbox" id="uconvert"> I agree to send this PowerPoint to CloudConvert to prepare a PDF preview.</label><p class="hint" id="conversion-usage" role="status">PowerPoint previews share a daily conversion allowance. PDFs and saved previews use no conversion credits.</p><div class="acts" style="justify-content:center"><button class="bt" id="ua" type="button">ADD PRESENTATION</button><button class="bt gh" id="uc" type="button">Cancel</button></div></div>`))+deckList()),
 pdet:a=>{const p=find(a);if(!p)return V.decks();const l=S.ses.filter(x=>x.deck===p.short);return page(esc(p.t),(p.file?esc(p.file.name)+' · '+fsize(p.file.size):'')+(p.left!=null?' · '+p.date+' · '+p.time+' · '+p.left+' days left':''),`<div class="g-next">${sec('OVERVIEW',1,`<dl class="kv"><div><dt>Target Duration</dt><dd>${Math.round(p.target/60)} minutes</dd></div><div><dt>Practice Sessions</dt><dd>${l.length} completed</dd></div><div><dt>Readiness</dt><dd>${readiness(p)}%</dd></div></dl><div class="acts"><button class="bt" data-go="prac" data-a="${p.id}" type="button">PRACTICE NOW</button><button class="bt gh" data-go="up" type="button">UPLOAD PPT</button></div>`)}${sec('READINESS',2,chkHTML(p)+`<div class="acts"><button class="bt gh" data-go="ready" data-a="${p.id}" type="button">VIEW CHECKLIST</button></div>`)}</div>`+sec('PRACTICE SESSIONS',3,recentRows(l.slice().reverse(),false)))},
 ready:a=>{const p=find(a);if(!p)return V.decks();return page('Presentation Readiness',esc(p.t),`<div class="g-next">${sec('OVERALL',1,`<div class="rd0">${ring(readiness(p),150,'Ready')}<p class="sub" style="margin:0">${p.final?'Final rehearsal recorded. Readiness reflects preparation activities, not a guarantee of performance.':'Complete the checklist to document your preparation.'}</p></div>`)}${sec('CHECKLIST',2,chkHTML(p)+`<div class="acts"><button class="bt" data-go="prac" data-a="${p.id}" type="button">START FINAL REHEARSAL</button></div>`)}</div>`)},
 rec:()=>gated()?gatePage('Upload Recording'):page('Upload Recording','Get a full analysis of a rehearsal you recorded.',sec('ANALYZE RECORDING',1,`<div class="fr recording-form"><div><label for="rs">1. Choose a presentation</label><select id="rs">${S.pres.map(p=>`<option value="${p.id}">${esc(p.t)}</option>`).join('')||'<option value="">Create a presentation first</option>'}</select></div><label class="drop" id="dz" for="f"><span class="recording-upload-icon" aria-hidden="true">${ic(I.up)}</span><b>2. Choose or drop your recording</b><span id="fn">MP3, M4A, WAV, OGG, WebM or MP4</span></label><input type="file" id="f" accept=".mp3,.m4a,.wav,.ogg,.webm,.mp4" hidden><div class="bar2" id="rb" hidden><i style="width:0%"></i></div><p class="sub" id="rt" style="margin:0" role="status"></p><label class="hint recording-consent"><input type="checkbox" id="rconsent"> Send audio and extracted presentation text to Groq for transcription and feedback, and audio to Gemini when configured for a verbatim filler check. Save the report to my account. Up to 25 MB / 10 minutes. Larger files use private temporary storage and are deleted after processing; interrupted cleanup may leave a temporary copy. MP3, M4A, WAV, OGG, WebM or MP4.</label><button class="bt" id="ra" type="button">ANALYZE RECORDING</button></div>`)),
@@ -341,22 +345,20 @@ function practiceHTML(a,weak){
  <div class="pf"><label for="pdur">Target duration (minutes)</label><div class="dur"><input type="text" id="pdur" inputmode="numeric" maxlength="3" autocomplete="off" value="${mins}" aria-describedby="pmh"><span class="pill2">min</span></div></div></div>
  <div class="pf"><span class="plb" id="pql">Quick durations</span><div class="chips" id="pq" role="group" aria-labelledby="pql">${[3,5,10,15,20].map(m=>`<button class="chip2" data-m="${m}" type="button" aria-pressed="${m===mins}">${m} min</button>`).join('')}</div><p class="hint" id="pmh">Any whole number from 1 to 240.</p></div>
  <label class="hint"><input type="checkbox" id="pconsent"> I agree to send this recording and extracted presentation text to Groq for transcription and presentation feedback, and audio to Gemini when configured for a verbatim filler check. The report and transcript are saved to my account; larger recordings use private temporary storage with deletion after processing (interrupted cleanup may leave a temporary copy). Maximum 10 minutes / 25 MB.</label><div class="acts pacts"><button class="bt gh" id="prs" type="button">Reset</button></div></div></div>
- <div id="pres"></div></div><section class="pn rise" id="vw" style="--i:2"><div class="vwh"><h3 class="sh">YOUR SLIDES</h3><span id="vc"></span></div><div class="vst" id="vst" aria-live="polite"></div><div class="vctl" id="vctl"><div class="vtm" id="vtmw" hidden aria-label="Elapsed time"><b id="vtm">0:00</b><small id="vtl"></small></div><div class="vbt" role="group" aria-label="Presentation controls"><button class="bt gh sm vic" id="vb" type="button" aria-label="Previous slide" data-tip="Previous slide"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><button class="bt sm vic" id="vn" type="button" aria-label="Next slide" data-tip="Next slide"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button><button class="bt gh sm" id="vfs" type="button">Start</button><button class="bt gh sm" id="vpr" type="button" hidden>Pause</button><button class="bt sm vfin" id="vfin" type="button" hidden>Finish</button></div><p class="vnote" id="vnote" role="status"></p></div><p class="basis tip" style="margin:10px 0 0;text-align:center">Tip: use the ← → keys or swipe to change slides.</p></section>`)}
-/* Read-only PDF viewer. PowerPoint originals use their attached PDF export. */
-const FILES={},SLIDE_FILES={},LIB={pdfgen:'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',pdf:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',zip:'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',doc:'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js'};
-const lib=k=>LIB[k+'p']||(LIB[k+'p']=new Promise((ok,no)=>{const s=document.createElement('script');s.src=LIB[k];s.onload=ok;s.onerror=()=>{LIB[k+'p']=0;no(new Error('Could not load the viewer. Check your internet connection.'))};document.head.appendChild(s)}));
-async function pdfDeck(file){await lib('pdf');pdfjsLib.GlobalWorkerOptions.workerSrc=LIB.pdf.replace('pdf.min.js','pdf.worker.min.js');
-  const doc=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
-  return{n:doc.numPages,async show(i,host,mh){const pg=await doc.getPage(i+1),v0=pg.getViewport({scale:1}),r=devicePixelRatio||1,cs=getComputedStyle(host),s=Math.min(Math.max(host.clientWidth-(parseFloat(cs.paddingLeft)||0)-(parseFloat(cs.paddingRight)||0),200)/v0.width,mh/v0.height),v=pg.getViewport({scale:s*r}),c=document.createElement('canvas');
-    c.width=v.width;c.height=v.height;c.style.width=v.width/r+'px';c.style.height=v.height/r+'px';await pg.render({canvasContext:c.getContext('2d'),viewport:v}).promise;return c}}}
-let VD=null,VI=0,VT=0,VS=0,PR=null;
+ <div id="pres"></div></div><section class="pn rise" id="vw" style="--i:2"><div class="vwh"><h3 class="sh">YOUR SLIDES</h3><span id="vc"></span><button class="bt gh sm presentation-download" id="vdownload" type="button">Download original</button></div><div class="vst" id="vst" aria-live="polite"></div><div class="vctl" id="vctl"><div class="vtm" id="vtmw" hidden aria-label="Elapsed time"><b id="vtm">0:00</b><small id="vtl"></small></div><div class="vbt" role="group" aria-label="Presentation controls"><button class="bt gh sm vic" id="vb" type="button" aria-label="Previous slide" data-tip="Previous slide"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><button class="bt sm vic" id="vn" type="button" aria-label="Next slide" data-tip="Next slide"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button><button class="bt gh sm" id="vpreviewfs" type="button">Full screen</button><button class="bt gh sm" id="vfs" type="button">Start</button><button class="bt gh sm" id="vpr" type="button" hidden>Pause</button><button class="bt sm vfin" id="vfin" type="button" hidden>Finish</button></div><p class="vnote" id="vnote" role="status"></p></div><p class="basis tip" style="margin:10px 0 0;text-align:center">Tip: use the ← → keys or swipe to change slides.</p></section>`)}
+/* Original PDFs and server-converted PowerPoint previews share the same canvas viewer. */
+const FILES={},SLIDE_FILES={},LIB={pdfgen:'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',zip:'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',doc:'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js'};
+const lib=k=>k==='pdf'?PTPDF.load():LIB[k+'p']||(LIB[k+'p']=new Promise((ok,no)=>{const s=document.createElement('script');s.src=LIB[k];s.onload=ok;s.onerror=()=>{LIB[k+'p']=0;no(new Error('Could not load the viewer. Check your internet connection.'))};document.head.appendChild(s)}));
+async function pdfDeck(file){return PTPDF.open(file)}
+let VD=null,VI=0,VT=0,VS=0,PR=null,VAbort=null,VTimer=null;
+function disposeViewer(){VAbort?.abort();clearTimeout(VTimer);VD?.destroy?.().catch(()=>{});VD=null;}
 const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement;
 const inFS=()=>{const v=$('vw');return !!v&&v.classList.contains('fs')};
 const vnote=(m,persistent=false)=>{const n=$('vnote');if(!n)return;n.textContent=m;clearTimeout(n._t);if(!persistent)n._t=setTimeout(()=>{n.textContent=''},2800)};
 /* one place that decides which presentation buttons are visible/enabled */
 function vui(){const vw=$('vw');if(!vw)return;const fs=inFS(),n=VD?VD.n:0,last=n>0&&VI>=n-1;
   const selected=S.pres.find(x=>x.id==$('pd')?.value),withoutSlides=!selected?.file;
-  $('vb').disabled=!n||VI<=0;$('vn').disabled=!n||last;$('vfs').disabled=!n&&!withoutSlides;$('vfs').textContent=fs?'Exit full screen':'Start';
+  $('vb').disabled=!n||VI<=0;$('vn').disabled=!n||last;$('vfs').disabled=!n&&!withoutSlides;$('vfs').textContent='Start';if($('vpreviewfs')){$('vpreviewfs').disabled=!n&&!withoutSlides;$('vpreviewfs').textContent=fs?'Exit full screen':'Full screen';}
   $('vtmw').hidden=!fs;$('vpr').hidden=!fs;$('vfin').hidden=!fs;
   if(PR){PR.sync();PR.draw()}}
 function fsChanged(){vui();clearTimeout(window.__vr);window.__vr=setTimeout(vshow,80)}
@@ -368,99 +370,143 @@ function setFS(on){const vw=$('vw');if(!vw)return;
   else if(vw.classList.contains('fsx'))fsFallback(false);
   else if(fsEl())(document.exitFullscreen||document.webkitExitFullscreen).call(document)}
 async function vshow(){const d=VD,host=$('vst');if(!d||!host)return;const my=++VS;VI=Math.max(0,Math.min(d.n-1,VI));$('vc').textContent='Slide '+(VI+1)+' / '+d.n;vui();
-  const cs=getComputedStyle(host),mh=inFS()?Math.max(200,host.clientHeight-(parseFloat(cs.paddingTop)||0)-(parseFloat(cs.paddingBottom)||0)-2):Math.max(260,innerHeight*.6);
-  try{const el=await d.show(VI,host,mh);if(my===VS)host.replaceChildren(el)}catch(e){if(my===VS)host.textContent='Could not draw this slide.'}}
+  const cs=getComputedStyle(host),mh=inFS()?Math.max(1,host.clientHeight-(parseFloat(cs.paddingTop)||0)-(parseFloat(cs.paddingBottom)||0)-2):Math.max(260,innerHeight*.6);
+  try{const el=await d.show(VI,host,mh);if(my===VS)host.replaceChildren(el)}catch(e){if(my===VS&&!['AbortError','RenderingCancelledException'].includes(e.name))host.textContent='Could not draw this slide. Try another slide or reload the preview.'}}
 const vgo=k=>{if(VD){VI+=k;vshow()}};
-async function viewer(){const host=$('vst');if(!host)return;const my=++VT;VD=null;VI=0;VS++;document.body.classList.remove('vfsx');
-  document.querySelectorAll('#vw .slide-context').forEach(el=>el.remove());
+async function viewer(){const host=$('vst');if(!host)return;const my=++VT;disposeViewer();VAbort=new AbortController();const signal=VAbort.signal;VI=0;VS++;document.body.classList.remove('vfsx');
+  document.querySelectorAll('#vw .slide-context,#vw .presentation-warning').forEach(el=>el.remove());
   const msg=t=>{host.replaceChildren();const e=document.createElement('p');e.className='em';e.textContent=t;host.appendChild(e);$('vc').textContent='';vui()};
-  $('vb').onclick=()=>vgo(-1);$('vn').onclick=()=>vgo(1);$('vfs').onclick=()=>{if(inFS())return setFS(false);if(!$('pconsent').checked){toast('Agree to audio processing above before starting.');$('pconsent').focus();return}setFS(true);PR?.autostart()};
+  $('vb').onclick=()=>vgo(-1);$('vn').onclick=()=>vgo(1);$('vpreviewfs').onclick=()=>setFS(!inFS());$('vfs').onclick=()=>{if(!$('pconsent').checked){if(inFS())setFS(false);toast('Agree to audio processing above before starting.');$('pconsent').focus();return}setFS(true);PR?.autostart()};
   $('vpr').onclick=()=>PR&&PR.toggle();$('vfin').onclick=()=>PR&&PR.finish();
   let sx=null;host.ontouchstart=e=>{sx=e.touches[0].clientX};host.ontouchend=e=>{if(sx===null)return;const dx=e.changedTouches[0].clientX-sx;sx=null;if(Math.abs(dx)>50)vgo(dx<0?1:-1)};
   if(!window.__vk){window.__vk=1;
     document.addEventListener('keydown',e=>{const vw=$('vw');if(!vw)return;
       if(e.key==='Escape'&&vw.classList.contains('fsx')){fsFallback(false);return}
       if(!VD||e.ctrlKey||e.metaKey||e.altKey||/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName))return;
-      if(e.key==='ArrowRight'||e.key==='PageDown'){vgo(1);e.preventDefault()}else if(e.key==='ArrowLeft'||e.key==='PageUp'){vgo(-1);e.preventDefault()}});
+      if(e.target.isContentEditable)return;if(e.key==='Home'){VI=0;vshow();e.preventDefault()}else if(e.key==='End'){VI=VD.n-1;vshow();e.preventDefault()}else if(e.key==='ArrowRight'||e.key==='PageDown'){vgo(1);e.preventDefault()}else if(e.key==='ArrowLeft'||e.key==='PageUp'){vgo(-1);e.preventDefault()}});
     const onFS=()=>{const vw=$('vw');if(!vw)return;if(!vw.classList.contains('fsx'))vw.classList.toggle('fs',fsEl()===vw);fsChanged()};
     document.addEventListener('fullscreenchange',onFS);document.addEventListener('webkitfullscreenchange',onFS);
     addEventListener('resize',()=>{clearTimeout(window.__vr);window.__vr=setTimeout(vshow,200)})}
-  const p=S.pres.find(x=>x.id==$('pd').value);let f=p&&(p.slideFile?SLIDE_FILES[p.id]:FILES[p.id]);
-  if(!f&&p&&(p.slidePath||p.path)&&window.PTCloud&&PTCloud.enabled){msg('Loading '+p.file.name+'\u2026');const r=await PTCloud.download(p.slidePath||p.path);if(my!==VT)return;if(r.error)return msg('Could not load this file. '+r.error);f=new File([r.blob],(p.slideFile||p.file).name);if(p.slideFile)SLIDE_FILES[p.id]=f;else FILES[p.id]=f}
-  if(!f)return msg(p&&p.file?'The file for this presentation isn\u2019t loaded in this session. Upload it again in My Presentations to see it here.':'No file attached to this presentation yet.');
-  if(/\.pptx$/i.test(f.name)){
-    msg('Reading PowerPoint slide text...');
+  const p=S.pres.find(x=>x.id==$('pd').value);
+  const alive=()=>my===VT&&!signal.aborted&&host.isConnected;
+  const download=async()=>{
+    if(!p)return;
+    const button=$('vdownload');button.disabled=true;
     try{
-      let context=p.context;
-      if(!Array.isArray(context?.pages)){await lib('zip');context=await PTPresentationContent.scan(f,{zip:JSZip});}
-      if(my!==VT)return;
-      p.context=context;
-      const pages=context.pages?.length?context.pages:[''];
-      VD={n:pages.length,show:async i=>{
-        const slide=document.createElement('article');slide.className='sld evaluation-script';
-        const heading=document.createElement('h4');heading.textContent='Slide '+(i+1)+' - text preview';
-        const text=document.createElement('p');text.textContent=pages[i]||'No readable text on this slide. Images and other visual content are not shown in this preview.';
-        slide.append(heading,text);return slide;
-      }};
-      await vshow();if(my!==VT)return;
-      const notice=document.createElement('p');notice.className='basis slide-context';
-      notice.textContent='PPTX text-only preview. Original layout, images and animations are not displayed. Upload a PDF as a separate presentation to practice with the original layout.'+(context.truncated?' This preview reached the text limit and may omit later content.':'');
-      $('vw').appendChild(notice);
-    }catch(e){if(my===VT)msg(e.message||'Could not read this PowerPoint file.')}
+      if(p.remoteId)await PTPresentations.download(p);
+      else{let original=FILES[p.id];if(!original&&p.path&&PTCloud.enabled){const result=await PTCloud.download(p.path);if(result.error)throw Error(result.error);original=new File([result.blob],p.file.name);}
+        if(!original)throw Error('The original file is not available in this session.');const url=URL.createObjectURL(original),link=document.createElement('a');link.href=url;link.download=p.file.name;link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}
+    }catch(error){if(alive())toast(error.message)}finally{if(button.isConnected)button.disabled=false}
+  };
+  $('vdownload').hidden=!p?.file;$('vdownload').onclick=download;
+  const state=(message,retry,label='Retry')=>{
+    msg(message);host.firstChild.className='presentation-state';
+    if(retry){const button=document.createElement('button');button.type='button';button.className='bt gh';button.textContent=label;button.onclick=async()=>{button.disabled=true;try{await retry()}catch(error){if(alive()){toast(error.message);button.disabled=false}}};host.firstChild.appendChild(button)}
+  };
+  const showPDF=async file=>{
+    state('Loading the original slide layout...');
+    const deck=await pdfDeck(file);
+    if(!alive()){await deck.destroy();return}
+    VD=deck;await vshow();
+    if(!alive())return;
+    if(p?.conversion?.warnings?.length){const warning=document.createElement('aside');warning.className='presentation-warning';warning.setAttribute('aria-label','Preview fidelity notes');
+      for(const message of p.conversion.warnings){const line=document.createElement('p');line.textContent=message;warning.appendChild(line)}$('vw').appendChild(warning)}
+    // Text is separate coaching context; it never replaces the rendered page.
+    if(p&&!p.context?.text)deck.text().then(context=>{if(alive()){p.context=context;podium.save()}}).catch(()=>{});
+  };
+  const remote=async()=>{
+    if(!alive())return;
+    try{
+      const row=await PTPresentations.status(p,signal);if(!alive())return;
+      if(row.error_code==='consent_required')return state(row.conversion_error,async()=>{await PTPresentations.consent(p,signal);await remote()},'Agree and prepare preview');
+      if(!row.upload_completed)return state('Your original upload is awaiting confirmation. If it did not finish, upload the file again in My Presentations.',async()=>{await PTPresentations.retry(p,signal);await remote()},'Confirm upload');
+      if(row.conversion_status==='failed')return state(row.conversion_error||'The preview could not be prepared.',row.retryable&&row.manual_retries<2?async()=>{await PTPresentations.retry(p,signal);await remote()}:null,'Retry preview');
+      if(row.conversion_status!=='completed'){
+        state(PTPresentations.label(row)+'. Your original file is kept unchanged. You can leave this page and return when it is ready.');
+        VTimer=setTimeout(remote,row.error_code==='daily_quota'?60000:document.hidden?20000:10000);return;
+      }
+      const file=row.file_type==='pdf'&&FILES[p.id]?FILES[p.id]:await PTPresentations.file(p,'preview',signal);
+      if(alive())await showPDF(file);
+    }catch(error){if(alive())state(error.message||'Could not load the preview.',remote,'Reload preview')}
+  };
+  if(p?.remoteId){await remote();return}
+  let file=p&&(p.slideFile?SLIDE_FILES[p.id]:FILES[p.id]);
+  if(!file&&p&&(p.slidePath||p.path)&&window.PTCloud?.enabled){
+    state('Loading your presentation...');const result=await PTCloud.download(p.slidePath||p.path);if(!alive())return;
+    if(result.error)return state('Could not load this file. '+result.error,viewer,'Reload preview');
+    file=new File([result.blob],(p.slideFile||p.file).name);
+    if(p.slideFile)SLIDE_FILES[p.id]=file;else FILES[p.id]=file;
+  }
+  if(!file)return state(p?.file?'This original file is not available in this session. Upload it in My Presentations.':'No file attached. You can still practice your delivery.');
+  if(/\.pptx$/i.test(file.name)){
+    if(!window.PTCloud?.enabled)return state('PowerPoint previews require a signed-in account and the conversion service. Your original file is unchanged.');
+    state('CloudConvert will process this PowerPoint to prepare a PDF preview. Your original stays saved. Fonts and effects may differ.',async()=>{
+      state('Preparing your PowerPoint preview...');
+      try{
+        const row=await PTPresentations.upload(file,p.t,{cloudconvertConsent:true,onRegistered:row=>{if(alive()){PTPresentations.apply(p,row);podium.save()}}});
+        if(alive()){PTPresentations.apply(p,row);podium.save();await remote()}
+      }catch(error){if(alive())state(error.message,viewer,'Retry preview')}
+    },'Agree and prepare preview');
     return;
   }
-  if(!/\.pdf$/i.test(f.name)){
-    msg('Your original file is unchanged. Attach a PDF exported from this presentation to display its layout.');
-    const label=document.createElement('label');label.className='bt gh';label.textContent='Attach slide PDF';
-    const input=document.createElement('input');input.type='file';input.accept='.pdf';input.hidden=true;label.appendChild(input);host.appendChild(label);
-    input.onchange=async()=>{
-      const pdf=input.files[0];if(!pdf)return;
-      if(!/\.pdf$/i.test(pdf.name)||pdf.size>50000000){toast('Choose a PDF up to 50 MB.');return}
-      input.disabled=true;
-      try{
-        await lib('pdf');pdfjsLib.GlobalWorkerOptions.workerSrc=LIB.pdf.replace('pdf.min.js','pdf.worker.min.js');
-        const context=await PTPresentationContent.scan(pdf,{pdf:pdfjsLib});if(my!==VT)return;
-        let slidePath=null;
-        if(window.PTCloud?.enabled){slidePath=PTCloud.user.id+'/uploads/'+crypto.randomUUID()+'.slides.pdf';const saved=await PTCloud.upload(slidePath,pdf);if(saved.error)throw Error('Could not upload the slide PDF.');}
-        p.slidePath=slidePath;p.slideFile={name:pdf.name,size:pdf.size};p.context=context;SLIDE_FILES[p.id]=pdf;podium.save();
-        if(my===VT)viewer();
-      }catch(e){toast(e.message||'Could not attach this PDF.');input.disabled=false}
-    };return;
-  }
-  msg('Loading '+f.name+'\u2026');
-  try{const d=await pdfDeck(f);if(my!==VT)return;
-    if(p&&!p.context){const context=await PTPresentationContent.scan(f,{pdf:pdfjsLib});if(my===VT){p.context=context;podium.save()}}
-    if(my!==VT)return;VD=d;vshow();
-    if(my===VT&&p){const notice=document.createElement('p');notice.className='basis slide-context';notice.textContent=p.context?.text?'Presentation text is ready for feedback. The displayed PDF is unchanged.':'No readable slide text was found. Your slides are unchanged; feedback will cover delivery only.';$('vw').appendChild(notice)}
-  }catch(e){if(my===VT)msg(e.message||'Could not open this file.')}}
+  if(!/\.pdf$/i.test(file.name))return state('Only original PDF files and converted PowerPoint previews can be displayed.');
+  try{await showPDF(file)}catch(error){if(alive())state(error.message,viewer,'Reload preview')}
+}
+let presentationWatch=0;
+function watchPresentations(){
+  const serial=++presentationWatch,owner=window.PTCloud?.user?.id;
+  if(!window.PTCloud?.enabled||!owner)return;
+  let timer;
+  podium.practiceCleanup=()=>{presentationWatch++;clearTimeout(timer)};
+  const refresh=async()=>{
+    if(serial!==presentationWatch||PTCloud.user?.id!==owner)return;
+    if(!S.uploading&&!S.deleting){try{
+      const changed=await PTPresentations.restore(S);
+      if(serial!==presentationWatch||PTCloud.user?.id!==owner)return;
+      if(changed){podium.save();if(!S.ren&&!S.uploading&&!$('ut')?.value&&!$('f')?.files.length){render();return;}}
+      const usage=await PTPresentations.usage?.().catch(()=>null);
+      if(usage&&serial===presentationWatch&&$('conversion-usage'))$('conversion-usage').textContent=`Shared allowance: ${usage.spent} of ${usage.dailyLimit} credits used today, ${usage.reserved} reserved. PDFs and saved previews use no conversion credits.`;
+      document.querySelectorAll('[data-presentation-status]').forEach(el=>{const p=S.pres.find(p=>p.id==el.dataset.presentationStatus);el.textContent=PTPresentations.label(p?.conversion)});
+    }catch(error){if(error.name!=='AbortError')console.warn('Presentation status refresh unavailable.');}}
+    if(serial===presentationWatch)timer=setTimeout(refresh,document.hidden?30000:15000);
+  };
+  refresh();
+}
 const B={
-decks:()=>{if(!$('f')){const r=$('rtitle');if(r){r.focus();r.select();r.onkeydown=e=>{if(e.key==='Enter')$('rs2').click();if(e.key==='Escape'){S.ren=null;render()}}}return}let file=null;const f=$('f'),dz=$('dz'),ok=/\.(pdf|pptx)$/i;
+decks:()=>{watchPresentations();if(!$('f')){const r=$('rtitle');if(r){r.focus();r.select();r.onkeydown=e=>{if(e.key==='Enter')$('rs2').click();if(e.key==='Escape'){S.ren=null;render()}}}return}let file=null,uploadId=null,added=null;const f=$('f'),dz=$('dz'),ok=/\.(pdf|pptx)$/i;
   const cancel=$('uc'),title=$('ut');
-  const uploadBusy=on=>{S.uploading=on;cancel.disabled=title.disabled=f.disabled=on;};
-  const reset=()=>{file=null;f.value='';$('fn').textContent='One PPTX or PDF - up to 50 MB';};
+  const uploadBusy=on=>{S.uploading=on;cancel.disabled=title.disabled=f.disabled=on;if($('uconvert'))$('uconvert').disabled=on;};
+  const reset=()=>{file=null;uploadId=null;added=null;f.value='';$('uconvert').checked=false;$('conversion-consent').hidden=true;$('fn').textContent='One PPTX or PDF - up to 50 MB';};
   cancel.onclick=()=>{if(S.uploading)return;reset();title.value='';dz.classList.remove('hv');title.focus();};
   const reject=message=>{reset();toast(message)};
-  const pk=files=>{if(S.uploading)return;try{const chosen=PTPresentationContent.selectUpload(files);file=chosen.file;
-    $('fn').textContent=file.name+' - '+fsize(file.size);
-    if(!title.value.trim())title.value=file.name.replace(/\.[^.]+$/,'');
+  const pk=files=>{if(S.uploading)return;try{const chosen=PTPresentationContent.selectUpload(files);file=chosen.file;added=S.pres.find(p=>p.remoteId&&!p.conversion?.upload_completed&&p.file?.name===file.name&&p.file?.size===file.size)||null;uploadId=added?.remoteId||crypto.randomUUID();
+    $('fn').textContent=file.name+' - '+fsize(file.size);$('uconvert').checked=false;$('conversion-consent').hidden=!/\.pptx$/i.test(file.name);
+    if(!title.value.trim())title.value=file.name.replace(/\.[^.]+$/,'').slice(0,80);
   }catch(error){reject(error.message)}};
   f.onchange=()=>f.files.length&&pk(f.files);dz.ondragover=e=>{e.preventDefault();if(!S.uploading)dz.classList.add('hv')};dz.ondragleave=()=>dz.classList.remove('hv');dz.ondrop=e=>{e.preventDefault();dz.classList.remove('hv');if(e.dataTransfer.files.length)pk(e.dataTransfer.files)};
   $('ua').onclick=async()=>{if(pendingEval()){toast('Take the short speaking evaluation first.');go('eval');return}let t=$('ut').value.trim();if(S.uploading)return;if(!file){toast('Choose a PPTX or PDF file first');return}if(!ok.test(file.name)||/wordprocessingml|msword/i.test(file.type||'')){reject('Rejected: only .PPTX or .PDF files are allowed.');return}if(t.length<2){toast('Type a title for your presentation');return}
-    if(S.pres.some(p=>p.short===t))t+=' (2)';
-    const cloud=window.PTCloud&&PTCloud.enabled,nid=S.nid++,btn=$('ua'),owner=PTCloud?.user?.id;let path=null,context=null;uploadBusy(true);btn.disabled=true;btn.textContent='READING SLIDES...';
+    if(window.PTCloud?.enabled&&/\.pptx$/i.test(file.name)&&!$('uconvert').checked){toast('Agree to CloudConvert processing before uploading this PowerPoint.');$('uconvert').focus();return;}
+    if(S.pres.some(p=>p.short===t))t=t.slice(0,76)+' (2)';
+    const cloud=window.PTCloud?.enabled,btn=$('ua'),owner=window.PTCloud?.user?.id;
+    const alive=()=>btn.isConnected&&(!cloud||PTCloud.user?.id===owner);
+    uploadBusy(true);btn.disabled=true;btn.textContent='UPLOADING...';
     try{
-      if(/\.pptx$/i.test(file.name)){await lib('zip');context=await PTPresentationContent.scan(file,{zip:JSZip});}
-      else{await lib('pdf');pdfjsLib.GlobalWorkerOptions.workerSrc=LIB.pdf.replace('pdf.min.js','pdf.worker.min.js');context=await PTPresentationContent.scan(file,{pdf:pdfjsLib});}
-    }catch(e){uploadBusy(false);btn.disabled=false;btn.textContent='ADD PRESENTATION';toast(e.message||'Could not read this presentation.');return}
-    if($('ua')!==btn||(cloud&&PTCloud.user?.id!==owner)){uploadBusy(false);return}
-    if(cloud){btn.textContent='UPLOADING…';
-      path=PTCloud.user.id+'/uploads/'+nid+'-'+file.name.replace(/[^\w.\-]+/g,'_');
-      let r;try{r=await PTCloud.upload(path,file);}catch(e){r={error:'Check your connection and retry.'}}
-      if(r.error){uploadBusy(false);toast('Upload failed. '+r.error);if($('ua')===btn){btn.disabled=false;btn.textContent='ADD PRESENTATION'}return}
-      if(PTCloud.user?.id!==owner){uploadBusy(false);return}}
-    FILES[nid]=file;const pv=await makePreview(file);uploadBusy(false);
-    S.pres.push(Object.assign({id:nid,t,short:t,file:{name:file.name,size:file.size},path,context,created:new Date().toISOString(),date:'Not scheduled',time:'',target:600,ready:20,ppt:true,rq:false,sp:true,final:false,left:null},pv));
-    notify('📄','Presentation added','"'+t+'" was uploaded.');flash('Presentation uploaded successfully!','success','Your file is in. Nice work!');toast('Presentation uploaded');go('decks')};
+      const register=row=>{
+        if(cloud&&PTCloud.user?.id!==owner)return;
+        if(!added){added={id:S.nid++,t,short:t,file:{name:file.name,size:file.size},created:new Date().toISOString(),date:'Not scheduled',time:'',target:600,ready:20,ppt:/\.pptx$/i.test(file.name),rq:false,sp:true,final:false,left:null};S.pres.push(added);FILES[added.id]=file;}
+        if(row)PTPresentations.apply(added,row);podium.save();
+      };
+      if(cloud){const row=await PTPresentations.upload(file,added?.t||t,{id:uploadId,onRegistered:register,cloudconvertConsent:$('uconvert').checked});register(row);}
+      else{
+        if(/\.pptx$/i.test(file.name))throw Error('Sign in to prepare a PowerPoint preview. PDFs can be previewed locally.');
+        const deck=await pdfDeck(file);try{const context=await deck.text();register();added.context=context;}finally{await deck.destroy()}
+      }
+      if(!alive())return;
+      Object.assign(added,await makePreview(file));if(!alive())return;
+      podium.save();flash('Presentation uploaded.','success');toast('Your original file is saved.');uploadBusy(false);go('decks');
+    }catch(error){if(alive()){toast(error.message||'Could not upload. Please retry.');btn.textContent='RETRY UPLOAD';}}
+    finally{if(!cloud||PTCloud.user?.id===owner){uploadBusy(false);btn.disabled=false;}}
+  };
   const r=$('rtitle');if(r){r.focus();r.select();r.onkeydown=e=>{if(e.key==='Enter')$('rs2').click();if(e.key==='Escape'){S.ren=null;render()}}}},
 rec:()=>{if(!$('ra'))return;let file=null;const f=$('f'),dz=$('dz'),pk=x=>{file=x;$('fn').textContent=x.name+' · '+(x.size/1048576).toFixed(1)+' MB'};
   f.onchange=()=>f.files[0]&&pk(f.files[0]);dz.ondragover=e=>{e.preventDefault();dz.classList.add('hv')};dz.ondragleave=()=>dz.classList.remove('hv');dz.ondrop=e=>{e.preventDefault();dz.classList.remove('hv');e.dataTransfer.files[0]&&pk(e.dataTransfer.files[0])};
@@ -475,7 +521,7 @@ rec:()=>{if(!$('ra'))return;let file=null;const f=$('f'),dz=$('dz'),pk=x=>{file=
 goals:()=>{$('ga').onclick=()=>{const t=$('gn').value.trim();if(!t){toast('Describe your goal first');return}S.goals.push({t,p:0});toast('Goal added');go('goals')}},
 set:()=>{$('rv').onchange=e=>podium.setVoice&&podium.setVoice(e.target.checked);$('cp').onclick=()=>$('pic').click();$('st').onclick=()=>$('theme').click();
   $('ss').onclick=()=>{const n=$('sn').value.trim(),e=$('se').value.trim();if(n.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)){toast('Enter a valid name and email');return}S.u.name=n;S.u.email=e;podium.name=n.split(' ')[0];renderShell();toast('Settings saved')}},
-prac:()=>{if(!$('pdur'))return;let el=0,run=false,last=0,c={};let capture=new PTPracticeAudio.Capture(),busy=false,disposed=false;const controller=new AbortController();podium.practiceCleanup=()=>{disposed=true;controller.abort();capture.dispose();clearInterval(tm);VT++;VS++;VD=null;PR=null;document.body.classList.remove('vfsx')};
+prac:()=>{if(!$('pdur'))return;let el=0,run=false,last=0,c={};let capture=new PTPracticeAudio.Capture(),busy=false,disposed=false;const controller=new AbortController();podium.practiceCleanup=()=>{disposed=true;controller.abort();capture.dispose();clearInterval(tm);VT++;VS++;disposeViewer();PR=null;document.body.classList.remove('vfsx')};
   const parse=v=>{const s=String(v).trim();if(!/^\d{1,3}$/.test(s))return null;const n=+s;return n>=1&&n<=240?n:null};
   let T0=(parse($('pdur').value)||5)*60;const tg=()=>T0,pick=()=>S.pres.find(x=>x.id==$('pd').value);
   const fillN=()=>Object.keys(c).filter(k=>k!=='__pause').reduce((s,k)=>s+c[k],0);
@@ -483,7 +529,7 @@ prac:()=>{if(!$('pdur'))return;let el=0,run=false,last=0,c={};let capture=new PT
     if($('pc')){$('pc').textContent=fmt(el);$('pl').textContent=over?'+'+fmt(el-tg())+' over':'of '+fmt(tg());$('pg').style.strokeDashoffset=339.3*(1-f);$('pg').style.stroke=over?'var(--err)':'var(--brand)'}
     const t=$('vtm');if(t){t.textContent=fmt(el);$('vtmw').classList.toggle('over',over);$('vtmw').classList.toggle('paused',!run);
       $('vtl').textContent=(!run&&el?'Paused \u00b7 ':'')+(over?'+'+fmt(el-tg())+' over':'of '+fmt(tg()))}};
-  const syncRun=()=>{if($('vpr')){$('vpr').textContent=run?'Pause':'Resume';$('vpr').disabled=busy;$('vpr').hidden=!inFS()&&!el&&!run}if($('vfin')){$('vfin').textContent=capture.blob?'Retry analysis':'Finish';$('vfin').disabled=busy;$('vfin').hidden=!inFS()&&!el&&!run;}};
+  const syncRun=()=>{if($('vfs')){$('vfs').hidden=run||el>0;$('vfs').disabled=busy||!!pick()?.file&&!VD}if($('vpr')){$('vpr').textContent=run?'Pause':'Resume';$('vpr').disabled=busy;$('vpr').hidden=!el&&!run}if($('vfin')){$('vfin').textContent=capture.blob?'Retry analysis':'Finish';$('vfin').disabled=busy;$('vfin').hidden=!el&&!run;}};
   const tick=()=>{if(!$('pc')){clearInterval(tm);run=false;return}const n=performance.now();el+=(n-last)/1000;last=n;draw()};
   const stop=()=>{capture.pause();if(run)el+=(performance.now()-last)/1000;run=false;clearInterval(tm);syncRun();draw()};
   const start=async()=>{if(run||busy)return;if(capture.blob){toast('Reset before starting a new recording.');return}if(!$('pconsent').checked){toast('Please consent to audio processing first.');return}busy=true;
@@ -658,6 +704,7 @@ function toApp(v,p,direct=false){
     land().hidden=true;$('app').hidden=false;document.documentElement.classList.add('clay');
     // Account data is already loaded. Reveal real content behind the doorway.
     S.booted=true;S.loading=false;go(v);
+    if(window.PTCloud?.enabled)PTPresentations.restore(S).then(changed=>{if(changed){podium.save();if(S.view==='dash')render()}}).catch(()=>{});
     try{podium.robotShow?.(true,'app');podium.setMin?.(innerWidth<900&&!S.isNew)}catch(e){console.warn(e)}
     const account=S.u.email;
     const beginTour=()=>{
@@ -688,5 +735,5 @@ podium.enter=(name,email)=>{S.u.name=name.replace(/[._-]+/g,' ').replace(/\b\w/g
 $('lo').onclick=e=>signOut(ctr(e.currentTarget));
 const hm=document.querySelector('.sl');hm.tabIndex=0;hm.setAttribute('role','button');hm.title='Back to welcome page';hm.style.cursor='pointer';
 hm.onclick=()=>transition(ctr(hm),showLand);hm.onkeydown=e=>{if(e.key==='Enter')hm.click()};
-podium.ext={PARENT,pendingEval,S,V,B,go,render,toast,esc,page,sec,nodata,fmt,ring,flash,robot,notify,FILES,today,nav,renderTop,confirmDlg,gated,find,ic,I};
+podium.ext={PARENT,pendingEval,S,V,B,go,render,toast,esc,page,sec,nodata,fmt,ring,flash,robot,notify,FILES,SLIDE_FILES,today,nav,renderTop,confirmDlg,gated,find,ic,I};
 })();

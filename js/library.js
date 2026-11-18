@@ -1,6 +1,6 @@
 /* Shared catalog; copies used for practice belong to the student's workspace. */
 (() => {
-  const { S, V, B, go, esc, page, sec, toast, FILES, pendingEval } = podium.ext;
+  const { S, V, B, go, esc, page, sec, toast, FILES, SLIDE_FILES, pendingEval } = podium.ext;
   const $ = id => document.getElementById(id);
   const isAdmin = () => PTIdentity.isAdmin(window.PTCloud?.user);
   const canManage = () => isAdmin() && !PTIdentity.mustChange(PTCloud.user);
@@ -55,7 +55,7 @@
   };
   podium.ext.PARENT.libraryDetail = 'library';
   V.libraryDetail = row => !row ? V.library() : page(esc(row.title), esc(row.description),
-    `<section class="pn library-detail"><span class="library-tag">${esc(row.category)}</span><p>${Math.round(row.target_seconds / 60)} minute practice. ${row.preview_path || /\.pdf$/i.test(row.file_name) ? 'The slide layout is available in practice.' : 'PowerPoint practice uses a text-only preview.'}</p><div class="acts">${isAdmin() ? '<button class="bt" type="button" data-go="library">Back to library management</button>' : '<button class="bt" id="library-use" type="button">Use for practice</button>'}<button class="bt gh" id="library-download" type="button">Download ${/\.pdf$/i.test(row.file_name) ? 'PDF' : 'PPTX'}</button></div><p id="library-action-status" role="status"></p><ol class="library-slides">${(row.context?.pages || []).map((text, i) => `<li><h3>Slide ${i + 1}</h3><p>${esc(text)}</p></li>`).join('')}</ol></section>`);
+    `<section class="pn library-detail"><span class="library-tag">${esc(row.category)}</span><p>${Math.round(row.target_seconds / 60)} minute practice. ${row.preview_path || /\.pdf$/i.test(row.file_name) ? 'The slide layout is available in practice.' : 'PowerPoint is converted to a PDF preview when you add it for practice.'}</p>${!isAdmin()&&cloud()&&/\.pptx$/i.test(row.file_name)?'<label class="hint"><input type="checkbox" id="library-convert-consent"> I agree to send this PowerPoint to CloudConvert to prepare a PDF preview. Fonts and effects may differ.</label>':''}<div class="acts">${isAdmin() ? '<button class="bt" type="button" data-go="library">Back to library management</button>' : '<button class="bt" id="library-use" type="button">Use for practice</button>'}<button class="bt gh" id="library-download" type="button">Download ${/\.pdf$/i.test(row.file_name) ? 'PDF' : 'PPTX'}</button></div><p id="library-action-status" role="status"></p><h3>Slide text outline</h3><p class="hint">Open practice to see the original slide layout.</p><ol class="library-slides">${(row.context?.pages || []).map((text, i) => `<li><h3>Slide ${i + 1}</h3><p>${esc(text)}</p></li>`).join('')}</ol></section>`);
   B.libraryDetail = row => {
     if (!row || !$('library-download')) return;
     const note = $('library-action-status');
@@ -70,28 +70,26 @@
       if (pendingEval()) { toast('Complete your speaking evaluation first, then choose a library presentation.'); go('eval'); return; }
       const existing = S.pres.find(p => p.libraryId === row.id);
       if (existing) { go('prac', existing.id); return; }
+      if(cloud()&&/\.pptx$/i.test(row.file_name)&&!$('library-convert-consent')?.checked){status(note,'Agree to CloudConvert processing first.');return;}
       const button = event.currentTarget, identity = owner(), uploaded = []; let added;
       button.disabled = true; status(note, 'Adding a copy to My Presentations...');
       try {
         const file = await fileFor(row), preview = row.preview_path ? await fileFor(row, true) : null;
         if (identity !== owner()) throw Error('Your account changed. Reopen the library.');
-        const id = S.nid++, stem = identity + '/uploads/' + crypto.randomUUID(); let path = null, slidePath = null;
+        const id = S.nid++;
+        added = { id, libraryId: row.id, t: row.title, short: row.title, file: { name: file.name, size: file.size }, context: row.context,
+          created: new Date().toISOString(), date: 'Not scheduled', time: '', target: row.target_seconds, ready: 0, ppt: /\.pptx$/i.test(file.name), rq: false, sp: true, final: false, left: null };
         if (cloud()) {
-          path = stem + (/\.pdf$/i.test(file.name) ? '.pdf' : '.pptx');
-          const result = await PTCloud.upload(path, file); if (result.error) throw Error('Could not add the presentation. ' + result.error); uploaded.push(path);
-          if (preview) { slidePath = stem + '.slides.pdf'; const r = await PTCloud.upload(slidePath, preview); if (r.error) throw Error('Could not save the slide preview.'); uploaded.push(slidePath); }
-        }
-        if (identity !== owner()) throw Error('Your account changed. Reopen the library.');
-        added = { id, libraryId: row.id, t: row.title, short: row.title, file: { name: file.name, size: file.size }, path, context: row.context,
-          created: new Date().toISOString(), date: 'Not scheduled', time: '', target: row.target_seconds, ready: 0, ppt: /\.pptx$/i.test(file.name), rq: false, sp: true, final: false, left: null,
-          ...(slidePath ? { slidePath, slideFile: { name: preview.name, size: preview.size } } : {}) };
-        S.pres.push(added);
-        if (cloud()) { const saved = await PTCloud.saveNow(podium.snapshot()); if (saved.error) throw Error('Could not save the presentation to your account. Please retry.'); } else podium.save();
-        if (identity !== owner()) return;
-        FILES[id] = file;
+          const converted=await PTPresentations.upload(file,row.title,{cloudconvertConsent:$('library-convert-consent')?.checked===true,onRegistered:meta=>{if(identity===owner()){PTPresentations.apply(added,meta);if(!S.pres.includes(added))S.pres.push(added);podium.save()}}});
+          if(identity!==owner())return;
+          PTPresentations.apply(added,converted);
+        } else if(preview){added.slideFile={name:preview.name,size:preview.size};SLIDE_FILES[id]=preview;}
+        if(identity!==owner())return;
+        if(!S.pres.includes(added))S.pres.push(added);
+        FILES[id] = file;podium.save();
         if (button.isConnected) go('prac', id);
       } catch (e) {
-        if (added && identity === owner()) S.pres = S.pres.filter(p => p !== added);
+        if (added && !added.remoteId && identity === owner()) S.pres = S.pres.filter(p => p !== added);
         if (uploaded.length && identity === owner()) await PTCloud.remove(uploaded).catch(() => {});
         status(note, e.message);
       } finally { button.disabled = false; }
@@ -100,7 +98,7 @@
 
   const credentialsForm = () => `<form id="admin-credentials" class="fr"><label for="admin-email">Admin email address</label><input id="admin-email" type="email" autocomplete="email" required maxlength="254" value="${esc(PTCloud.user?.email || '')}"><label for="admin-current">Current password</label><input id="admin-current" type="password" autocomplete="current-password" required maxlength="128"><label for="admin-password">New password (at least 12 characters)</label><input id="admin-password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required><label for="admin-confirm">Confirm new password</label><input id="admin-confirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" required><button class="bt" type="submit">Save login credentials</button><p id="admin-credential-status" role="status"></p></form>`;
   const managementPanels = () => (
-      sec('ADD A LIBRARY PRESENTATION', 2, `<form id="admin-upload" class="fr"><label for="admin-title">Title</label><input id="admin-title" required minlength="2" maxlength="80"><label for="admin-description">Description</label><textarea id="admin-description" maxlength="500" rows="2"></textarea><label for="admin-category">Topic</label><input id="admin-category" required maxlength="40" value="General"><label for="admin-target">Practice length (minutes)</label><input id="admin-target" type="number" min="1" max="10" value="3" required><label for="admin-file">Presentation file (PPTX or PDF, up to 50 MB)</label><input id="admin-file" type="file" accept=".pptx,.pdf" required><p class="hint">PDF preserves the slide layout. PPTX provides a text preview in practice. Add content you have permission to share with students.</p><button class="bt" type="submit">Add as draft</button><p id="admin-upload-status" role="status"></p></form>`) +
+      sec('ADD A LIBRARY PRESENTATION', 2, `<form id="admin-upload" class="fr"><label for="admin-title">Title</label><input id="admin-title" required minlength="2" maxlength="80"><label for="admin-description">Description</label><textarea id="admin-description" maxlength="500" rows="2"></textarea><label for="admin-category">Topic</label><input id="admin-category" required maxlength="40" value="General"><label for="admin-target">Practice length (minutes)</label><input id="admin-target" type="number" min="1" max="10" value="3" required><label for="admin-file">Presentation file (PPTX or PDF, up to 50 MB)</label><input id="admin-file" type="file" accept=".pptx,.pdf" required><p class="hint">PDF preserves the slide layout. PowerPoint is converted to a PDF preview for student practice; fonts and unsupported effects may differ. Add content you have permission to share with students.</p><button class="bt" type="submit">Add as draft</button><p id="admin-upload-status" role="status"></p></form>`) +
       sec('LIBRARY PRESENTATIONS', 3, '<p id="admin-catalog-status" role="status">Loading library...</p><div id="admin-catalog" class="library-admin-list"></div>'));
   V.admin = () => {
     if (!isAdmin()) return page('Admin Dashboard', '', '<p>Administrator access required.</p>');
@@ -109,8 +107,9 @@
     return page('Admin Dashboard', 'Monitor accounts, practice activity and the presentation library.', forced ? account : (window.PTAdminMonitor?.overviewHTML() || '') + `<details class="pn admin-account"><summary>Admin account settings</summary>${account}</details>`);
   };
   async function loadParser(pdf) {
+    if(pdf)return PTPDF.load();
     if (pdf ? window.pdfjsLib : window.JSZip) return;
-    await new Promise((resolve, reject) => { const script = document.createElement('script'); script.src = pdf ? 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js' : 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; script.onload = resolve; script.onerror = () => reject(Error('Could not load the presentation reader. Retry when connected.')); document.head.appendChild(script); });
+    await new Promise((resolve, reject) => { const script = document.createElement('script'); script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; script.onload = resolve; script.onerror = () => reject(Error('Could not load the presentation reader. Retry when connected.')); document.head.appendChild(script); });
   }
   B.admin = async () => {
     if (!isAdmin() || !$('admin-credentials')) return;
@@ -144,7 +143,6 @@
         const { file } = PTPresentationContent.selectUpload($('admin-file').files), pdf = /\.pdf$/i.test(file.name);
         const title = $('admin-title').value.trim(), description = $('admin-description').value.trim(), category = $('admin-category').value.trim(), target = Number($('admin-target').value) * 60;
         await loadParser(pdf);
-        if (pdf) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         const context = await PTPresentationContent.scan(file, { pdf: window.pdfjsLib, zip: window.JSZip });
         if (!context.text.trim()) throw Error('This file has no readable slide text. Add selectable text before sharing it for practice.');
         if (owner() !== identity || !canManage()) throw Error('Your account changed. Sign in again.');

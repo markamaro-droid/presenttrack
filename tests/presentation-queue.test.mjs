@@ -1,0 +1,76 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { PGlite } from '@electric-sql/pglite';
+
+test('conversion migration: owner isolation, immutable files, durable retries and lease fencing',async()=>{
+  const db=new PGlite(),alice='11111111-1111-4111-8111-111111111111',bob='22222222-2222-4222-8222-222222222222';
+  const id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',other='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  const query=(sql,args=[])=>db.query(sql,args),rows=async(sql,args)=>(await query(sql,args)).rows;
+  const as=async(role,user='')=>{await db.exec('reset role');await query("select set_config('request.jwt.claim.sub',$1,false)",[user]);await db.exec('set role '+role)};
+  const create=(pid=id,type='pptx')=>query('select * from public.presentation_create($1,$2,$3,$4,$5)',[pid,'Research','research.'+type,type,100]);
+  const submit=pid=>query('select * from public.presentation_submit($1)',[pid]);
+  const claim=()=>rows('select * from public.presentation_claim_job()');
+  const finish=(token,path,extra={})=>query('select public.presentation_finish($1,$2,$3,$4,$5,$6,$7,$8) as ok',[id,token,2,path,'[]',extra.error??null,'test',extra.retryable??true]);
+  try{
+    // Supabase-owned schemas are represented locally; the actual migration is unchanged.
+    await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;
+      create schema auth;create schema storage;
+      create table auth.users(id uuid primary key);
+      create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
+      create table public.user_data(user_id uuid primary key,initial_assessment_completed boolean);
+      create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
+      create table storage.objects(bucket_id text,name text,metadata jsonb,primary key(bucket_id,name));
+      alter table storage.objects enable row level security;
+      grant usage on schema auth,storage,public to anon,authenticated,service_role;
+      grant all on storage.objects to authenticated,service_role;
+      insert into auth.users values('${alice}'),('${bob}');
+      insert into public.user_data values('${alice}',true),('${bob}',false);`);
+    await db.exec(await readFile(new URL('../supabase/migrations/20261117_presentation_conversion.sql',import.meta.url),'utf8'));
+    await as('authenticated',bob);await assert.rejects(create(),/evaluation_required/);
+    await as('authenticated',alice);
+    await assert.rejects(create(id,'exe'),/invalid_presentation/);
+    assert.equal((await create()).rows[0].original_file_path,`${alice}/${id}.pptx`);
+    await create();assert.equal((await rows('select * from public.presentations')).length,1,'same upload ID is idempotent');
+    await assert.rejects(query("update public.presentations set conversion_status='completed'"),/permission denied/);
+    await assert.rejects(claim(),/permission denied/);
+    await assert.rejects(submit(id),/upload_incomplete/);
+    await assert.rejects(query("insert into storage.objects values('presentation-originals',$1,'{}')",[`${bob}/${id}.pptx`]),/row-level security/);
+    await query("insert into storage.objects values('presentation-originals',$1,'{\"size\":100}')",[`${alice}/${id}.pptx`]);
+    await submit(id);await submit(id);
+    assert.equal((await query("update storage.objects set metadata='{}' returning *")).rows.length,0,'original cannot be overwritten');
+    await assert.rejects(query("insert into storage.objects values('presentation-previews',$1,'{}')",[`${alice}/${id}/fake.pdf`]),/row-level security/);
+    await as('authenticated',bob);
+    assert.equal((await rows('select * from public.presentations')).length,0);
+    assert.equal((await rows('select * from storage.objects')).length,0);
+    await assert.rejects(submit(id),/presentation_not_found/);
+    assert.equal((await rows('select public.presentation_delete($1) as ok',[id]))[0].ok,false);
+    await as('service_role');const first=(await claim())[0];assert.equal(first.attempts,1);assert.equal((await claim()).length,0);
+    assert.equal((await finish(other,null)).rows[0].ok,false,'wrong lease cannot complete');
+    // A restarted worker reclaims the lease; the old worker cannot publish.
+    await query("update public.presentations set lease_until=now()-interval '1 minute' where id=$1",[id]);
+    const second=(await claim())[0];assert.notEqual(second.lease_token,first.lease_token);assert.equal(second.attempts,2);
+    assert.equal((await finish(first.lease_token,null)).rows[0].ok,false);
+    await assert.rejects(finish(second.lease_token,`${bob}/${id}/fake.pdf`),/invalid_result/);
+    await finish(second.lease_token,null,{error:'Temporary conversion failure'});
+    assert.equal((await claim()).length,0,'backoff is enforced');
+    await query('update public.presentations set available_at=now() where id=$1',[id]);
+    const third=(await claim())[0];assert.equal(third.attempts,3);
+    await finish(third.lease_token,null,{error:'Temporary conversion failure'});
+    assert.equal((await rows('select conversion_status from public.presentations'))[0].conversion_status,'failed');
+    await as('authenticated',alice);await query('select public.presentation_submit($1,true)',[id]);
+    await as('service_role');const retried=(await claim())[0];assert.equal(retried.attempts,1);assert.equal(retried.manual_retries,1);
+    const preview=`${alice}/${id}/${retried.lease_token}.pdf`;
+    await query("insert into storage.objects values('presentation-previews',$1,'{}')",[preview]);
+    assert.equal((await finish(retried.lease_token,preview)).rows[0].ok,true);
+    await as('authenticated',alice);assert.equal((await rows('select * from storage.objects')).length,2);
+    await assert.rejects(query('select public.presentation_submit($1,true)',[id]),/retry_not_allowed/);
+    await query('select public.presentation_delete($1)',[id]);assert.equal((await rows('select * from storage.objects')).length,0);
+    await create(other,'pdf');await query("insert into storage.objects values('presentation-originals',$1,'{\"size\":100}')",[`${alice}/${other}.pdf`]);await submit(other);
+    await as('service_role');const pdf=(await claim())[0];
+    assert.equal((await rows('select public.presentation_finish($1,$2,3,null) as ok',[other,pdf.lease_token]))[0].ok,true,'PDF completes without a converted object');
+    assert.equal((await rows('select * from public.presentation_cleanup_candidates()'))[0].id,id);
+    await as('anon');await assert.rejects(rows('select * from public.presentations'),/permission denied/);
+    await assert.rejects(create(),/permission denied/);
+  }finally{await db.close()}
+});

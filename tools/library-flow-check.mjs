@@ -4,10 +4,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 export async function checkLibraryAssets({evaluate,call}) {
  const result=await evaluate(`(async()=>{
-  for(const [global,url] of [['JSZip','https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'],['pdfjsLib','https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js']]){
+  await PTPDF.load();
+  for(const [global,url] of [['JSZip','https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js']]){
    if(!window[global])await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=url;s.onload=resolve;s.onerror=()=>reject(Error('Library reader unavailable'));document.head.append(s)});
   }
-  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   const catalog=await(await fetch('/assets/library/catalog.json')).json();const checks=[];
   for(const row of catalog){
    const file=new File([await(await fetch(row.file_path)).blob()],row.file_name);
@@ -50,23 +50,23 @@ export async function checkLibrary({ evaluate, call }) {
  await evaluate(`document.querySelector('[data-library-open]').click()`);
  assert.equal(await evaluate(`document.querySelectorAll('.library-slides li').length`),5);
  const before=await evaluate('podium.ext.S.pres.length');
- await evaluate(`document.getElementById('library-use').click()`);
+ await evaluate(`document.getElementById('library-convert-consent').checked=true;document.getElementById('library-use').click()`);
  for(let i=0;i<60;i++){if(await evaluate(`podium.ext.S.view==='prac'`))break;await new Promise(r=>setTimeout(r,50));}
  assert.equal(await evaluate('podium.ext.S.pres.length'),before+1);
  assert.equal(await evaluate(`podium.ext.S.pres.at(-1).context.pages.length`),5);
- assert.match(await evaluate(`podium.ext.S.pres.at(-1).slidePath`),/slides\.pdf$/);
- assert.equal(await evaluate(`libraryFiles.size`),2,'PPTX and PDF preview saved to student storage');
+ assert.ok(await evaluate(`podium.ext.S.pres.at(-1).remoteId`));
+ assert.equal(await evaluate(`podium.ext.S.pres.at(-1).conversion.conversion_status`),'completed');
  await evaluate(`delete podium.ext.FILES[podium.ext.S.pres.at(-1).id];podium.ext.go('prac',podium.ext.S.pres.at(-1).id)`);
  await wait();
  assert.equal(await evaluate(`!!document.querySelector('#vst canvas')`),true);
  await evaluate(`podium.ext.go('libraryDetail',libraryRows[2]);document.getElementById('library-use').click()`);
  assert.equal(await evaluate('podium.ext.S.pres.length'),before+1,'library copy is not duplicated');
- await evaluate(`PTCloud.saveNow=async()=>({error:'offline'});PTCloud.remove=async paths=>{paths.forEach(p=>libraryFiles.delete(p));return{}};podium.ext.go('libraryDetail',libraryRows[0]);document.getElementById('library-use').click()`);
+ await evaluate(`window.libraryUpload=PTPresentations.upload;PTPresentations.upload=async()=>{throw Error('Could not save the original')};PTCloud.saveNow=async()=>({error:'offline'});PTCloud.remove=async paths=>{paths.forEach(p=>libraryFiles.delete(p));return{}};podium.ext.go('libraryDetail',libraryRows[0]);document.getElementById('library-convert-consent').checked=true;document.getElementById('library-use').click()`);
  await wait();
  assert.equal(await evaluate('podium.ext.S.pres.length'),before+1);
- assert.equal(await evaluate('libraryFiles.size'),2);
+ assert.equal(await evaluate('libraryFiles.size'),0);
  assert.match(await evaluate(`document.getElementById('library-action-status').textContent`),/Could not save/);
- await evaluate(`PTCloud.saveNow=async()=>({});PTCloud.user={id:'admin-preview',email:'markamaro1234567@gmail.com',app_metadata:{role:'admin',must_change_password:true}};podium.ext.go('library')`);
+ await evaluate(`PTPresentations.upload=libraryUpload;PTCloud.saveNow=async()=>({});PTCloud.user={id:'admin-preview',email:'markamaro1234567@gmail.com',app_metadata:{role:'admin',must_change_password:true}};podium.ext.go('library')`);
  assert.equal(await evaluate('podium.ext.S.view'),'library','initial admin can browse published library');
  assert.match(await evaluate(`document.getElementById('view').textContent`),/Change initial password/);
  await evaluate(`podium.ext.go('admin')`);

@@ -13,6 +13,13 @@
     "test:assessment": "node --test supabase/tests/classify.test.js supabase/tests/feedback.test.js supabase/tests/metrics.test.js supabase/tests/quality.test.js"
   },
   "dependencies": {
+    "fast-xml-parser": "5.12.1",
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "6.5.438",
+    "yauzl": "3.4.0",
     "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.16"
   }
 }

@@ -49,3 +49,7 @@ Quality gate: unusable if < 40 words, speech < 25% of the recording, or most seg
 ## Tests
 `cd supabase && NODE_PATH=<dir with pptxgenjs@3.12.0> DECK_OUT_DIR=<out dir> node --test tests/*.test.js`
 The deck test also runs `unzip -t`, python-pptx and LibreOffice PDF conversion when available (skipped otherwise). `_shared/*.js` is environment-neutral; `_shared/edge.ts` and the two `index.ts` files are Deno-only and are not covered by Node tests.
+
+## Private presentation conversion
+
+Apply `migrations/20261117_presentation_conversion.sql` after the assessment migrations if not already applied, then `migrations/20261118_cloudconvert.sql`. These create private `presentation-originals` / `presentation-previews` buckets, ownership policies, conversion metadata, per-account cached PDFs and an atomic shared daily credit budget. The second migration disables the old worker queue. Deployment, server variables and signed webhooks are documented in the [CloudConvert guide](../docs/CLOUDCONVERT.md). Do not rerun applied migrations or make these buckets public.

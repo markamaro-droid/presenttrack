@@ -12,6 +12,11 @@
     { "source": "/api/:path*", "headers": [{ "key": "Cache-Control", "value": "private, no-store" }] }
   ],
   "functions": {
+    "api/cloudconvert-webhook.js": { "maxDuration": 60 },
+    "api/presentation-maintenance.js": { "maxDuration": 60 },
+    "api/presentations.js": {
+      "maxDuration": 60
+    },
     "api/chat.js": {
       "maxDuration": 60
     },
@@ -27,5 +32,6 @@
     "api/speech.js": {
       "maxDuration": 60
     }
-  }
+  },
+  "crons": [{ "path": "/api/presentation-maintenance", "schedule": "15 0 * * *" }]
 }
