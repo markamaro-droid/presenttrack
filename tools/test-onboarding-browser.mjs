@@ -11,7 +11,7 @@ import { extname, join, resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
 const visual = process.argv.includes('--visual');
-const scripts = new Set(['identity', 'auth', 'practice-audio', 'workspace-model', 'tour-steps', 'tour-spotlight', 'dashboard', 'evaluation', 'practice-insights', 'dashboard-home', 'workspace', 'greeting-cache', 'settings', 'robot-menu', 'welcome-intro', 'welcome-door', 'dashboard-entrance']);
+const scripts = new Set(['identity', 'auth', 'practice-audio', 'workspace-model', 'tour-steps', 'tour-spotlight', 'dashboard', 'evaluation', 'practice-insights', 'dashboard-home', 'workspace', 'greeting-cache', 'settings', 'robot-menu', 'welcome-intro', 'welcome-door']);
 if (visual) scripts.add('robot');
 const server = createServer(async (req, res) => {
   try {
@@ -105,7 +105,6 @@ try {
   };
   const welcome = async (email, registered = false) => {
     await evaluate(`podium.newUser = ${registered}; podium.enter('Onboarding Tester', ${JSON.stringify(email)});`);
-    assert.equal(await evaluate('podium.dashboardEntering()'),false,'evaluation onboarding does not use the returning dashboard reveal');
     await waitFor('!!document.getElementById("leval") && !document.getElementById("land").hidden && document.getElementById("wipe").hidden', 'welcome screen');
     if (visual) await waitFor('podium.robotReady()', 'actual Tracy model');
     await evaluate(`document.getElementById('welcome-skip').click();`);
@@ -176,7 +175,7 @@ try {
     assert.equal(await evaluate('podium.tourOn()'), false, 'tour can be skipped');
   };
 
-  // Completed accounts step straight into their dashboard. Only clicking the
+  // Completed accounts use the same branded circle wipe as the logo. Only clicking the
   // logo opens the welcome page, and its portal does not repeat the greeting.
   for (const [width,height,reduced] of [[1440,900,false],[390,844,false],[320,568,true]]) {
     await fresh(width,height,reduced);
@@ -191,7 +190,7 @@ try {
       document.getElementById('lp').value='test-only-password';
       document.getElementById('loginForm').requestSubmit();
     `);
-    assert.equal(await evaluate('podium.dashboardEntering()'),false,'rejected credentials do not start the reveal');
+    assert.equal(await evaluate(`document.getElementById('wipe').hidden`),true,'rejected credentials do not start the transition');
     assert.equal(await evaluate(`document.getElementById('app').hidden`),true);
     await evaluate(`
       PTCloud.signIn=async()=>{window.loginButtonRect=document.querySelector('#loginForm .btn').getBoundingClientRect().toJSON();return {name:'Returning Student'}};
@@ -200,37 +199,32 @@ try {
     `);
     assert.equal(await evaluate(`!!document.querySelector('#welcome-door')`),false);
     assert.equal(await evaluate(`document.getElementById('land').hidden`),true);
+    assert.equal(await evaluate(`!!document.getElementById('dashboard-morph')`),false,'separate button morph is removed');
     if(!reduced){
-      assert.equal(await evaluate('podium.dashboardEntering()'),true);
-      await waitFor(`document.querySelector('#dashboard-morph')?.dataset.phase==='expanding'`,'login button begins expanding');
-      const geometry=await evaluate(`(async()=>{
-        const surface=document.querySelector('.dashboard-morph-surface');
-        window.dashboardAnimations=[...document.querySelectorAll('#dashboard-morph, #dashboard-morph *, #app')].flatMap(el=>el.getAnimations());
-        for(const a of window.dashboardAnimations)a.pause();
-        await Promise.all(window.dashboardAnimations.map(a=>a.ready));
-        const animation=surface.getAnimations().find(a=>a.effect.getKeyframes().some(f=>f.width));
-        animation.currentTime=0;const start=surface.getBoundingClientRect().toJSON();
-        animation.currentTime=1200;const end=surface.getBoundingClientRect().toJSON();
-        const target=document.querySelector('#view .dh-hero').getBoundingClientRect().toJSON();
-        for(const a of window.dashboardAnimations)a.currentTime=650;
+      assert.equal(await evaluate(`document.getElementById('wipe').hidden`),false);
+      const effect=await evaluate(`(async()=>{
+        const wipe=document.getElementById('wipe');
+        const animation=wipe.getAnimations().find(a=>a.effect.getKeyframes().some(f=>f.clipPath));
+        animation.pause();await animation.ready;animation.currentTime=400;
         await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);
-        return {start,end,target,source:window.loginButtonRect,middle:surface.getBoundingClientRect().toJSON()};
+        window.loginWipe=animation;
+        return {frames:animation.effect.getKeyframes(),duration:animation.effect.getTiming().duration,easing:animation.effect.getTiming().easing,source:window.loginButtonRect,text:wipe.textContent};
       })()`);
-      for(const key of ['left','top','width','height']){
-        assert.ok(Math.abs(geometry.start[key]-geometry.source[key])<2,`morph starts at the login button ${key}`);
-        assert.ok(Math.abs(geometry.end[key]-geometry.target[key])<2,`morph ends at the dashboard panel ${key}`);
-      }
-      assert.ok(geometry.middle.height>geometry.source.height*2,'the button visibly grows instead of only fading');
-      assert.equal(await evaluate(`document.getElementById('app').inert`),true,'dashboard waits for the morph');
-      assert.equal(await evaluate(`!!document.querySelector('#dashboard-morph input, #dashboard-morph form')`),false,'login credentials never enter the animation');
+      assert.equal(effect.duration,650);
+      assert.equal(effect.easing,'cubic-bezier(0.65, 0, 0.35, 1)');
+      assert.match(effect.frames[0].clipPath,/^circle\(0px at /);
+      assert.match(effect.text,/PresentTrack/);
+      const center=effect.frames[0].clipPath.match(/at ([\d.]+)px ([\d.]+)px/);
+      assert.ok(Math.abs(Number(center[1])-effect.source.left-effect.source.width/2)<1);
+      assert.ok(Math.abs(Number(center[2])-effect.source.top-effect.source.height/2)<1);
       if(screenshots){
         const {data}=await call('Page.captureScreenshot');
-        const file=join(screenshots,`button-morph-${width}.png`);
+        const file=join(screenshots,`login-logo-transition-${width}.png`);
         await writeFile(file,Buffer.from(data,'base64'));console.log(`Screenshot: ${file}`);
       }
-      await evaluate('window.dashboardAnimations.forEach(a=>a.play())');
-      await waitFor(`!podium.dashboardEntering()&&!document.getElementById('dashboard-morph')`,'dashboard morph finishes');
-    }else assert.equal(await evaluate('podium.dashboardEntering()'),false,'reduced motion opens dashboard directly');
+      await evaluate('window.loginWipe.play()');
+      await waitFor(`document.getElementById('wipe').hidden&&!document.getElementById('app').hidden`,'logo transition opens dashboard');
+    }else assert.equal(await evaluate(`document.getElementById('wipe').hidden`),true,'reduced motion opens dashboard directly');
     assert.equal(await evaluate(`document.getElementById('app').hidden`),false);
     assert.deepEqual(await evaluate('window.preparedNarration'),[],'login prepares no greeting');
     assert.deepEqual(await evaluate('window.doorSpeech.calls'),[],'login plays no portal narration');
@@ -240,6 +234,11 @@ try {
     assert.equal(await evaluate(`document.getElementById('app').parentElement===document.body&&!document.getElementById('app').inert`),true);
     assert.equal(await evaluate(`document.activeElement?.matches('#view h1, #view h2')`),true);
     await evaluate(`document.querySelector('.sl').click()`);
+    if(!reduced){
+      const effect=await evaluate(`(()=>{const a=document.getElementById('wipe').getAnimations().find(a=>a.effect.getKeyframes().some(f=>f.clipPath));return {duration:a.effect.getTiming().duration,easing:a.effect.getTiming().easing,first:a.effect.getKeyframes()[0].clipPath};})()`);
+      assert.equal(effect.duration,650);assert.equal(effect.easing,'cubic-bezier(0.65, 0, 0.35, 1)');
+      assert.match(effect.first,/^circle\(0px at /,'logo and login share the same circle wipe');
+    }
     await waitFor(`!document.getElementById('land').hidden&&!!document.getElementById('welcome-skip')&&document.getElementById('wipe').hidden`,'manual returning welcome');
     await evaluate(`document.getElementById('welcome-skip').click()`);
     assert.match(await evaluate(`document.querySelector('.welcome-hero .k').textContent`),/Welcome back/);
@@ -271,7 +270,7 @@ try {
     await evaluate(`document.getElementById('welcome-skip').click();document.getElementById('leval').click();document.querySelector('[data-door-skip]').click()`);
     await waitFor(`!document.querySelector('#welcome-door')&&!document.getElementById('app').hidden`,'skip returning portal');
     assert.equal(await evaluate('podium.ext.S.view'),'dash');
-    console.log(`PASS returning ${width}x${height}: login button morph, logo welcome page, silent portal, Skip and focus`);
+    console.log(`PASS returning ${width}x${height}: matching login/logo transition, direct dashboard, silent portal, Skip and focus`);
   }
   if(process.argv.includes('--login-only')){
     assert.deepEqual(errors,[],'no login browser exceptions');

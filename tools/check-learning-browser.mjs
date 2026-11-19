@@ -83,6 +83,7 @@ try {
     assert.equal(await evaluate(`podium.ext.S.ses.length`),3,'canonical history restores after local state loss');
     assert.equal(await evaluate(`podium.ext.S.ev.results.explanationQuality.summary`),'Original study topic');
     await evaluate(`PTCloud.row={data:podium.snapshot(),onboarded:true};podium.newUser=false;podium.enter('Returning Student','returning@example.test')`);
+    for(let n=0;n<80&&await evaluate(`document.getElementById('app').hidden||!document.getElementById('wipe').hidden`);n++)await new Promise(r=>setTimeout(r,40));
     assert.equal(await evaluate(`podium.ext.S.view`),'dash','returning completed users go directly to dashboard');
     await evaluate(`learningFixture.rows=[];PTCloud.row=null;PTCloud.assessmentDone=false;podium.newUser=true;podium.enter('New Student','new@example.test')`);
     for(let n=0;n<80&&!await evaluate(`!!document.getElementById('leval')`);n++)await new Promise(r=>setTimeout(r,40));
