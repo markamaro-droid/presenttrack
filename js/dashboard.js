@@ -715,7 +715,7 @@ function transition(p,swap){
   a.onfinish=()=>{run();setTimeout(()=>{const b=w.animate({opacity:[1,0]},{duration:500,easing:'ease',fill:'forwards'});b.onfinish=()=>{w.getAnimations().forEach(q=>q.cancel());w.hidden=true}},280)};
 }
 const shell=()=>document.querySelector('.shell'),land=()=>$('land');
-function showLand(){podium.welcomeEnterCancel?.();podium.tourStop?.();rts.forEach(clearTimeout);rts=[];if(window.PTIdentity?.isAdmin(window.PTCloud?.user)){podium.welcomeStop?.();clearTimeout(window.__auto);shell().hidden=true;land().hidden=true;$('app').hidden=false;document.documentElement.classList.add('clay');go('admin');return;}podium.welcomeStop?.();clearTimeout(window.__auto);document.documentElement.classList.remove('clay');$('app').hidden=true;shell().hidden=true;renderLand();land().hidden=false;try{podium.robotShow&&podium.robotShow(true,'welcome')}catch(e){console.warn(e)}land().classList.remove('in');void land().offsetWidth;land().classList.add('in');scrollTo(0,0);
+function showLand(){podium.loginMorphCancel?.();podium.welcomeEnterCancel?.();podium.tourStop?.();rts.forEach(clearTimeout);rts=[];if(window.PTIdentity?.isAdmin(window.PTCloud?.user)){podium.welcomeStop?.();clearTimeout(window.__auto);shell().hidden=true;land().hidden=true;$('app').hidden=false;document.documentElement.classList.add('clay');go('admin');return;}podium.welcomeStop?.();clearTimeout(window.__auto);document.documentElement.classList.remove('clay');$('app').hidden=true;shell().hidden=true;renderLand();land().hidden=false;try{podium.robotShow&&podium.robotShow(true,'welcome')}catch(e){console.warn(e)}land().classList.remove('in');void land().offsetWidth;land().classList.add('in');scrollTo(0,0);
   podium.welcomeStart?.()}
 function toApp(v,p,direct=false){
   clearTimeout(window.__auto);podium.welcomeStop?.();
@@ -729,14 +729,14 @@ function toApp(v,p,direct=false){
     const beginTour=()=>{
       if(account!==S.u.email||$('app').hidden||S.view!=='dash'||T.on||!S.isNew||S.toured)return;
       // Never consume a first visit while the user is in another tab.
-      if(document.hidden||podium.welcomeEntering?.()){window.__auto=setTimeout(beginTour,650);return;}
+      if(document.hidden||podium.welcomeEntering?.()||podium.loginEntering?.()){window.__auto=setTimeout(beginTour,650);return;}
       startTour();
     };
     window.__auto=setTimeout(beginTour,direct?650:1400);
   };
   if(direct)mount();else transition(p,mount);
 }
-function signOut(p){podium.welcomeEnterCancel?.();podium.tourStop?.();rts.forEach(clearTimeout);rts=[];podium.practiceCleanup?.();podium.practiceCleanup=null;clearTimeout(window.__auto);podium.welcomeStop?.();clearInterval(tm);transition(p,()=>{try{podium.save&&podium.save();window.PTCloud&&PTCloud.enabled&&PTCloud.signOut();podium.tourStop&&podium.tourStop()}catch(e){}try{podium.robotShow&&podium.robotShow(false)}catch(e){}document.documentElement.classList.remove('clay');$('app').hidden=true;land().hidden=true;shell().hidden=false;lf.reset();rf.reset();setTab('login');S.u.pic=''})}
+function signOut(p){podium.loginMorphCancel?.();podium.welcomeEnterCancel?.();podium.tourStop?.();rts.forEach(clearTimeout);rts=[];podium.practiceCleanup?.();podium.practiceCleanup=null;clearTimeout(window.__auto);podium.welcomeStop?.();clearInterval(tm);transition(p,()=>{try{podium.save&&podium.save();window.PTCloud&&PTCloud.enabled&&PTCloud.signOut();podium.tourStop&&podium.tourStop()}catch(e){}try{podium.robotShow&&podium.robotShow(false)}catch(e){}document.documentElement.classList.remove('clay');$('app').hidden=true;land().hidden=true;shell().hidden=false;lf.reset();rf.reset();setTab('login');S.u.pic=''})}
 function renderLand(){
   const needsEvaluation=pendingEval(),f=S.u.name.split(' ')[0],ico=p=>'<span style="color:var(--brand);display:flex">'+ic(p)+'</span>';
   const cards=[['Timer with a target','M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z','Pick 3, 5 or 10 minutes and watch the ring fill as you speak.'],['Pace and filler words','M3 17l6-6 4 4 8-8M15 7h6v6','See your speed live and tap each filler word you catch.'],['Score and next steps','M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7','Every session ends with a score and three clear tips.']];
@@ -748,11 +748,10 @@ function renderLand(){
   <footer class="lfoot"><span>PresentTrack · Practice out loud, present with confidence</span><span>© 2026 PresentTrack</span></footer><div class="lf">${cards.map((c,i)=>`<div class="pn" data-r style="--i:${6+i}"><h3>${ico(c[1])}${c[0]}</h3><p>${c[2]}</p></div>`).join('')}</div>`;
   $('leval').onclick=e=>{const p=ctr(e.currentTarget);if(podium.welcomeEnter)podium.welcomeEnter(()=>toApp('dash',p,true));else toApp('dash',p)};$('llo').onclick=e=>signOut(ctr(e.currentTarget));
 }
-podium.enter=(name,email)=>{podium.welcomeEnterCancel?.();S.u.name=name.replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());S.u.email=email;podium.name=S.u.name.split(' ')[0];podium.account(email,!!podium.newUser);
+podium.enter=(name,email)=>{podium.loginMorphCancel?.();podium.welcomeEnterCancel?.();S.u.name=name.replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());S.u.email=email;podium.name=S.u.name.split(' ')[0];podium.account(email,!!podium.newUser);
   if(window.PTLearning&&!pendingEval()&&!window.PTIdentity?.isAdmin(window.PTCloud?.user)){
-    shell().hidden=true;toApp('dash',ctr(shell()),true);
-    const heading=document.querySelector('#view h1, #view h2');
-    if(heading){heading.setAttribute('tabindex','-1');heading.focus({preventScroll:true})}
+    const open=()=>{shell().hidden=true;toApp('dash',ctr(shell()),true)};
+    if(podium.loginMorph)podium.loginMorph(open);else open();
     return;
   }
   if(!window.PTIdentity?.isAdmin(window.PTCloud?.user))podium.welcomePrepare?.();

@@ -1,0 +1,10 @@
+/* A shared card surface links successful sign-in to the real dashboard panel. */
+#login-morph { position:fixed; inset:0; z-index:100; overflow:hidden; isolation:isolate; cursor:progress; }
+.login-morph-surface { position:absolute; overflow:hidden; box-sizing:border-box; will-change:left,top,width,height; }
+.login-morph-content.dashboard-home { position:absolute; inset:0; display:block; padding:0; margin:0; border-radius:inherit; }
+.login-morph-content .dh-hero { box-sizing:border-box; }
+/* Preserve the destination's layout while its visual copy moves into position. */
+html.login-morph-active #app .dh-hero { visibility:hidden; }
+html.login-morph-active #app .rise { animation:none!important; }
+html.login-morph-active :is(#bot,#bmini) { visibility:hidden; }
+@media(prefers-reduced-motion:reduce) { #login-morph { display:none; } }

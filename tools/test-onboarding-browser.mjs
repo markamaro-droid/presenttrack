@@ -11,7 +11,7 @@ import { extname, join, resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
 const visual = process.argv.includes('--visual');
-const scripts = new Set(['identity', 'auth', 'practice-audio', 'workspace-model', 'tour-steps', 'tour-spotlight', 'dashboard', 'evaluation', 'practice-insights', 'dashboard-home', 'workspace', 'greeting-cache', 'settings', 'robot-menu', 'welcome-intro', 'welcome-door']);
+const scripts = new Set(['identity', 'auth', 'practice-audio', 'workspace-model', 'tour-steps', 'tour-spotlight', 'dashboard', 'evaluation', 'practice-insights', 'dashboard-home', 'workspace', 'greeting-cache', 'settings', 'robot-menu', 'welcome-intro', 'welcome-door', 'login-morph']);
 if (visual) scripts.add('robot');
 const server = createServer(async (req, res) => {
   try {
@@ -105,6 +105,7 @@ try {
   };
   const welcome = async (email, registered = false) => {
     await evaluate(`podium.newUser = ${registered}; podium.enter('Onboarding Tester', ${JSON.stringify(email)});`);
+    assert.equal(await evaluate('podium.loginEntering()'),false,'evaluation onboarding does not use the returning login morph');
     await waitFor('!!document.getElementById("leval") && !document.getElementById("land").hidden && document.getElementById("wipe").hidden', 'welcome screen');
     if (visual) await waitFor('podium.robotReady()', 'actual Tracy model');
     await evaluate(`document.getElementById('welcome-skip').click();`);
@@ -175,7 +176,7 @@ try {
     assert.equal(await evaluate('podium.tourOn()'), false, 'tour can be skipped');
   };
 
-  // Completed accounts log straight into their dashboard. Only clicking the
+  // Completed accounts morph straight into their dashboard. Only clicking the
   // logo opens the welcome page, and its portal does not repeat the greeting.
   for (const [width,height,reduced] of [[1440,900,false],[390,844,false],[320,568,true]]) {
     await fresh(width,height,reduced);
@@ -184,10 +185,49 @@ try {
       window.PTCloud={enabled:true,user:{id:'completed-${width}',user_metadata:{}},
         row:{onboarded:true,data:{pres:[],ses:[],notes:[],goals:[],nid:20}},
         onboarded:true,assessmentDone:true,ready:false,save:async()=>{}};
-      podium.newUser=false;podium.enter('Returning Student','completed-${width}@example.test');
+      if(window.TracyAudio)TracyAudio.unlock=()=>Promise.resolve(true);
+      PTCloud.signIn=async()=>({error:'Incorrect password.'});
+      document.getElementById('le').value='completed-${width}@example.test';
+      document.getElementById('lp').value='test-only-password';
+      document.getElementById('loginForm').requestSubmit();
+    `);
+    assert.equal(await evaluate('podium.loginEntering()'),false,'rejected credentials do not start the morph');
+    assert.equal(await evaluate(`document.getElementById('app').hidden`),true);
+    await evaluate(`
+      PTCloud.signIn=async()=>{window.loginCardRect=document.querySelector('.auth .card').getBoundingClientRect().toJSON();return {name:'Returning Student'}};
+      document.querySelector('.auth .card').scrollIntoView({block:'center',behavior:'instant'});
+      document.getElementById('loginForm').requestSubmit();
     `);
     assert.equal(await evaluate(`!!document.querySelector('#welcome-door')`),false);
     assert.equal(await evaluate(`document.getElementById('land').hidden`),true);
+    if(!reduced){
+      assert.equal(await evaluate('podium.loginEntering()'),true);
+      assert.equal(await evaluate(`document.querySelector('.shell').inert`),true);
+      await waitFor(`document.querySelector('#login-morph')?.dataset.phase==='morphing'`,'login card morph');
+      const geometry=await evaluate(`(()=>{
+        const surface=document.querySelector('.login-morph-surface');
+        const animation=surface.getAnimations().find(a=>a.effect.getKeyframes().some(f=>f.width));
+        animation.pause();animation.currentTime=0;const start=surface.getBoundingClientRect().toJSON();
+        animation.currentTime=850;const end=surface.getBoundingClientRect().toJSON();
+        const target=document.querySelector('#view .dh-hero').getBoundingClientRect().toJSON();
+        window.loginMorphAnimations=[...document.querySelectorAll('#login-morph, #login-morph *, #app')].flatMap(el=>el.getAnimations());
+        for(const a of window.loginMorphAnimations){a.pause();a.currentTime=420;}
+        return {start,end,target,source:window.loginCardRect};
+      })()`);
+      for(const key of ['left','top','width','height']){
+        assert.ok(Math.abs(geometry.start[key]-geometry.source[key])<2,`login card start ${key}`);
+        assert.ok(Math.abs(geometry.end[key]-geometry.target[key])<2,`dashboard panel end ${key}`);
+      }
+      assert.equal(await evaluate(`document.getElementById('app').inert`),true);
+      assert.equal(await evaluate(`!!document.querySelector('#login-morph input, #login-morph form')`),false,'credentials are never copied');
+      if(screenshots){
+        const {data}=await call('Page.captureScreenshot');
+        const file=join(screenshots,`login-morph-${width}.png`);
+        await writeFile(file,Buffer.from(data,'base64'));console.log(`Screenshot: ${file}`);
+      }
+      await evaluate('window.loginMorphAnimations.forEach(a=>a.play())');
+      await waitFor(`!podium.loginEntering()&&!document.getElementById('login-morph')`,'morph finishes');
+    }else assert.equal(await evaluate(`!!document.getElementById('login-morph')`),false,'reduced motion opens dashboard directly');
     assert.equal(await evaluate(`document.getElementById('app').hidden`),false);
     assert.deepEqual(await evaluate('window.preparedNarration'),[],'login prepares no greeting');
     assert.deepEqual(await evaluate('window.doorSpeech.calls'),[],'login plays no portal narration');
@@ -228,8 +268,12 @@ try {
     await evaluate(`document.getElementById('welcome-skip').click();document.getElementById('leval').click();document.querySelector('[data-door-skip]').click()`);
     await waitFor(`!document.querySelector('#welcome-door')&&!document.getElementById('app').hidden`,'skip returning portal');
     assert.equal(await evaluate('podium.ext.S.view'),'dash');
-    console.log(`PASS returning ${width}x${height}: direct dashboard login, logo welcome page, silent connected portal, Skip and focus`);
+    console.log(`PASS returning ${width}x${height}: login card morph, logo welcome page, silent connected portal, Skip and focus`);
   }
+  if(process.argv.includes('--login-only')){
+    assert.deepEqual(errors,[],'no login browser exceptions');
+    // The full suite below is also run when changing onboarding behavior.
+  } else {
 
   for (const [width, height] of [[1440, 900], [390, 844], [320, 568]]) {
     await fresh(width, height);
@@ -330,6 +374,7 @@ try {
   await endTour();
   assert.deepEqual(errors, [], 'no browser exceptions');
   console.log('PASS reduced motion, cloud onboarding persistence, cancellation, Escape and browser error checks');
+  }
 } finally {
   socket?.close();
   chrome.kill();
