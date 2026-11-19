@@ -6,8 +6,9 @@ import {readFile} from 'node:fs/promises';
 const source=await readFile(new URL('../js/welcome-door.js',import.meta.url),'utf8');
 const robot=await readFile(new URL('../js/robot.js',import.meta.url),'utf8');
 const copy="Let's dive into your speaking evaluation. Follow me inside, and we'll take it one step at a time.";
+const returningCopy="Welcome back! Let's pick up where you left off. Your dashboard is ready.";
 
-function setup({reducedMotion=false,voice=true,narration=true,throwSpeech=false}={}){
+function setup({reducedMotion=false,voice=true,narration=true,throwSpeech=false,returning=false,fromLogin=false}={}){
   const elements=new Map(),timers=new Map(),listeners=new Map(),animations=[],poses=[];
   let now=0,timerId=0,speech=null,narrations=0,cancellations=0,navigations=0;
   const document={hidden:false,activeElement:null,documentElement:{clientWidth:1440}};
@@ -30,22 +31,24 @@ function setup({reducedMotion=false,voice=true,narration=true,throwSpeech=false}
       animate(frames,options){const animation={element:this,frames,options,cancelled:false,cancel(){this.cancelled=true;}};animations.push(animation);return animation;}
     };
   }
-  ['bot','land','leval','bc','app'].forEach(id=>elements.set(id,element(id)));
+  ['bot','land','leval','bc','app','shell','login'].forEach(id=>elements.set(id,element(id)));
+  elements.get('land').hidden=fromLogin;
+  elements.get('login').textContent='Log in';
   elements.get('app').hidden=true;
   document.body=element('body');
   document.body.appendChild(elements.get('app'));
   document.getElementById=id=>elements.get(id)||null;
   document.createElement=()=>element('');
   document.createComment=()=>element('placeholder');
-  document.querySelector=()=>element('heading');
+  document.querySelector=selector=>selector==='.shell'?elements.get('shell'):element('heading');
   document.addEventListener=(type,fn)=>listeners.set(type,fn);
   document.removeEventListener=(type,fn)=>{if(listeners.get(type)===fn)listeners.delete(type);};
-  const podium={voiceOn:voice,welcomeStop(){},hushNow(){},robotDoorPose:pose=>poses.push(pose)};
+  const podium={ext:{pendingEval:()=>!returning},voiceOn:voice,welcomeStop(){},hushNow(){},robotDoorPose:pose=>poses.push(pose)};
   if(narration)podium.robotDoorNarrate=(text,hooks)=>{
     narrations++;if(throwSpeech)throw Error('unavailable');
     speech={text,...hooks};return{cancel(){cancellations++;}};
   };
-  const context={podium,document,PTWelcomeDoorSpeech:{text:copy},matchMedia:()=>({matches:reducedMotion}),
+  const context={podium,document,PTWelcomeDoorSpeech:{text:copy},PTReturningGreeting:{text:returningCopy},matchMedia:()=>({matches:reducedMotion}),
     window:{innerHeight:900,addEventListener:(type,fn)=>listeners.set(type,fn),removeEventListener:(type,fn)=>{if(listeners.get(type)===fn)listeners.delete(type);}},
     getComputedStyle:()=>({backgroundColor:'rgb(29,78,216)',transform:'none'}),
     setTimeout(fn,ms){const id=++timerId;timers.set(id,{at:now+ms,fn});return id;},clearTimeout:id=>timers.delete(id)};
@@ -57,10 +60,40 @@ function setup({reducedMotion=false,voice=true,narration=true,throwSpeech=false}
     now=end;
   };
   return{podium,document,elements,timers,listeners,animations,poses,advance,
-    start:()=>podium.welcomeEnter(()=>{navigations++;elements.get('app').hidden=false;}),
+    start:()=>podium.welcomeEnter(()=>{navigations++;elements.get('app').hidden=false;},{fromLogin,originElement:elements.get('login')}),
     get overlay(){return elements.get('welcome-door');},
     get speech(){return speech;},get narrations(){return narrations;},get cancellations(){return cancellations;},get navigations(){return navigations;}};
 }
+
+test('returning login welcomes the user and reveals the same dashboard through the portal',()=>{
+  const s=setup({returning:true,fromLogin:true});s.start();
+  assert.equal(s.elements.get('land').hidden,true,'no redundant welcome screen');
+  assert.equal(s.elements.get('shell').inert,true);
+  assert.equal(s.overlay.dataset.destination,'dashboard');
+  assert.match(s.overlay.innerHTML,/Welcome back\./);
+  assert.equal(s.overlay.querySelector('.welcome-door-origin').textContent,'Log in');
+  assert.equal(s.overlay.querySelector('.welcome-door-caption').textContent,returningCopy);
+  s.advance(650);assert.equal(s.speech.text,returningCopy);s.speech.onstart();
+  assert.equal(s.navigations,0,'waits for narration');
+  s.speech.onend();s.advance(1150);
+  assert.equal(s.overlay.dataset.connected,'true');
+  assert.equal(s.navigations,1);
+  assert.equal(s.elements.get('app').inert,true);
+  s.advance(1660);
+  assert.equal(s.overlay,undefined);
+  assert.equal(s.navigations,1);
+  assert.equal(s.elements.get('shell').inert,false);
+  assert.equal(s.elements.get('app').inert,false);
+  assert.equal(s.document.activeElement.id,'heading');
+});
+
+test('cancelling a returning login releases the form and prevents late speech from navigating',()=>{
+  const s=setup({returning:true,fromLogin:true});s.start();s.advance(650);
+  s.podium.welcomeEnterCancel();s.speech.onstart();s.speech.onend();s.advance(30000);
+  assert.equal(s.navigations,0);assert.equal(s.overlay,undefined);
+  assert.equal(s.elements.get('shell').inert,false);
+  assert.equal(s.document.body.style.overflow,'auto');
+});
 
 test('door forms from the button before narration; approach follows playback and entry follows its end',()=>{
   const s=setup();assert.equal(s.start(),true);

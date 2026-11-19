@@ -1,12 +1,14 @@
 /* Preload the natural greeting during login and synchronize gestures with playback. */
 (() => {
   const $ = id => document.getElementById(id);
-  const copy = globalThis.PTGreeting.text;
-  podium.welcomePrepare = () => podium.prepareNarration?.(copy);
+  const returning = () => podium.ext?.pendingEval?.() === false;
+  const greeting = () => returning() ? globalThis.PTReturningGreeting : globalThis.PTGreeting;
+  podium.welcomePrepare = () => podium.prepareNarration?.(greeting().text);
   let cleanup = null;
   podium.welcomeStop = () => { cleanup?.(); cleanup = null; };
   podium.welcomeStart = () => {
     podium.welcomeStop();
+    const copy = greeting().text;
     const stage = $('welcome-stage'), bot = $('bot'), button = $('leval'), caption = $('welcome-intro');
     if (!stage || !bot || !button) return;
     caption.textContent = copy; button.hidden = true;
@@ -27,7 +29,8 @@
       hero.classList.add('welcome-ready');
       stage.dataset.phase = 'pointing';
       // The next line is fixed and cached; prepare it while the user reads.
-      if(globalThis.PTWelcomeDoorSpeech)podium.prepareNarration?.(PTWelcomeDoorSpeech.text);
+      const next = returning() ? globalThis.PTReturningGreeting : globalThis.PTWelcomeDoorSpeech;
+      if(next)podium.prepareNarration?.(next.text);
     };
     const unavailable = () => {
       if (stopped) return;

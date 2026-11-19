@@ -1,4 +1,4 @@
-/* One server-selected voice. Only the two fixed welcome clips persist locally. */
+/* One server-selected voice. Only fixed welcome clips persist locally. */
 (() => {
   let current = null;
   let loginAudio = null, unlocking = null;
@@ -26,7 +26,7 @@
     if (pending.has(key)) return pending.get(key);
     const task = (async () => {
       // Exact allowlist: dynamic tours and conversations never enter device storage.
-      const persistentClip = language === 'en-US' && [globalThis.PTGreeting, globalThis.PTWelcomeDoorSpeech]
+      const persistentClip = language === 'en-US' && [globalThis.PTGreeting, globalThis.PTWelcomeDoorSpeech, globalThis.PTReturningGreeting]
         .find(clip => clip && text.trim() === clip.text);
       if (persistentClip) {
         const saved = await persistentClip.read();

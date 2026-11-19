@@ -174,6 +174,53 @@ try {
     assert.equal(await evaluate('podium.tourOn()'), false, 'tour can be skipped');
   };
 
+  // Completed accounts enter the dashboard through Tracy's portal immediately
+  // after authentication, with no evaluation copy or first-use tour.
+  for (const [width,height,reduced] of [[1440,900,false],[390,844,false],[320,568,true]]) {
+    await fresh(width,height,reduced);
+    await evaluate(`
+      window.PTLearning={};
+      window.PTCloud={enabled:true,user:{id:'completed-${width}',user_metadata:{}},
+        row:{onboarded:true,data:{pres:[],ses:[],notes:[],goals:[],nid:20}},
+        onboarded:true,assessmentDone:true,ready:false,save:async()=>{}};
+      podium.newUser=false;podium.enter('Returning Student','completed-${width}@example.test');
+    `);
+    assert.equal(await evaluate(`document.querySelector('#welcome-door')?.dataset.destination`),'dashboard');
+    assert.equal(await evaluate(`document.querySelector('.shell').inert`),true);
+    assert.equal(await evaluate(`document.getElementById('land').hidden`),true);
+    assert.equal(await evaluate(`document.getElementById('app').hidden`),true);
+    await waitFor('window.doorSpeech.started===1','returning welcome narration');
+    assert.equal(await evaluate('window.doorSpeech.calls[0]'),await evaluate('PTReturningGreeting.text'));
+    assert.doesNotMatch(await evaluate(`document.querySelector('#welcome-door').textContent`),/evaluation/i);
+    if(visual)await waitFor('podium.robotReady()','returning Tracy model');
+    if(screenshots){
+      const {data}=await call('Page.captureScreenshot');
+      const file=join(screenshots,`returning-login-${width}.png`);
+      await writeFile(file,Buffer.from(data,'base64'));console.log(`Screenshot: ${file}`);
+    }
+    if(!reduced){
+      await waitFor(`document.querySelector('#welcome-door')?.dataset.phase==='crossing'`,'returning dashboard morph');
+      assert.equal(await evaluate(`document.getElementById('app').parentElement.className`),'welcome-dashboard-window');
+      assert.equal(await evaluate(`document.getElementById('app').inert`),true);
+    }
+    await waitFor(`!document.querySelector('#welcome-door')&&!document.getElementById('app').hidden`,'returning dashboard');
+    assert.equal(await evaluate('podium.ext.S.view'),'dash');
+    assert.equal(await evaluate('podium.tourOn()'),false);
+    assert.equal(await evaluate(`document.querySelector('.shell').inert`),false);
+    assert.equal(await evaluate(`document.getElementById('app').parentElement===document.body&&!document.getElementById('app').inert`),true);
+    assert.equal(await evaluate(`document.activeElement?.matches('#view h1, #view h2')`),true);
+    await evaluate(`document.querySelector('.sl').click()`);
+    await waitFor(`!document.getElementById('land').hidden&&!!document.getElementById('welcome-skip')&&document.getElementById('wipe').hidden`,'manual returning welcome');
+    await evaluate(`document.getElementById('welcome-skip').click()`);
+    assert.match(await evaluate(`document.querySelector('.welcome-hero .k').textContent`),/Welcome back/);
+    assert.equal(await evaluate(`document.getElementById('welcome-intro').textContent`),await evaluate('PTReturningGreeting.text'));
+    assert.equal(await evaluate(`document.getElementById('leval').textContent`),'Open dashboard');
+    await evaluate(`document.getElementById('leval').click();document.querySelector('[data-door-skip]').click()`);
+    await waitFor(`!document.querySelector('#welcome-door')&&!document.getElementById('app').hidden`,'skip returning portal');
+    assert.equal(await evaluate('podium.ext.S.view'),'dash');
+    console.log(`PASS returning ${width}x${height}: automatic login portal, welcome-back speech, connected dashboard, manual welcome, Skip and focus`);
+  }
+
   for (const [width, height] of [[1440, 900], [390, 844], [320, 568]]) {
     await fresh(width, height);
     await welcome(`new-${width}@example.test`, true);

@@ -738,18 +738,24 @@ function toApp(v,p,direct=false){
 }
 function signOut(p){podium.welcomeEnterCancel?.();podium.tourStop?.();rts.forEach(clearTimeout);rts=[];podium.practiceCleanup?.();podium.practiceCleanup=null;clearTimeout(window.__auto);podium.welcomeStop?.();clearInterval(tm);transition(p,()=>{try{podium.save&&podium.save();window.PTCloud&&PTCloud.enabled&&PTCloud.signOut();podium.tourStop&&podium.tourStop()}catch(e){}try{podium.robotShow&&podium.robotShow(false)}catch(e){}document.documentElement.classList.remove('clay');$('app').hidden=true;land().hidden=true;shell().hidden=false;lf.reset();rf.reset();setTab('login');S.u.pic=''})}
 function renderLand(){
-  const a=avg(S.ses.map(x=>x.score)),f=S.u.name.split(' ')[0],ico=p=>'<span style="color:var(--brand);display:flex">'+ic(p)+'</span>';
+  const needsEvaluation=pendingEval(),f=S.u.name.split(' ')[0],ico=p=>'<span style="color:var(--brand);display:flex">'+ic(p)+'</span>';
   const cards=[['Timer with a target','M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z','Pick 3, 5 or 10 minutes and watch the ring fill as you speak.'],['Pace and filler words','M3 17l6-6 4 4 8-8M15 7h6v6','See your speed live and tap each filler word you catch.'],['Score and next steps','M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7','Every session ends with a score and three clear tips.']];
   land().innerHTML=`<div class="lt" data-r style="--i:0"><div class="logo"><i></i>PresentTrack</div><span class="sp"></span><img src="${pic()}" alt="" width="36" height="36"><b>${S.u.name}</b><button class="bt gh" id="llo" type="button">Log out</button></div>
-  <div class="lh welcome-hero"><p class="k">Welcome, ${esc(f)}</p><h1>Meet your presentation coach.</h1>
+  <div class="lh welcome-hero"><p class="k">${needsEvaluation?'Welcome':'Welcome back'}, ${esc(f)}</p><h1>${needsEvaluation?'Meet your presentation coach.':'Ready for your next presentation?'}</h1>
   <div class="welcome-stage" id="welcome-stage" aria-label="Tracy, your presentation coach"><div class="welcome-orbit" aria-hidden="true"></div></div>
   <p class="welcome-intro" id="welcome-intro" role="status" aria-live="polite">Tracy is getting ready to say hello…</p>
   <div class="welcome-actions"><button class="bt big" id="leval" type="button" hidden>${pendingEval()?'Start evaluation':'Open dashboard'}</button><button class="welcome-skip" id="welcome-skip" type="button">Skip introduction</button><button class="welcome-skip" id="welcome-replay" type="button" hidden>Hear introduction again</button></div></div>
   <footer class="lfoot"><span>PresentTrack · Practice out loud, present with confidence</span><span>© 2026 PresentTrack</span></footer><div class="lf">${cards.map((c,i)=>`<div class="pn" data-r style="--i:${6+i}"><h3>${ico(c[1])}${c[0]}</h3><p>${c[2]}</p></div>`).join('')}</div>`;
   $('leval').onclick=e=>{const p=ctr(e.currentTarget);if(podium.welcomeEnter)podium.welcomeEnter(()=>toApp('dash',p,true));else toApp('dash',p)};$('llo').onclick=e=>signOut(ctr(e.currentTarget));
 }
-podium.enter=(name,email)=>{S.u.name=name.replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());S.u.email=email;podium.name=S.u.name.split(' ')[0];podium.account(email,!!podium.newUser);
-  if(window.PTLearning&&!pendingEval()&&!window.PTIdentity?.isAdmin(window.PTCloud?.user)){shell().hidden=true;toApp('dash',ctr(shell()),true);return;}
+podium.enter=(name,email)=>{podium.welcomeEnterCancel?.();S.u.name=name.replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());S.u.email=email;podium.name=S.u.name.split(' ')[0];podium.account(email,!!podium.newUser);
+  if(window.PTLearning&&!pendingEval()&&!window.PTIdentity?.isAdmin(window.PTCloud?.user)){
+    const originElement=document.querySelector('#authView form:not([hidden]) .btn');
+    podium.welcomePrepare?.();
+    const open=()=>{shell().hidden=true;toApp('dash',ctr(originElement),true)};
+    if(podium.welcomeEnter)podium.welcomeEnter(open,{fromLogin:true,originElement});else open();
+    return;
+  }
   if(!window.PTIdentity?.isAdmin(window.PTCloud?.user))podium.welcomePrepare?.();
   transition(ctr(document.querySelector('#authView form:not([hidden]) .btn')),showLand)};
 $('lo').onclick=e=>signOut(ctr(e.currentTarget));

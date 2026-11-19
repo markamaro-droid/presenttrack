@@ -4,15 +4,25 @@ import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 const welcome=await readFile(new URL('../js/welcome-intro.js',import.meta.url),'utf8');
 const robot=await readFile(new URL('../js/robot.js',import.meta.url),'utf8');
-function setup(reducedMotion=true){
+function setup(reducedMotion=true,returning=false){
   const elements=new Map(), timers=new Map();let next=0,frame,speech,hushed=0,arrival,waves=0,introductions=0;
   const get=id=>{if(!elements.has(id))elements.set(id,{hidden:true,dataset:{},classList:{add(){},remove(){}},setAttribute(){},removeAttribute(){},closest:()=>get('hero'),appendChild(el){el.parentElement=this;}});return elements.get(id);};
   get('bot').animate=(frames,options)=>(arrival={frames,options,cancel(){}});
-  const podium={prepareNarration(){},hushNow(){hushed++;},robotPoint(){},robotWelcomeWave(){waves++;},robotReady:()=>true,robotIntroduce(text,done,start){introductions++;speech={text,done,start};}};
-  vm.runInNewContext(welcome,{PTGreeting:{text:"Welcome to PresentTrack"},window:{},podium,document:{getElementById:get,addEventListener(){},removeEventListener(){},body:get('body')},matchMedia:()=>({matches:reducedMotion}),performance:{now:()=>0},setTimeout(fn,ms){timers.set(++next,{fn,ms});return next;},clearTimeout:id=>timers.delete(id),requestAnimationFrame:fn=>{frame=fn;return 1;},cancelAnimationFrame(){}});
+  const podium={ext:{pendingEval:()=>!returning},prepareNarration(){},hushNow(){hushed++;},robotPoint(){},robotWelcomeWave(){waves++;},robotReady:()=>true,robotIntroduce(text,done,start){introductions++;speech={text,done,start};}};
+  vm.runInNewContext(welcome,{PTGreeting:{text:"Welcome to PresentTrack"},PTReturningGreeting:{text:"Welcome back! Your dashboard is ready."},window:{},podium,document:{getElementById:get,addEventListener(){},removeEventListener(){},body:get('body')},matchMedia:()=>({matches:reducedMotion}),performance:{now:()=>0},setTimeout(fn,ms){timers.set(++next,{fn,ms});return next;},clearTimeout:id=>timers.delete(id),requestAnimationFrame:fn=>{frame=fn;return 1;},cancelAnimationFrame(){}});
   podium.welcomeStart();frame();
   return {podium,get,timers,get speech(){return speech;},get hushed(){return hushed;},get arrival(){return arrival;},get waves(){return waves;},get introductions(){return introductions;}};
 }
+
+test('returning welcome and replay speak about the dashboard and prepare the matching clip',()=>{
+  const s=setup(true,true),prepared=[];s.podium.prepareNarration=text=>prepared.push(text);
+  assert.equal(s.speech.text,'Welcome back! Your dashboard is ready.');
+  s.speech.start();s.speech.done();
+  assert.equal(s.get('welcome-intro').textContent,s.speech.text);
+  assert.deepEqual(prepared,[s.speech.text]);
+  s.get('welcome-replay').onclick();
+  assert.equal(s.speech.text,'Welcome back! Your dashboard is ready.');
+});
 
 test('slow entrance does not wave early or introduce twice when the fallback fires',()=>{
   const s=setup(false);

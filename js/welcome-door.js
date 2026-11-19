@@ -5,36 +5,41 @@
   podium.welcomeEntering = () => !!(active || clearReveal);
   podium.welcomeEnterCancel = () => { active?.cancel(); clearReveal?.(); };
 
-  podium.welcomeEnter = onEntered => {
+  podium.welcomeEnter = (onEntered, { fromLogin = false, originElement = null } = {}) => {
     if (active) return false;
     clearReveal?.();
     const bot = $('bot'), land = $('land');
-    if (!bot || !land || land.hidden) { onEntered?.(); return true; }
-    const source = bot.getBoundingClientRect();
-    const button = $('leval'), origin = button?.getBoundingClientRect();
+    if (!bot || !land || (land.hidden && !fromLogin)) { onEntered?.(); return true; }
+    const returning = podium.ext?.pendingEval?.() === false;
+    const source = fromLogin ? null : bot.getBoundingClientRect();
+    const button = fromLogin ? originElement : $('leval'), origin = button?.getBoundingClientRect();
     const buttonColor = button ? getComputedStyle(button).backgroundColor : '';
-    const copy = globalThis.PTWelcomeDoorSpeech?.text || "Let's dive into your speaking evaluation. Follow me inside, and we'll take it one step at a time.";
+    const copy = returning
+      ? globalThis.PTReturningGreeting?.text || "Welcome back! Let's pick up where you left off. Your dashboard is ready."
+      : globalThis.PTWelcomeDoorSpeech?.text || "Let's dive into your speaking evaluation. Follow me inside, and we'll take it one step at a time.";
     const motion = !matchMedia('(prefers-reduced-motion:reduce)').matches;
     podium.welcomeStop?.();
     podium.hushNow?.();
     const canvas = $('bc'), canvasTabIndex = canvas?.tabIndex;
-    const previousOverflow = document.body.style.overflow, previousInert = land.inert;
+    const background = fromLogin ? document.querySelector('.shell') || land : land;
+    const previousOverflow = document.body.style.overflow, previousInert = background.inert;
     const overlay = document.createElement('div');
     overlay.id = 'welcome-door';
     overlay.dataset.phase = 'forming';
+    overlay.dataset.destination = returning ? 'dashboard' : 'evaluation';
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-labelledby', 'welcome-door-title');
     overlay.innerHTML = `<div class="welcome-door-content">
       <p class="welcome-door-eyebrow">PRESENTTRACK</p>
-      <h2 id="welcome-door-title">Let's dive in.</h2>
+      <h2 id="welcome-door-title">${returning ? 'Welcome back.' : "Let's dive in."}</h2>
       <div class="welcome-door-scene" aria-hidden="true">
         <div class="welcome-door-floor"></div>
         <div class="welcome-door-frame">
           <div class="welcome-door-interior"><div class="welcome-door-grid"></div><div class="welcome-door-horizon"></div><div class="welcome-door-rings"><i></i><i></i><i></i></div></div>
           <div class="welcome-door-panels"><div class="welcome-door-panel"><i class="welcome-door-panel-line"></i></div><div class="welcome-door-panel"><i class="welcome-door-panel-line"></i></div><span class="welcome-door-badge">STEP INSIDE</span></div>
           <span class="welcome-door-rim"></span>
-          <span class="welcome-door-origin">Start evaluation</span>
+          <span class="welcome-door-origin"></span>
         </div>
         <div class="welcome-door-actor"></div>
       </div>
@@ -45,12 +50,14 @@
     const actor = overlay.querySelector('.welcome-door-actor');
     const doorway = overlay.querySelector('.welcome-door-frame');
     const skip = overlay.querySelector('[data-door-skip]');
+    overlay.querySelector('.welcome-door-origin').textContent = button?.textContent?.trim() || (returning ? 'Open dashboard' : 'Start evaluation');
     overlay.querySelector('.welcome-door-caption').textContent = copy;
+    if (fromLogin) podium.robotShow?.(true, 'welcome');
     bot.classList.remove('app', 'menu');
     bot.classList.add('welcome', 'door-tracy');
     actor.appendChild(bot);
     if (canvas) { canvas.tabIndex = -1; canvas.setAttribute('aria-hidden', 'true'); }
-    land.inert = true;
+    background.inert = true;
     document.body.style.overflow = 'hidden';
     skip.focus({ preventScroll: true });
 
@@ -72,7 +79,7 @@
       document.removeEventListener('keydown', keydown, true);
       document.removeEventListener('visibilitychange', visibility);
       window.removeEventListener('resize', resize);
-      land.inert = previousInert;
+      background.inert = previousInert;
       document.body.style.overflow = previousOverflow;
       podium.robotDoorPose?.('idle');
       bot.classList.remove('welcome', 'door-tracy');
@@ -126,14 +133,14 @@
     const at = actor.getBoundingClientRect(), door = doorway.getBoundingClientRect();
     const intoDoor = door.left + door.width / 2 - (at.left + at.width / 2);
     const intoY = door.top + door.height / 2 - (at.top + at.height / 2);
-    const formingTime = motion ? 850 : 120;
+    const formingTime = motion ? (returning ? 650 : 850) : 120;
     if (motion) {
-      const dx = source.left + source.width / 2 - (at.left + at.width / 2);
-      const dy = source.top + source.height / 2 - (at.top + at.height / 2);
+      const dx = source ? source.left + source.width / 2 - (at.left + at.width / 2) : 0;
+      const dy = source ? source.top + source.height / 2 - (at.top + at.height / 2) : 24;
       // Tracy's renderer sizes the model by canvas height, including on mobile.
-      const scale = source.height > 0 && at.height > 0 ? source.height / at.height : 1;
+      const scale = source?.height > 0 && at.height > 0 ? source.height / at.height : .94;
       animate(actor, [
-        { transform: `translate(${dx}px,${dy}px) scale(${scale})`, opacity: 1 },
+        { transform: `translate(${dx}px,${dy}px) scale(${scale})`, opacity: fromLogin ? 0 : 1 },
         { transform: 'translate(0,0) scale(1)', opacity: 1 }
       ], { duration: formingTime, easing: 'cubic-bezier(.22,.7,.25,1)', fill: 'none' });
       if (origin?.width > 0 && origin.height > 0) {
@@ -180,7 +187,8 @@
       overlay.dataset.connected = 'true';
       // Hold the real page in the doorway briefly, then expand that same aperture.
       // The page keeps its viewport layout, so cards do not jump or reflow mid-morph.
-      const timing = {duration:1500,easing:'cubic-bezier(.65,0,.22,1)',fill:'forwards'};
+      const duration = returning ? 1100 : 1500;
+      const timing = {duration,easing:'cubic-bezier(.65,0,.22,1)',fill:'forwards'};
       animate(viewport,[
         {clipPath:opening,offset:0},{clipPath:opening,offset:.16},
         {clipPath:'inset(0px 0px 0px 0px round 0px)',offset:1}
@@ -189,10 +197,10 @@
       animate(edge,[frame,{...frame,offset:.16},
         {left:'0px',top:'0px',width:`${width}px`,height:`${height}px`,borderRadius:'0px'}
       ],timing);
-      animate(edge,[{opacity:1,offset:0},{opacity:1,offset:.65},{opacity:0,offset:1}],{duration:1500,fill:'forwards'});
+      animate(edge,[{opacity:1,offset:0},{opacity:1,offset:.65},{opacity:0,offset:1}],{duration,fill:'forwards'});
       animate(app,[{transform:'scale(1.06)',opacity:.35},{transform:'scale(1.035)',opacity:1,offset:.22},{transform:'scale(1)',opacity:1}],timing);
-      animate(flare,[{transform:'translateX(-100%)',opacity:0},{opacity:.65,offset:.35},{transform:'translateX(100%)',opacity:0}],{duration:1350,delay:150,easing:'ease-in-out',fill:'both'});
-      later(() => finish(true), 1500);
+      animate(flare,[{transform:'translateX(-100%)',opacity:0},{opacity:.65,offset:.35},{transform:'translateX(100%)',opacity:0}],{duration:duration-150,delay:150,easing:'ease-in-out',fill:'both'});
+      later(() => finish(true), duration);
     };
     const enter = () => {
       if (settled || entering) return;
@@ -203,8 +211,8 @@
         { transform: from === 'none' ? 'translate(0,0) scale(1)' : from, opacity: 1 },
         { transform: `translate(${intoDoor * .82}px,${intoY}px) scale(.72)`, opacity: 1, offset: .68 },
         { transform: `translate(${intoDoor}px,${intoY}px) scale(.25)`, opacity: 0 }
-      ], { duration: 1600, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
-      later(crossPortal, motion ? 1650 : 150);
+      ], { duration: returning ? 1100 : 1600, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
+      later(crossPortal, motion ? (returning ? 1150 : 1650) : 150);
     };
     const captionOnly = () => {
       if (settled || speechClosed) return;

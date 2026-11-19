@@ -1,4 +1,4 @@
-/* Only these two fixed, non-personal welcome clips persist on the device. */
+/* Only these fixed, non-personal welcome clips persist on the device. */
 (() => {
   const ttl = 7 * 24 * 60 * 60 * 1000;
   const valid = value => value?.mime === 'audio/wav' && typeof value.audio === 'string'
@@ -30,4 +30,5 @@
   });
   globalThis.PTGreeting = clip('greeting-v1', "Hi there! I'm Tracy, your presentation coach. Welcome to PresentTrack! It's great to have you here. Let's take it one step at a time, starting with a short speaking evaluation.");
   globalThis.PTWelcomeDoorSpeech = clip('welcome-door-v1', "Let's dive into your speaking evaluation. Follow me inside, and we'll take it one step at a time.");
+  globalThis.PTReturningGreeting = clip('returning-greeting-v1', "Welcome back! Let's pick up where you left off. Your dashboard is ready.");
 })();

@@ -48,7 +48,7 @@ test('only authenticated fixed greetings read persistent audio; conversations st
   assert.equal(await context.TracyAudio.prepare('Fixed greeting'),false);assert.equal(reads,1);
 });
 
-test('door speech is generated once, then a fresh page session reuses device audio',async()=>{
+for(const clip of ['PTWelcomeDoorSpeech','PTReturningGreeting'])test(`${clip} is generated once, then a fresh page session reuses device audio`,async()=>{
   const s=setup();let requests=0;
   const create=()=>{
     const context={caches:s.storage,Response,AbortController,Uint8Array,Blob,atob,setTimeout,clearTimeout,addEventListener(){},
@@ -56,14 +56,14 @@ test('door speech is generated once, then a fresh page session reuses device aud
       fetch:async()=>{requests++;return new Response(JSON.stringify(valid));}};
     vm.runInNewContext(source+'\n'+speech,context);return context;
   };
-  const first=create();assert.equal(await first.TracyAudio.prepare(first.PTWelcomeDoorSpeech.text),true);
+  const first=create();assert.equal(await first.TracyAudio.prepare(first[clip].text),true);
   await new Promise(resolve=>setImmediate(resolve));
   assert.equal(requests,1);assert.equal(s.rows.size,1);
-  const reloaded=create();assert.equal(await reloaded.TracyAudio.prepare(reloaded.PTWelcomeDoorSpeech.text),true);
+  const reloaded=create();assert.equal(await reloaded.TracyAudio.prepare(reloaded[clip].text),true);
   assert.equal(requests,1,'repeated fixed narration makes no provider request after reload');
-  await reloaded.TracyAudio.prepare(reloaded.PTWelcomeDoorSpeech.text+' Your private score is 70.');
+  await reloaded.TracyAudio.prepare(reloaded[clip].text+' Your private score is 70.');
   assert.equal(requests,2);assert.equal(s.rows.size,1,'dynamic continuations do not persist');
-  await reloaded.TracyAudio.prepare(reloaded.PTWelcomeDoorSpeech.text,'fil-PH');
+  await reloaded.TracyAudio.prepare(reloaded[clip].text,'fil-PH');
   assert.equal(requests,3);assert.equal(s.rows.size,1,'other languages do not reuse the English clip');
 });
 
