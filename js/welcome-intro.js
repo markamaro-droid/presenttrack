@@ -28,9 +28,8 @@
       stage.classList.add('introduced');
       hero.classList.add('welcome-ready');
       stage.dataset.phase = 'pointing';
-      // The next line is fixed and cached; prepare it while the user reads.
-      const next = returning() ? globalThis.PTReturningGreeting : globalThis.PTWelcomeDoorSpeech;
-      if(next)podium.prepareNarration?.(next.text);
+      // Only the first evaluation entrance has another spoken line.
+      if(!returning() && globalThis.PTWelcomeDoorSpeech)podium.prepareNarration?.(PTWelcomeDoorSpeech.text);
     };
     const unavailable = () => {
       if (stopped) return;

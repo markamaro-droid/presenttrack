@@ -5,24 +5,21 @@
   podium.welcomeEntering = () => !!(active || clearReveal);
   podium.welcomeEnterCancel = () => { active?.cancel(); clearReveal?.(); };
 
-  podium.welcomeEnter = (onEntered, { fromLogin = false, originElement = null } = {}) => {
+  podium.welcomeEnter = onEntered => {
     if (active) return false;
     clearReveal?.();
     const bot = $('bot'), land = $('land');
-    if (!bot || !land || (land.hidden && !fromLogin)) { onEntered?.(); return true; }
+    if (!bot || !land || land.hidden) { onEntered?.(); return true; }
     const returning = podium.ext?.pendingEval?.() === false;
-    const source = fromLogin ? null : bot.getBoundingClientRect();
-    const button = fromLogin ? originElement : $('leval'), origin = button?.getBoundingClientRect();
+    const source = bot.getBoundingClientRect();
+    const button = $('leval'), origin = button?.getBoundingClientRect();
     const buttonColor = button ? getComputedStyle(button).backgroundColor : '';
-    const copy = returning
-      ? globalThis.PTReturningGreeting?.text || "Welcome back! Let's pick up where you left off. Your dashboard is ready."
-      : globalThis.PTWelcomeDoorSpeech?.text || "Let's dive into your speaking evaluation. Follow me inside, and we'll take it one step at a time.";
+    const copy = globalThis.PTWelcomeDoorSpeech?.text || "Let's dive into your speaking evaluation. Follow me inside, and we'll take it one step at a time.";
     const motion = !matchMedia('(prefers-reduced-motion:reduce)').matches;
     podium.welcomeStop?.();
     podium.hushNow?.();
     const canvas = $('bc'), canvasTabIndex = canvas?.tabIndex;
-    const background = fromLogin ? document.querySelector('.shell') || land : land;
-    const previousOverflow = document.body.style.overflow, previousInert = background.inert;
+    const previousOverflow = document.body.style.overflow, previousInert = land.inert;
     const overlay = document.createElement('div');
     overlay.id = 'welcome-door';
     overlay.dataset.phase = 'forming';
@@ -32,7 +29,7 @@
     overlay.setAttribute('aria-labelledby', 'welcome-door-title');
     overlay.innerHTML = `<div class="welcome-door-content">
       <p class="welcome-door-eyebrow">PRESENTTRACK</p>
-      <h2 id="welcome-door-title">${returning ? 'Welcome back.' : "Let's dive in."}</h2>
+      <h2 id="welcome-door-title">${returning ? 'Opening your dashboard' : "Let's dive in."}</h2>
       <div class="welcome-door-scene" aria-hidden="true">
         <div class="welcome-door-floor"></div>
         <div class="welcome-door-frame">
@@ -51,13 +48,14 @@
     const doorway = overlay.querySelector('.welcome-door-frame');
     const skip = overlay.querySelector('[data-door-skip]');
     overlay.querySelector('.welcome-door-origin').textContent = button?.textContent?.trim() || (returning ? 'Open dashboard' : 'Start evaluation');
-    overlay.querySelector('.welcome-door-caption').textContent = copy;
-    if (fromLogin) podium.robotShow?.(true, 'welcome');
+    const caption = overlay.querySelector('.welcome-door-caption');
+    caption.hidden = returning;
+    if (!returning) caption.textContent = copy;
     bot.classList.remove('app', 'menu');
     bot.classList.add('welcome', 'door-tracy');
     actor.appendChild(bot);
     if (canvas) { canvas.tabIndex = -1; canvas.setAttribute('aria-hidden', 'true'); }
-    background.inert = true;
+    land.inert = true;
     document.body.style.overflow = 'hidden';
     skip.focus({ preventScroll: true });
 
@@ -79,7 +77,7 @@
       document.removeEventListener('keydown', keydown, true);
       document.removeEventListener('visibilitychange', visibility);
       window.removeEventListener('resize', resize);
-      background.inert = previousInert;
+      land.inert = previousInert;
       document.body.style.overflow = previousOverflow;
       podium.robotDoorPose?.('idle');
       bot.classList.remove('welcome', 'door-tracy');
@@ -135,12 +133,12 @@
     const intoY = door.top + door.height / 2 - (at.top + at.height / 2);
     const formingTime = motion ? (returning ? 650 : 850) : 120;
     if (motion) {
-      const dx = source ? source.left + source.width / 2 - (at.left + at.width / 2) : 0;
-      const dy = source ? source.top + source.height / 2 - (at.top + at.height / 2) : 24;
+      const dx = source.left + source.width / 2 - (at.left + at.width / 2);
+      const dy = source.top + source.height / 2 - (at.top + at.height / 2);
       // Tracy's renderer sizes the model by canvas height, including on mobile.
-      const scale = source?.height > 0 && at.height > 0 ? source.height / at.height : .94;
+      const scale = source.height > 0 && at.height > 0 ? source.height / at.height : 1;
       animate(actor, [
-        { transform: `translate(${dx}px,${dy}px) scale(${scale})`, opacity: fromLogin ? 0 : 1 },
+        { transform: `translate(${dx}px,${dy}px) scale(${scale})`, opacity: 1 },
         { transform: 'translate(0,0) scale(1)', opacity: 1 }
       ], { duration: formingTime, easing: 'cubic-bezier(.22,.7,.25,1)', fill: 'none' });
       if (origin?.width > 0 && origin.height > 0) {
@@ -244,7 +242,8 @@
         });
       } catch { captionOnly(); }
     };
-    later(beginSpeech, formingTime);
+    // The welcome page already greeted returning users. Enter as the door opens.
+    later(returning ? enter : beginSpeech, formingTime);
     return true;
   };
 })();

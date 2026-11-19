@@ -750,10 +750,9 @@ function renderLand(){
 }
 podium.enter=(name,email)=>{podium.welcomeEnterCancel?.();S.u.name=name.replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());S.u.email=email;podium.name=S.u.name.split(' ')[0];podium.account(email,!!podium.newUser);
   if(window.PTLearning&&!pendingEval()&&!window.PTIdentity?.isAdmin(window.PTCloud?.user)){
-    const originElement=document.querySelector('#authView form:not([hidden]) .btn');
-    podium.welcomePrepare?.();
-    const open=()=>{shell().hidden=true;toApp('dash',ctr(originElement),true)};
-    if(podium.welcomeEnter)podium.welcomeEnter(open,{fromLogin:true,originElement});else open();
+    shell().hidden=true;toApp('dash',ctr(shell()),true);
+    const heading=document.querySelector('#view h1, #view h2');
+    if(heading){heading.setAttribute('tabindex','-1');heading.focus({preventScroll:true})}
     return;
   }
   if(!window.PTIdentity?.isAdmin(window.PTCloud?.user))podium.welcomePrepare?.();

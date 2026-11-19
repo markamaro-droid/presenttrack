@@ -81,7 +81,8 @@ try {
     await evaluate(`
       window.PTCloud = { enabled: false };
       window.PTPresentations = { restore: async () => false };
-      podium.prepareNarration = () => {};
+      window.preparedNarration = [];
+      podium.prepareNarration = text => window.preparedNarration.push(text);
       ${visual ? '' : 'podium.robotReady = () => true;'}
       podium.robotIntroduce = () => {};
       ${visual ? '' : 'podium.robotPoint = () => {}; podium.hushNow = () => {};'}
@@ -174,8 +175,8 @@ try {
     assert.equal(await evaluate('podium.tourOn()'), false, 'tour can be skipped');
   };
 
-  // Completed accounts enter the dashboard through Tracy's portal immediately
-  // after authentication, with no evaluation copy or first-use tour.
+  // Completed accounts log straight into their dashboard. Only clicking the
+  // logo opens the welcome page, and its portal does not repeat the greeting.
   for (const [width,height,reduced] of [[1440,900,false],[390,844,false],[320,568,true]]) {
     await fresh(width,height,reduced);
     await evaluate(`
@@ -185,25 +186,11 @@ try {
         onboarded:true,assessmentDone:true,ready:false,save:async()=>{}};
       podium.newUser=false;podium.enter('Returning Student','completed-${width}@example.test');
     `);
-    assert.equal(await evaluate(`document.querySelector('#welcome-door')?.dataset.destination`),'dashboard');
-    assert.equal(await evaluate(`document.querySelector('.shell').inert`),true);
+    assert.equal(await evaluate(`!!document.querySelector('#welcome-door')`),false);
     assert.equal(await evaluate(`document.getElementById('land').hidden`),true);
-    assert.equal(await evaluate(`document.getElementById('app').hidden`),true);
-    await waitFor('window.doorSpeech.started===1','returning welcome narration');
-    assert.equal(await evaluate('window.doorSpeech.calls[0]'),await evaluate('PTReturningGreeting.text'));
-    assert.doesNotMatch(await evaluate(`document.querySelector('#welcome-door').textContent`),/evaluation/i);
-    if(visual)await waitFor('podium.robotReady()','returning Tracy model');
-    if(screenshots){
-      const {data}=await call('Page.captureScreenshot');
-      const file=join(screenshots,`returning-login-${width}.png`);
-      await writeFile(file,Buffer.from(data,'base64'));console.log(`Screenshot: ${file}`);
-    }
-    if(!reduced){
-      await waitFor(`document.querySelector('#welcome-door')?.dataset.phase==='crossing'`,'returning dashboard morph');
-      assert.equal(await evaluate(`document.getElementById('app').parentElement.className`),'welcome-dashboard-window');
-      assert.equal(await evaluate(`document.getElementById('app').inert`),true);
-    }
-    await waitFor(`!document.querySelector('#welcome-door')&&!document.getElementById('app').hidden`,'returning dashboard');
+    assert.equal(await evaluate(`document.getElementById('app').hidden`),false);
+    assert.deepEqual(await evaluate('window.preparedNarration'),[],'login prepares no greeting');
+    assert.deepEqual(await evaluate('window.doorSpeech.calls'),[],'login plays no portal narration');
     assert.equal(await evaluate('podium.ext.S.view'),'dash');
     assert.equal(await evaluate('podium.tourOn()'),false);
     assert.equal(await evaluate(`document.querySelector('.shell').inert`),false);
@@ -215,10 +202,33 @@ try {
     assert.match(await evaluate(`document.querySelector('.welcome-hero .k').textContent`),/Welcome back/);
     assert.equal(await evaluate(`document.getElementById('welcome-intro').textContent`),await evaluate('PTReturningGreeting.text'));
     assert.equal(await evaluate(`document.getElementById('leval').textContent`),'Open dashboard');
-    await evaluate(`document.getElementById('leval').click();document.querySelector('[data-door-skip]').click()`);
+    if(visual)await waitFor('podium.robotReady()','returning Tracy model');
+    await evaluate(`window.beforePortalPreparation=[...window.preparedNarration];document.getElementById('leval').click();document.getElementById('leval').click()`);
+    assert.equal(await evaluate(`document.querySelectorAll('#welcome-door').length`),1);
+    assert.doesNotMatch(await evaluate(`document.querySelector('#welcome-door').textContent`),/Welcome back|evaluation/i);
+    assert.equal(await evaluate(`document.querySelector('.welcome-door-caption').hidden`),true);
+    if(!reduced){
+      await waitFor(`document.querySelector('#welcome-door')?.dataset.phase==='entering'`,'immediate silent portal entry');
+      if(screenshots){
+        const {data}=await call('Page.captureScreenshot');
+        const file=join(screenshots,`returning-portal-${width}.png`);
+        await writeFile(file,Buffer.from(data,'base64'));console.log(`Screenshot: ${file}`);
+      }
+      await waitFor(`document.querySelector('#welcome-door')?.dataset.phase==='crossing'`,'returning dashboard morph');
+      assert.equal(await evaluate(`document.getElementById('app').parentElement.className`),'welcome-dashboard-window');
+      assert.equal(await evaluate(`document.getElementById('app').inert`),true);
+    }
+    await waitFor(`!document.querySelector('#welcome-door')&&!document.getElementById('app').hidden`,'silent returning portal');
+    assert.deepEqual(await evaluate('window.doorSpeech.calls'),[],'welcome speech is never repeated at the portal');
+    assert.deepEqual(await evaluate('window.preparedNarration'),await evaluate('window.beforePortalPreparation'),'no additional portal speech is prefetched');
+    assert.equal(await evaluate('podium.ext.S.view'),'dash');
+    assert.equal(await evaluate(`document.activeElement?.matches('#view h1, #view h2')`),true);
+    await evaluate(`document.querySelector('.sl').click()`);
+    await waitFor(`!document.getElementById('land').hidden&&document.getElementById('wipe').hidden`,'welcome revisit');
+    await evaluate(`document.getElementById('welcome-skip').click();document.getElementById('leval').click();document.querySelector('[data-door-skip]').click()`);
     await waitFor(`!document.querySelector('#welcome-door')&&!document.getElementById('app').hidden`,'skip returning portal');
     assert.equal(await evaluate('podium.ext.S.view'),'dash');
-    console.log(`PASS returning ${width}x${height}: automatic login portal, welcome-back speech, connected dashboard, manual welcome, Skip and focus`);
+    console.log(`PASS returning ${width}x${height}: direct dashboard login, logo welcome page, silent connected portal, Skip and focus`);
   }
 
   for (const [width, height] of [[1440, 900], [390, 844], [320, 568]]) {

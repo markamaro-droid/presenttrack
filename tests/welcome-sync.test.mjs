@@ -14,12 +14,12 @@ function setup(reducedMotion=true,returning=false){
   return {podium,get,timers,get speech(){return speech;},get hushed(){return hushed;},get arrival(){return arrival;},get waves(){return waves;},get introductions(){return introductions;}};
 }
 
-test('returning welcome and replay speak about the dashboard and prepare the matching clip',()=>{
+test('returning welcome and replay speak about the dashboard without preparing another portal line',()=>{
   const s=setup(true,true),prepared=[];s.podium.prepareNarration=text=>prepared.push(text);
   assert.equal(s.speech.text,'Welcome back! Your dashboard is ready.');
   s.speech.start();s.speech.done();
   assert.equal(s.get('welcome-intro').textContent,s.speech.text);
-  assert.deepEqual(prepared,[s.speech.text]);
+  assert.deepEqual(prepared,[]);
   s.get('welcome-replay').onclick();
   assert.equal(s.speech.text,'Welcome back! Your dashboard is ready.');
 });
