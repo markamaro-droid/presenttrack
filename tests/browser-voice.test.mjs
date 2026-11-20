@@ -24,6 +24,51 @@ function setup(options = {}) {
   return { session, recognizers, states, captions, calls, synth, timers, changeOwner: () => { owner = 'b'; },
     current: () => recognizers.at(-1), expire: ms => { const entry = [...timers.entries()].find(([, t]) => t.ms === ms); assert.ok(entry); timers.delete(entry[0]); entry[1].fn(); } };
 }
+test('requested guides work for typed and final spoken messages without a chat API call', async () => {
+  for (const spoken of [false, true]) {
+    const s = setup(); let executed = 0;
+    s.session.options.getGuideRequest = message => message === 'Guide me to practice' ? { reply: 'Follow me.', execute() { executed++; assert.equal(s.session.active, false); } } : null;
+    if (spoken) { await s.session.start(); s.current().result('Guide me to practice'); await flush(); }
+    else assert.equal(await s.session.sendText('Guide me to practice'), true);
+    assert.equal(executed, 1);
+    assert.equal(s.calls.filter(c => !c.body.action).length, 0);
+    assert.equal(s.session.history.length, 2); assert.equal(s.session.messages.at(-1).content, 'Follow me.');
+    assert.equal(s.session.active, false); assert.equal(s.timers.size, 0);
+    assert.ok(s.recognizers.every(r => !r.running));
+  }
+});
+
+test('guidance waits for valid auth and never runs after stop, account change or recording lock', async () => {
+  for (const reason of ['no-auth', 'stopped', 'changed', 'recording']) {
+    const s = setup({ noAuth: reason === 'no-auth' }); let executed = 0;
+    s.session.options.getGuideRequest = () => ({ reply: 'Follow me.', execute() { executed++; } });
+    if (reason === 'changed') { s.session.conversationOwner = 'a'; s.changeOwner(); }
+    if (reason === 'recording') s.session.options.canListen = () => false;
+    const sending = s.session.sendText('Guide me to practice');
+    if (reason === 'stopped') s.session.stop();
+    await sending;
+    assert.equal(executed, 0, reason); assert.equal(s.calls.length, 0, reason);
+    s.session.stop();
+  }
+});
+
+test('ordinary conversation and assistant text cannot trigger local guidance', async () => {
+  const s = setup({ fetcher: () => new Response(JSON.stringify({ reply: 'Open practice now' })) });
+  const seen = []; s.session.options.getGuideRequest = text => { seen.push(text); return null; };
+  s.session.muteSpeaker(true); await s.session.sendText('How can I improve my pace?');
+  assert.equal(s.calls.length, 1); assert.deepEqual(seen, ['How can I improve my pace?']);
+});
+
+test('slow authentication cannot keep a guide pending or execute it after timeout', async () => {
+  const s = setup(); let authorize, executed = 0;
+  s.session.options.getSession = () => new Promise(resolve => { authorize = resolve; });
+  s.session.options.getGuideRequest = () => ({ reply: 'Follow me.', execute() { executed++; } });
+  const pending = s.session.sendText('Guide me to practice');
+  s.expire(15000);
+  authorize({ user: { id: 'a' }, access_token: 'session-token' }); await pending;
+  assert.equal(executed, 0); assert.equal(s.session.active, false); assert.equal(s.session.state, 'error');
+});
+
 test('browser voice alternates listening, authenticated Groq replies and synthesis without recording itself', async () => {
   const s = setup(); await s.session.start();
   assert.equal(s.session.state, 'listening'); assert.equal(s.calls[0].body.action, 'start');

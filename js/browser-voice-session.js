@@ -33,20 +33,25 @@
       clearTimeout(run[name]);
       run[name] = setTimeout(() => { if (this.run === run) fn(); }, ms);
     }
+    async authorize(run) {
+      const session = await this.options.getSession();
+      if (this.run !== run) throw new SafeError('Conversation ended.');
+      if (!session?.access_token || !session.user?.id || (run.owner && run.owner !== session.user.id)) throw new SafeError(errors.unauthorized);
+      run.owner = session.user.id;
+      if (this.conversationOwner && this.conversationOwner !== run.owner) {
+        this.history.length = 0; this.messages.length = 0;
+        this.options.onReset?.();
+        throw new SafeError(errors.unauthorized);
+      }
+      this.conversationOwner = run.owner;
+      return session;
+    }
     async request(run, body) {
       const controller = run.request = new AbortController();
       this.arm(run, 'requestTimer', 55000, () => this.fail('Tracy’s request took too long. Please retry.'));
       try {
-        const session = await this.options.getSession();
+        const session = await this.authorize(run);
         if (this.run !== run || controller.signal.aborted) throw new SafeError('Conversation ended.');
-        if (!session?.access_token || !session.user?.id || (run.owner && run.owner !== session.user.id)) throw new SafeError(errors.unauthorized);
-        run.owner = session.user.id;
-        if (this.conversationOwner && this.conversationOwner !== run.owner) {
-          this.history.length = 0; this.messages.length = 0;
-          this.options.onReset?.();
-          throw new SafeError(errors.unauthorized);
-        }
-        this.conversationOwner = run.owner;
         const response = await this.fetch('/api/coach', {
           method: 'POST', cache: 'no-store', signal: controller.signal,
           headers: { Authorization: 'Bearer ' + session.access_token, 'Content-Type': 'application/json' }, body: JSON.stringify(body)
@@ -173,6 +178,21 @@
       try {
         this.append('user', message);
         this.options.onCaption?.('user', '');
+        const guide = this.options.getGuideRequest?.(message);
+        if (guide) {
+          this.arm(run, 'requestTimer', 15000, () => this.fail('Your sign-in check took too long. Please ask Tracy again.'));
+          await this.authorize(run);
+          if (this.run !== run || run.turn !== turn) return false;
+          clearTimeout(run.requestTimer);
+          if (this.options.canListen && !this.options.canListen()) { this.stop('Finish your recording before asking Tracy to guide you.'); return false; }
+          run.history.push({ role: 'user', content: message }, { role: 'assistant', content: guide.reply });
+          while (run.history.length > 8 || run.history.reduce((sum, item) => sum + item.content.length, 0) > 12000) run.history.splice(0, 2);
+          this.append('assistant', guide.reply);
+          // End recognition before navigation and guide narration. Never listen to ourselves.
+          this.stop('Microphone off while Tracy guides you. Reopen chat to continue.');
+          guide.execute();
+          return true;
+        }
         const data = await this.request(run, { message, history: run.history, context: this.options.getContext?.() || {}, language: this.language });
         if (this.run !== run || run.turn !== turn) return;
         if (typeof data.reply !== 'string' || !data.reply.trim()) throw new SafeError('Tracy could not generate a reply. Please retry.');

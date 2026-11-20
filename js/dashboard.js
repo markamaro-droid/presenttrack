@@ -148,6 +148,7 @@ function tourTick(){
 }
 function startTour(){
   if(T.on)return;if($('app').hidden)return;
+  window.PTTracyGuide?.stop();
   clearTimeout(window.__auto);rts.forEach(clearTimeout);rts=[];
   window.PTVoice?.active&&PTVoice.stop();
   S.guide=true;T.on=true;T.steps=tourSteps();closePops();$('hm').hidden=true;setMin(false);
@@ -631,6 +632,7 @@ function renderTop(){
 }
 const renderShell=()=>{nav();renderTop()};
 function go(v,arg){
+  window.PTTracyGuide?.beforeNavigate();
   const admin=window.PTIdentity?.isAdmin(window.PTCloud?.user);
   if(['admin','adminUsers'].includes(v)&&!admin)v='library';
   if(admin&&PTIdentity.mustChange(PTCloud.user)&&!['admin','library','libraryDetail'].includes(v)){toast('Change your initial password to open system monitoring. Library browsing is available.');v='admin';}

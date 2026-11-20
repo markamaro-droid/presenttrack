@@ -117,6 +117,7 @@ function frame(){
   else if(s==='door-turn'){g.yaw=-.7;g.hL=-.25;g.hR=.15;g.ex=-.4;g.ey=0}
   else if(s==='door-enter'){g.yaw=-2.75;g.pitch=.06;g.hR=.2+Math.sin(t*5)*.12;g.hL=-.2-Math.sin(t*5)*.12;g.ex=0;g.ey=0}
   else if(s==='celebrate'){const f=Math.sin(t*14);g.hR=2.9+.25*f;g.hL=-(2.9-.25*f);g.mouth=.6}
+  if(bot.classList.contains('assist-guide')){g.hL=-1.15-.06*Math.sin(t*2);g.ex=-.6;g.yaw=-.12;g.roll=-.05}
   if(speaking)g.mouth=Math.max(g.mouth,1);
   const a=1-Math.exp(-dt*8);for(const k in g)C[k]+=(g[k]-C[k])*a;
   const welcome=bot.classList.contains('welcome'),still=welcome&&matchMedia('(prefers-reduced-motion:reduce)').matches;
@@ -127,7 +128,7 @@ function frame(){
   N.eyes.position.x=N.ex+C.ex*.12;N.eyes.position.z=N.ez+C.ey*.06;   // eyes only slide; never resize
   R.render(scene,cam);
 }
-podium.robotSay=(kind,text,dur)=>{if(!shown||bot.hidden||V.on||V.busy)return;const m={idle:'idle',greeting:'wave',encouraging:'talking',reminder:'listening',success:'celebrate',thinking:'thinking'}[kind]||'idle';clearAll();set(m,m==='idle'?0:(dur||4500),text,['greeting','reminder','encouraging','success'].includes(kind)?text:undefined)};
+podium.robotSay=(kind,text,dur)=>{if(!shown||bot.hidden||V.on||V.busy||window.PTTracyGuide?.active)return;const m={idle:'idle',greeting:'wave',encouraging:'talking',reminder:'listening',success:'celebrate',thinking:'thinking'}[kind]||'idle';clearAll();set(m,m==='idle'?0:(dur||4500),text,['greeting','reminder','encouraging','success'].includes(kind)?text:undefined)};
 podium.robotShow=(v,where)=>{shown=v;bot.hidden=!v||(where==='app'&&!!podium.min);if(!v){voice.stop()}{const mi=document.getElementById('bmini');if(mi&&(!v||where!=='app'))mi.hidden=true}clearAll();stopVoice();V.busy=voice.active;
   if(v){document.body.appendChild(bot);bot.classList.toggle('app',where==='app');W=H=0;
     if(!R){try{init()}catch(e){fail(e);return}}last=sec();t=0;set('idle',0,'');

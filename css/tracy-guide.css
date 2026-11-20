@@ -1,0 +1,31 @@
+/* A compact companion beside the active control. The page remains interactive. */
+#tracy-guide{position:fixed;left:0;top:0;z-index:181;width:316px;padding:18px;border:1px solid color-mix(in srgb,var(--brand) 45%,var(--line));border-radius:20px;background:var(--panel);color:var(--ink);box-shadow:0 14px 38px #020b252b;font:14px/1.5 Inter,sans-serif;transition:transform .55s cubic-bezier(.22,.8,.25,1);max-height:calc(100dvh - 24px);overflow:auto}
+#tracy-guide[hidden],#tracy-guide-highlight[hidden]{display:none!important}
+#tracy-guide header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+#tracy-guide header span{font-size:10px;font-weight:750;letter-spacing:.11em;color:var(--muted)}
+#tracy-guide h2{margin:4px 0 8px;font-size:19px;line-height:1.2;letter-spacing:-.02em}
+#tracy-guide p{margin:0;color:var(--muted);font-size:13px}
+#tracy-guide small{color:var(--muted);font-size:11px}
+#tracy-guide footer{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+#tracy-guide button{border:1px solid var(--line);border-radius:10px;background:transparent;color:var(--ink);padding:8px 12px;font:600 12px/1.4 Inter,sans-serif;cursor:pointer;min-height:36px}
+#tracy-guide header button{font-size:23px;line-height:1;padding:3px 9px;border:0}
+#tracy-guide button[data-guide=next]{background:var(--brand);border-color:var(--brand);color:#fff}
+#tracy-guide button[data-guide=chat]{padding:8px;border-color:transparent;font-weight:500}
+#tracy-guide button:disabled{opacity:.45;cursor:default}
+#tracy-guide button:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+#tracy-guide-highlight{position:fixed;z-index:179;pointer-events:none;border:2px solid #57beee;border-radius:12px;box-shadow:0 0 0 4px #58c2f018,0 0 18px #58c2f019}
+html body #bot.app.assist-guide{position:fixed!important;left:0!important;top:0!important;right:auto!important;bottom:auto!important;width:118px!important;height:140px!important;transform:translate(var(--guide-x),var(--guide-y))!important;transition:transform .65s cubic-bezier(.22,.8,.25,1)!important;z-index:182!important;pointer-events:none}
+#bot.assist-guide #bc,#bot.assist-guide .bbar{pointer-events:none!important}
+html body #bot.app.assist-enter{transition:none!important}
+#bot.assist-guide .bbar,#bot.assist-guide .bbub,#bot.assist-guide .btips{visibility:hidden!important}
+html body.tracy-guiding #rcap{display:none!important}
+.tracy-guide-click{box-shadow:0 0 0 6px #57beee55!important}
+@media(max-width:759px){
+  #tracy-guide{padding:14px;border-radius:16px}
+  #tracy-guide h2{font-size:17px}
+  #tracy-guide footer{gap:4px;margin-top:10px}
+  #tracy-guide button{padding:8px;min-height:40px}
+  html body #bot.app.assist-guide{width:88px!important;height:106px!important}
+  html body.tracy-guiding #mainc{padding-bottom:var(--tracy-guide-space,340px)!important;scroll-padding-top:16px;scroll-padding-bottom:var(--tracy-guide-space,340px)}
+}
+@media(prefers-reduced-motion:reduce){#tracy-guide,html body #bot.app.assist-guide{transition:none!important}}

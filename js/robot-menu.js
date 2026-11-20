@@ -19,7 +19,7 @@
   trigger.setAttribute('aria-controls', bar.id); trigger.removeAttribute('title');
   let open = false;
   function setOpen(value, focus = false) {
-    value = value && !bot.hidden && !bot.classList.contains('welcome') && !bot.classList.contains('tourmode');
+    value = value && !bot.hidden && !bot.classList.contains('welcome') && !bot.classList.contains('tourmode') && !bot.classList.contains('assist-guide');
     open = value; bot.classList.toggle('menu', value); bar.inert = !value;
     bar.setAttribute('aria-hidden', String(!value)); trigger.setAttribute('aria-expanded', String(value));
     trigger.setAttribute('aria-label', `Tracy. ${value ? 'Hide' : 'Show'} controls. Press ArrowDown for shortcuts.`);
@@ -40,5 +40,5 @@
     e.preventDefault(); const index = visible.indexOf(document.activeElement), delta = ['ArrowLeft','ArrowUp'].includes(e.key) ? -1 : 1;
     visible[e.key === 'Home' ? 0 : e.key === 'End' ? visible.length - 1 : (index + delta + visible.length) % visible.length].focus();
   });
-  new MutationObserver(() => { if (bot.hidden || bot.classList.contains('welcome') || bot.classList.contains('tourmode')) { if (open) setOpen(false); } }).observe(bot, { attributes: true, attributeFilter: ['hidden','class'] });
+  new MutationObserver(() => { if (bot.hidden || bot.classList.contains('welcome') || bot.classList.contains('tourmode') || bot.classList.contains('assist-guide')) { if (open) setOpen(false); } }).observe(bot, { attributes: true, attributeFilter: ['hidden','class'] });
 })();

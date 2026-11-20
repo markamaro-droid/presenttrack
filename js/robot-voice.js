@@ -20,6 +20,7 @@
   }
   const session = new TracyBrowserVoiceSession({
     audio: $('tracy-audio'), canListen: available, getContext: () => window.TracyContext?.snapshot() || {},
+    getGuideRequest: text => window.PTTracyGuide?.request(text),
     getSession: async () => {
       const cloud = window.PTCloud;
       if (!cloud?.enabled || !cloud.user?.id || !available()) return null;
@@ -49,10 +50,11 @@
     onMessage: message => { append(message); encouraging = message.role === 'assistant' && /\b(well done|great job|you can do|you've got|congratulations|kaya mo|magaling)\b/i.test(message.content); }, onReset: resetHistory,
     onCaption: (who, text) => { $(who === 'user' ? 'tracy-user-caption' : 'tracy-reply-caption').textContent = text ? (who === 'user' ? 'You: ' : 'Tracy: ') + text : ''; }
   });
-  function open() { panel.hidden = false; panel.scrollTop = 0; $('bvoice').setAttribute('aria-expanded', 'true'); window.podium?.tourPause?.(); panel.focus(); }
+  function open() { window.PTTracyGuide?.stop(); panel.hidden = false; panel.scrollTop = 0; $('bvoice').setAttribute('aria-expanded', 'true'); window.podium?.tourPause?.(); panel.focus(); }
   function close() { stop(); panel.hidden = true; $('bvoice').setAttribute('aria-expanded', 'false'); }
   function toggle() { if (panel.hidden) open(); else close(); }
   function prepare() {
+    window.PTTracyGuide?.stop();
     if (!available()) { status.textContent = 'Finish your evaluation or practice recording and open another page to talk with Tracy.'; return false; }
     const owner = window.PTCloud?.user?.id || null;
     if (requestedOwner && requestedOwner !== owner) session.clear();
