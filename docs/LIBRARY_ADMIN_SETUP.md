@@ -2,6 +2,14 @@
 
 The app now includes Library in the student sidebar, three original five-slide decks, editable PPTX downloads, and matching PDF previews. Students complete Evaluation once, then select **Library → View presentation → Use for practice**. This saves their own copy in My Presentations, with slide text available for feedback. Published library originals remain unchanged. Admins can add a PPTX or PDF as a draft, edit its details, and publish or hide it. Hiding removes a deck from the catalog and blocks access to custom uploads; students keep copies they already saved. Built-in assets are public files and remain accessible by direct URL.
 
+## Managing uploads
+
+In the admin **Library**, select **Add Presentation** to open the upload form. Choose a PPTX or PDF (up to 50 MB), enter its details, then select **Add as draft**. Turn on **Published** and save when it is ready for students. **Cancel** closes the form without uploading.
+
+Uploaded presentations have a **Delete** button beside **Preview slides**. Confirming removes the shared entry and its private library file. Copies students already saved in My Presentations and their practice history are preserved. Built-in starter decks can be hidden using **Published**; they do not have a Delete button.
+
+Deletion uses the existing `/api/admin` route and server-only `SUPABASE_SERVICE_ROLE_KEY`; no additional migration or environment variable is needed for an existing Supabase installation. The server verifies the current admin role and completed initial password change, hides the deck, deletes its exact stored file, then removes the catalog entry. If cleanup fails, the hidden entry remains available to retry deletion. The service role must retain its usual table privileges. Browser accounts are not granted table DELETE access.
+
 ## Before testing on the live site
 
 1. In **Supabase → SQL Editor**, run these files in this order:

@@ -78,7 +78,7 @@ export async function checkLibrary({ evaluate, call }) {
  if(process.env.CHECK_LIBRARY_ASSETS){const shot=await call('Page.captureScreenshot',{format:'png'});await writeFile(path.join(tmpdir(),'presenttrack-admin.png'),Buffer.from(shot.data,'base64'));}
  await evaluate(`(()=>{const f=document.querySelector('.library-editor');f.elements.published.checked=false;f.dispatchEvent(new Event('submit',{cancelable:true}))})()`);
  await wait(); assert.equal(await evaluate('libraryRows[0].published'),false);
- await evaluate(`document.getElementById('admin-title').value='New shared deck';document.getElementById('admin-description').value='Classroom practice';pick('admin-file',[new File(['PDF'],'class.pdf',{type:'application/pdf'})]);document.getElementById('admin-upload').dispatchEvent(new Event('submit',{cancelable:true}))`);
+ await evaluate(`document.getElementById('admin-add-presentation').click();document.getElementById('admin-title').value='New shared deck';document.getElementById('admin-description').value='Classroom practice';pick('admin-file',[new File(['PDF'],'class.pdf',{type:'application/pdf'})]);document.getElementById('admin-upload').dispatchEvent(new Event('submit',{cancelable:true}))`);
  await wait(); assert.equal(await evaluate('libraryRows.length'),4);
  assert.equal(await evaluate('libraryRows.at(-1).published'),false);
  await evaluate(`(()=>{const f=[...document.querySelectorAll('.library-editor')].at(-1);f.elements.published.checked=true;f.dispatchEvent(new Event('submit',{cancelable:true}))})()`);

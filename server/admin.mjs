@@ -1,4 +1,5 @@
 import { ChatError } from './ai-access.mjs';
+import { deleteLibraryPresentation } from './library-admin.mjs';
 
 export function validateCredentials(body) {
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
@@ -21,6 +22,10 @@ export function createAdminService({ env = process.env, fetchImpl = fetch } = {}
     const user = await checked.json();
     // This metadata is controlled by the server, never user_metadata or a request body.
     if (!user.id || user.is_anonymous || user.app_metadata?.role !== 'admin') throw new ChatError(403, 'forbidden', 'Administrator access required.');
+    if (body?.action === 'delete-library-presentation') {
+      if (user.app_metadata.must_change_password !== false) throw new ChatError(403, 'password_change_required', 'Change your initial admin password before managing library presentations.');
+      return deleteLibraryPresentation({ id: body.id, env, fetchImpl });
+    }
     if (body?.action === 'overview') {
       if (user.app_metadata.must_change_password !== false) throw new ChatError(403, 'password_change_required', 'Change your initial admin password before opening system monitoring. You can still browse published library presentations.');
       const page = body.page ?? 1, query = body.query ?? '', filter = body.filter ?? 'all';
