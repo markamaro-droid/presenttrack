@@ -4,15 +4,17 @@
   const $ = id => document.getElementById(id), ext = () => window.podium?.ext;
   const bot = $('bot');
   let run = null, navigating = false;
-  const card = document.createElement('section'), highlight = document.createElement('div');
+  const dock = document.createElement('aside'), card = document.createElement('section'), highlight = document.createElement('div');
+  dock.id = 'tracy-guide-dock'; dock.hidden = true; dock.setAttribute('aria-label', 'Tracy guide');
+  dock.innerHTML = '<header class="tracy-guide-header"><div id="tracy-guide-avatar" aria-hidden="true"></div><div><b>Tracy</b><span>Your step-by-step guide</span></div><button type="button" data-guide="stop" aria-label="Stop guidance">×</button></header>';
   card.id = 'tracy-guide'; card.hidden = true; card.setAttribute('role', 'region'); card.setAttribute('aria-label', 'Tracy step guide');
-  card.innerHTML = '<header><span>TRACY · YOUR GUIDE</span><button type="button" data-guide="stop" aria-label="Stop guidance">×</button></header><div aria-live="polite" aria-atomic="true"><small id="tracy-guide-count"></small><h2 id="tracy-guide-title"></h2><p id="tracy-guide-copy"></p></div><footer><button type="button" data-guide="back">Back</button><button type="button" data-guide="next">Next</button><button type="button" data-guide="chat">Back to chat</button></footer>';
+  card.innerHTML = '<div aria-live="polite" aria-atomic="true"><small id="tracy-guide-count"></small><h2 id="tracy-guide-title"></h2><p id="tracy-guide-copy"></p></div><footer><button type="button" data-guide="back">Back</button><button type="button" data-guide="next">Next</button><button type="button" data-guide="chat">Back to chat</button></footer>';
   highlight.id = 'tracy-guide-highlight'; highlight.hidden = true; highlight.setAttribute('aria-hidden', 'true');
-  document.body.append(card, highlight);
+  dock.append(card); $('app').append(dock); document.body.append(highlight);
   const audioNote = document.createElement('small'); audioNote.hidden = true;
   audioNote.textContent = 'Speaking with your device voice.';
   card.append(audioNote);
-  const button = action => card.querySelector(`[data-guide="${action}"]`);
+  const button = action => dock.querySelector(`[data-guide="${action}"]`);
   const owner = () => window.PTCloud?.enabled ? PTCloud.user?.id : ext()?.S.u?.email;
   const available = () => ext() && !$('app').hidden && !ext().S.loading && !window.PTPracticeAudio?.capturing && !window.PTIdentity?.isAdmin(window.PTCloud?.user);
   const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -22,12 +24,11 @@
     const old = run; run = null;
     clearTimeout(old.timer); cancelAnimationFrame(old.frame);
     podium.hushNow?.();
-    card.hidden = highlight.hidden = true;
+    dock.hidden = card.hidden = highlight.hidden = true;
     audioNote.hidden = true;
     document.body.classList.remove('tracy-guiding');
-    document.body.style.removeProperty('--tracy-guide-space');
-    bot.classList.remove('assist-guide', 'assist-enter');
-    for (const key of ['--guide-x', '--guide-y']) bot.style.removeProperty(key);
+    bot.classList.remove('assist-guide');
+    for (const key of ['--guide-x', '--guide-y', '--guide-width', '--guide-height', 'visibility']) bot.style.removeProperty(key);
     old.target?.classList.remove('tracy-guide-click');
     if (focus && !bot.hidden) $('bc').focus({ preventScroll: true });
   }
@@ -43,9 +44,7 @@
   }
   function scrollTarget(target) {
     if (!target) return;
-    // Leave room for the mobile guide before measuring the highlighted control.
-    document.body.style.setProperty('--tracy-guide-space', `${card.offsetHeight + 36}px`);
-    target.scrollIntoView({ block: innerWidth < 760 ? 'start' : 'center', inline: 'nearest', behavior: 'instant' });
+    target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
   }
   function display(step, count, auto = false) {
     if (!run) return;
@@ -56,7 +55,7 @@
     button('back').disabled = auto || run.index <= 0;
     button('next').disabled = auto;
     button('next').textContent = !auto && run.index === run.plan.steps.length - 1 ? 'Done' : 'Next';
-    card.hidden = false;
+    dock.hidden = card.hidden = false;
     podium.hushNow?.();
     layout();
   }
@@ -65,28 +64,20 @@
     let target = current.explicitTarget || document.querySelector(current.step.target);
     if (!visible(target) && current.step.fallback) target = document.querySelector(current.step.fallback);
     if (current.step.frame && target) target = target.closest(current.step.frame);
-    if (target !== current.target) { current.target = target; if (visible(target)) scrollTarget(target); }
+    const main = $('mainc').getBoundingClientRect();
+    const area = `${Math.round(main.width)}:${Math.round(main.height)}`;
+    if (target !== current.target || current.area !== area) { current.target = target; current.area = area; if (visible(target)) scrollTarget(target); }
     const r = visible(target) ? target.getBoundingClientRect() : null;
-    const vw = document.documentElement.clientWidth, vh = window.visualViewport?.height || innerHeight;
-    const mobile = vw < 760, gap = 10, bw = mobile ? 88 : 118, bh = mobile ? 106 : 140;
-    const cw = Math.min(mobile ? vw - bw - 34 : 316, vw - 24), ch = card.offsetHeight;
-    const groupW = cw + bw + gap, groupH = Math.max(ch, bh), clamp = (n, lo, hi) => Math.max(lo, Math.min(n, Math.max(lo, hi)));
-    let x = vw - groupW - 16, y = vh - groupH - 18;
-    if (r && !mobile) {
-      const candidates = [
-        [r.right + 20, r.top], [r.left - groupW - 20, r.top],
-        [r.left + (r.width - groupW) / 2, r.bottom + 20], [r.left + (r.width - groupW) / 2, r.top - groupH - 20]
-      ].map(([a, b]) => [clamp(a, 12, vw - groupW - 12), clamp(b, 12, vh - groupH - 12)]);
-      const score = ([a, b]) => Math.max(0, Math.min(a + groupW, r.right + 8) - Math.max(a, r.left - 8)) * Math.max(0, Math.min(b + groupH, r.bottom + 8) - Math.max(b, r.top - 8));
-      [x, y] = candidates.sort((a, b) => score(a) - score(b))[0];
-    }
-    x = clamp(x, 12, vw - groupW - 12); y = clamp(y, 12, vh - groupH - 12);
-    card.style.width = `${cw}px`; card.style.transform = `translate(${Math.round(x)}px,${Math.round(y)}px)`;
-    bot.style.setProperty('--guide-x', `${Math.round(x + cw + gap)}px`);
-    bot.style.setProperty('--guide-y', `${Math.round(y + Math.min(28, Math.max(0, groupH - bh)))}px`);
-    highlight.hidden = !r || r.bottom <= 0 || r.top >= vh;
-    if (r) Object.assign(highlight.style, { left: `${Math.max(2, r.left - 5)}px`, top: `${Math.max(2, r.top - 5)}px`, width: `${Math.min(vw - 4, r.width + 10)}px`, height: `${r.height + 10}px` });
-    document.body.style.setProperty('--tracy-guide-space', `${groupH + 36}px`);
+    // Tracy stays inside a reserved avatar slot, never above workspace content.
+    const slot = $('tracy-guide-avatar').getBoundingClientRect(), bounds = dock.getBoundingClientRect();
+    bot.style.setProperty('--guide-x', `${slot.left}px`); bot.style.setProperty('--guide-y', `${slot.top}px`);
+    bot.style.setProperty('--guide-width', `${slot.width}px`); bot.style.setProperty('--guide-height', `${slot.height}px`);
+    bot.style.visibility = slot.top < bounds.top || slot.bottom > bounds.bottom ? 'hidden' : '';
+    const viewport = target?.closest('#mainc,#nav')?.getBoundingClientRect() || { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
+    const left = r ? Math.max(viewport.left + 2, r.left - 5) : 0, top = r ? Math.max(viewport.top + 2, r.top - 5) : 0;
+    const right = r ? Math.min(viewport.right - 2, r.right + 5) : 0, bottom = r ? Math.min(viewport.bottom - 2, r.bottom + 5) : 0;
+    highlight.hidden = !r || right <= left || bottom <= top;
+    if (!highlight.hidden) Object.assign(highlight.style, { left: `${left}px`, top: `${top}px`, width: `${right - left}px`, height: `${bottom - top}px` });
   }
   function tick() {
     if (!run) return;
@@ -125,11 +116,8 @@
     if (!available() || owner() !== expectedOwner) return;
     const deck = $('pd')?.value || (['pdet', 'prac', 'weak'].includes(ext().S.view) ? ext().S.arg : null);
     stop(); podium.tourStop?.(); window.PTVoice?.close(); podium.setMin?.(false);
-    const rect = bot.getBoundingClientRect();
     run = { plan, owner: expectedOwner, index: -1, deck, expectedView: ext().S.view };
-    bot.style.setProperty('--guide-x', `${rect.left}px`); bot.style.setProperty('--guide-y', `${rect.top}px`);
-    bot.classList.remove('menu'); bot.classList.add('assist-guide', 'assist-enter'); document.body.classList.add('tracy-guiding');
-    void bot.offsetWidth; bot.classList.remove('assist-enter');
+    bot.classList.remove('menu'); bot.classList.add('assist-guide'); document.body.classList.add('tracy-guiding');
     if (plan.practice && ['prac', 'weak'].includes(ext().S.view) && $('pd')) { show(0, true); tick(); return; }
     const nav = document.querySelector(`#nav [data-go="${plan.route}"]`);
     run.explicitTarget = visible(nav) ? nav : null;
@@ -150,7 +138,7 @@
     if (!plan) return null;
     return { reply: 'Follow me. I will open the right page and guide you through it. Use Next at your own pace, or Stop guidance to take over.', execute: () => start(plan, account) };
   }
-  card.addEventListener('click', event => {
+  dock.addEventListener('click', event => {
     const action = event.target.closest('[data-guide]')?.dataset.guide;
     if (!run || !action) return;
     if (action === 'stop') stop(true);

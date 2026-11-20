@@ -42,7 +42,7 @@ try {
   const pause = ms => new Promise(r => setTimeout(r, ms));
   const ask = async message => { await evaluate(`PTVoice.open(); document.querySelector('#tracy-input').value=${JSON.stringify(message)};document.querySelector('#tracy-form').requestSubmit();`); };
   const next = () => evaluate(`document.querySelector('[data-guide=next]').click()`);
-  for (const [width,height,reduced] of [[1440,900,false],[390,844,false],[320,740,true]]) {
+  for (const [width,height,reduced] of [[1440,900,false],[1024,768,false],[390,844,false],[320,740,true]]) {
     coachRequests = 0;
     await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<600});
     await call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:reduced?'reduce':'no-preference'}]});
@@ -50,33 +50,51 @@ try {
     await wait('document.readyState === "complete" && !!window.PTTracyGuide && !!window.PTVoice');
     await evaluate(`document.documentElement.classList.add('clay');document.documentElement.dataset.theme='dark';document.querySelector('.shell').hidden=true;document.querySelector('#app').hidden=false;document.querySelector('#bot').hidden=false;document.querySelector('#bot').classList.add('app');window.PTCloud={enabled:true,user:{id:'guide-test',app_metadata:{role:'student'}},assessmentDone:true,client:{auth:{getSession:async()=>({data:{session:{user:{id:'guide-test'},access_token:'offline-test'}}})}}};const S=podium.ext.S;S.u={name:'Guide Tester',email:'guide@example.test',pic:''};S.booted=true;S.loading=false;S.evalRequired=false;S.isNew=false;S.ses=[];S.pres=[{id:101,t:'Introduction',short:'Introduction',target:180,file:null}];podium.ext.go('note');window.guideNarrations=[];window.guideRequests=[];window.captureStarts=0;podium.narrate=text=>guideNarrations.push(text);podium.hushNow=()=>{};window.fetch=async(url)=>{guideRequests.push(String(url));return new Response(JSON.stringify({reply:'Try a short pause.'}),{status:200,headers:{'Content-Type':'application/json'}})};PTPracticeAudio.Capture.prototype.start=async()=>{captureStarts++};PTVoice.setSpeaker(false);`);
     if (visual) { await evaluate(`podium.robotShow(true,'app');podium.setVoice(false)`); await wait('podium.robotReady()'); }
+    const originalMain = await evaluate(`(()=>{const r=document.querySelector('#mainc').getBoundingClientRect();return {width:r.width,height:r.height}})()`);
     assert.equal(await evaluate('PTTracyGuide.active'),false,'No unsolicited guide');
     await ask('I want to start practice my speaking performance where should I start?');
     await wait(`podium.ext.S.view==='prac' && document.querySelector('#tracy-guide-count').textContent==='Step 1 of 4'`);
     assert.equal(await evaluate('document.querySelector("#tracy-voice").hidden'),true);
     assert.equal(await evaluate('PTVoice.active'),false);
     assert.equal(coachRequests,0);
-    const positions=[];
     for (let step=1;step<=4;step++) {
       await pause(850);
-      const geometry=await evaluate(`(()=>{const keys=['#tracy-guide','#bot','#tracy-guide-highlight'];return keys.map(s=>{const r=document.querySelector(s).getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}})})()`);
-      const [card,bot,spot]=geometry;
+      const geometry=await evaluate(`(()=>{const keys=['#tracy-guide','#bot','#tracy-guide-highlight','#tracy-guide-dock','#mainc','#top'];return keys.map(s=>{const r=document.querySelector(s).getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}})})()`);
+      const [card,bot,spot,dock,main,top]=geometry;
       const overlap=(a,b)=>Math.max(0,Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x))*Math.max(0,Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y));
-      for(const box of [card,bot]) { assert.ok(box.x>=0 && box.x+box.w<=width+1 && box.y>=0 && box.y+box.h<=height+1,`${width}, step ${step}: offscreen ${JSON.stringify(geometry)}`); }
+      for(const box of [dock,bot]) { assert.ok(box.x>=0 && box.x+box.w<=width+1 && box.y>=0 && box.y+box.h<=height+1,`${width}, step ${step}: offscreen ${JSON.stringify(geometry)}`); }
       assert.equal(overlap(card,bot),0,`${width}: Tracy overlaps the instructions`);
       assert.equal(overlap(card,spot),0,`${width}, step ${step}: instructions cover the target ${JSON.stringify(geometry)}`);
       assert.equal(overlap(bot,spot),0,`${width}, step ${step}: Tracy covers the target`);
-      positions.push([bot.x,bot.y]);
+      assert.equal(overlap(dock,main),0,`${width}: guide covers workspace`);
+      assert.equal(overlap(bot,main),0,`${width}: robot covers workspace`);
+      assert.equal(overlap(dock,top),0,`${width}: guide covers app header`);
+      assert.ok(main.h>=height*.3,`${width}: useful page space remains available`);
+      assert.ok(spot.h>0 && spot.y>=main.y && spot.y+spot.h<=main.y+main.h+1,'Highlight stays inside the scrollable page');
+      if(step===2){
+        assert.equal(await evaluate(`(()=>{const e=document.querySelector('#pdur'),r=e.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===e})()`),true,'Duration remains clickable');
+        await evaluate(`window.dispatchEvent(new CustomEvent('tracy-audio-source',{detail:{source:'device'}}))`);
+      }
       if (visual) { const shot=await call('Page.captureScreenshot',{format:'png'}); await writeFile(join(profile,`guide-${width}-step-${step}.png`),Buffer.from(shot.data,'base64')); }
       assert.equal(await evaluate('document.querySelector("#pconsent").checked'),false);
       assert.equal(await evaluate('captureStarts'),0);
       if(step<4) await next();
     }
-    if(width>600) assert.ok(new Set(positions.map(x=>x.join(','))).size>1,'Tracy moves between controls');
+    // Scrolling does not pull the page back or let the spotlight leak into the dock.
+    await evaluate(`document.querySelector('#mainc').scrollTop=0`);await pause(100);
+    assert.equal(await evaluate(`document.querySelector('#mainc').scrollTop`),0,'The user can freely scroll while guidance is open');
+    assert.equal(await evaluate(`(()=>{const h=document.querySelector('#tracy-guide-highlight');if(h.hidden)return true;const r=h.getBoundingClientRect(),m=document.querySelector('#mainc').getBoundingClientRect();return r.top>=m.top&&r.bottom<=m.bottom+1})()`),true);
+    if(width===1440){
+      await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await pause(200);
+      assert.equal(await evaluate(`(()=>{const a=document.querySelector('#mainc').getBoundingClientRect(),b=document.querySelector('#tracy-guide-dock').getBoundingClientRect();return a.bottom<=b.top})()`),true,'Resizing moves the guide to a reserved bottom row');
+      await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});await pause(200);
+    }
     // Actual recording click is left to the user. A missing consent stays unchecked.
     await evaluate(`document.querySelector('#vfs').click()`);
     assert.equal(await evaluate('PTTracyGuide.active'),false);
     assert.equal(await evaluate('captureStarts'),0);
+    const restoredMain = await evaluate(`(()=>{const r=document.querySelector('#mainc').getBoundingClientRect();return {width:r.width,height:r.height}})()`);
+    assert.deepEqual(restoredMain,originalMain,'Closing guidance restores the full workspace');
     await evaluate(`document.querySelector('#bc').click()`);
     assert.equal(await evaluate('document.querySelector("#bc").getAttribute("aria-expanded")'),'true','Robot menu reopens on the first click after guidance');
     await ask('Can you guide me to practice?');await wait(`document.querySelector('#tracy-guide-count').textContent==='Step 1 of 4' && PTTracyGuide.active`);
