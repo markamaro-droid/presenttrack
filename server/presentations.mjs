@@ -1,10 +1,11 @@
 import { ChatError } from './ai-access.mjs';
 import { createPresentationConversion } from './presentation-conversion.mjs';
+import { libraryPreview } from './library-preview.mjs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const fields = 'id,title,original_filename,original_file_path,preview_pdf_path,file_type,file_size,total_slides,conversion_status,conversion_error,error_code,warnings,upload_completed,attempts,manual_retries,retryable,available_at,conversion_consent_at,created_at,updated_at';
 export function validatePresentationRequest(body) {
-  if (!body || !['create','submit','status','list','retry','download','delete','usage'].includes(body.action)) throw new ChatError(400,'invalid_action','Choose a valid presentation action.');
+  if (!body || !['create','submit','status','list','retry','download','delete','usage','library-preview','library-prepare','library-retry'].includes(body.action)) throw new ChatError(400,'invalid_action','Choose a valid presentation action.');
   if (!['list','usage'].includes(body.action) && !UUID.test(body.id || '')) throw new ChatError(400,'invalid_id','Invalid presentation ID.');
   if (body.action === 'download' && !['original','preview'].includes(body.kind)) throw new ChatError(400,'invalid_download','Choose the original or preview.');
   if (body.action === 'create' && (typeof body.filename !== 'string' || body.filename.length > 240 || /[\x00-\x1f\x7f/\\]/.test(body.filename) ||
@@ -24,6 +25,10 @@ export function createPresentationsService({ env=process.env, fetchImpl=fetch, l
     if (!checked.ok) throw new ChatError(checked.status>=500?503:401,'unauthorized','Could not verify your account. Please sign in again.');
     const user=await checked.json();
     if (!UUID.test(user.id || '') || user.is_anonymous) throw new ChatError(401,'unauthorized','Sign in with a registered account.');
+    if (body.action.startsWith('library-')) {
+      if(body.action==='library-prepare' && body.cloudconvertConsent!==true) throw new ChatError(400,'conversion_consent_required','Agree to CloudConvert processing before preparing this PowerPoint preview.');
+      return libraryPreview({body,user,conversion:coordinator});
+    }
     const request=async(path,options={})=>{
       const response=await fetchImpl(base+path,{headers,...options,signal:AbortSignal.timeout(12000)});
       const data=await response.json().catch(()=>null);
@@ -37,7 +42,7 @@ export function createPresentationsService({ env=process.env, fetchImpl=fetch, l
       return data;
     };
     const rpc=(name,args)=>request('/rest/v1/rpc/'+name,{method:'POST',body:JSON.stringify(args)});
-    const listPath='/rest/v1/presentations?select='+fields+'&user_id=eq.'+user.id+'&deleted_at=is.null';
+    const listPath='/rest/v1/presentations?select='+fields+'&user_id=eq.'+user.id+'&deleted_at=is.null&library_entry_id=is.null';
     const get=async()=>{const rows=await request(listPath+'&id=eq.'+body.id);if(!rows?.[0])throw new ChatError(404,'not_found','Presentation not found.');return rows[0];};
     const clean=row=>Object.fromEntries(fields.split(',').map(key=>[key,row[key]]));
     if(body.action==='usage')return {usage:await coordinator.usage()};

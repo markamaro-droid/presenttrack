@@ -12,6 +12,16 @@ Deletion uses the existing `/api/admin` route and server-only `SUPABASE_SERVICE_
 
 ## Before testing on the live site
 
+### Visual Library previews (20261120)
+
+Apply `supabase/migrations/20261120_library_previews.sql` after the existing Library and CloudConvert migrations, then deploy the updated app. **Preview slides** now opens the original PDF layout with Previous/Next controls and full screen instead of a text outline. PDF uploads display directly. For an existing PPTX, an admin checks the CloudConvert consent box and selects **Prepare slide preview** once. Subsequent opens reuse the saved PDF; published previews are also visible to students.
+
+The preview uses the existing private storage buckets, conversion queue, shared daily allowance, retry rules and maintenance job. A server-only RPC creates one internal preview job per Library entry, even across multiple admins or tabs. Internal jobs are excluded from My Presentations. Deleting a Library entry schedules cleanup of its internal files and temporary conversion results; students' saved practice copies remain separate. Fonts or unsupported PowerPoint effects may differ in the PDF. The original download stays available.
+
+Private originals are copied server-side using [Supabase's cross-bucket copy API](https://supabase.com/docs/guides/storage/management/copy-move-objects); the browser receives only a short-lived preview URL after access checks.
+
+### Initial installation
+
 1. In **Supabase → SQL Editor**, run these files in this order:
    - `supabase/migrations/20261110_presentation_library.sql`
    - `supabase/migrations/20261110_presentation_library_seed.sql`

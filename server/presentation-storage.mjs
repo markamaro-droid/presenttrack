@@ -43,6 +43,14 @@ export function createPresentationStorage({env=process.env,fetchImpl=fetch,log=c
       const response=await fetchImpl(base+'/storage/v1/object/authenticated/'+bucket+'/'+encoded(name),{headers:headers(),redirect:'error',signal:AbortSignal.timeout(25000)});
       return readLimited(response,limit);
     },
+    copy:async(bucket,source,destinationBucket,destination)=>{
+      const response=await fetchImpl(base+'/storage/v1/object/copy',{method:'POST',headers:{...headers(),'Content-Type':'application/json'},body:JSON.stringify({bucketId:bucket,sourceKey:source,destinationKey:destination,destinationBucket}),redirect:'error',signal:AbortSignal.timeout(25000)});
+      if(response.ok)return;
+      const error=await response.json().catch(()=>({}));
+      // Another tab or a timed-out request may already have copied this immutable file.
+      if(response.status===409||error.error==='Duplicate'||error.code==='Duplicate'||error.statusCode==='409')return;
+      throw new ChatError(503,'library_copy_failed','Could not prepare the private library file. Please retry.');
+    },
     upload:async(name,bytes)=>{
       const response=await fetchImpl(base+'/storage/v1/object/presentation-previews/'+encoded(name),{method:'POST',headers:{...headers(),'Content-Type':'application/pdf','x-upsert':'false'},body:bytes,redirect:'error',signal:AbortSignal.timeout(25000)});
       if(response.ok)return true;

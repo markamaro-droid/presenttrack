@@ -27,7 +27,12 @@ test('authentication and ownership precede every private operation',async()=>{
   for(const action of ['status','retry','submit','delete','download']){
     const isolated=setup({missing:true});await assert.rejects(isolated.service('Bearer jwt',{action,id,kind:'original'}),e=>e.status===404);
     assert.equal(isolated.calls.length,2);
+    assert.match(isolated.calls[1].url,/library_entry_id=is.null/,'shared internal previews cannot be accessed or deleted as personal presentations');
   }
+});
+test('personal presentation lists exclude internal Library preview jobs',async()=>{
+  const {service,calls}=setup();await service('Bearer jwt',{action:'list'});
+  assert.match(calls[1].url,/library_entry_id=is.null/);
 });
 test('submit advances only the authenticated presentation and never exposes backend secrets',async()=>{
   const {service,calls,progressed}=setup();const result=await service('Bearer jwt',{action:'submit',id,url:'https://untrusted.example',userId:'forged'});

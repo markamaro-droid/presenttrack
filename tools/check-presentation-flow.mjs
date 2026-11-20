@@ -24,6 +24,7 @@ try{
  window.uploads=[];window.PTCloud={enabled:true,user:{id:'preview'},assessmentDone:true,upload:async(path,file)=>{uploads.push({path,name:file.name,bytes:await file.text()});return{}},saveNow:async()=>({}),remove:async()=>({})};
  window.PTPresentations={
   usage:async()=>({dailyLimit:10,spent:0,reserved:0,available:10}),
+  request:async()=>({preview:{state:'completed',url:'/assets/library/confident-introductions.pdf',warnings:[]}}),
   apply:(p,row)=>{p.remoteId=row.id;p.conversion=row;return p},
   upload:async(file,title,{onRegistered=()=>{}}={})=>{uploads.push({name:file.name,bytes:await file.text()});const row={id:crypto.randomUUID(),file_type:/\.pdf$/i.test(file.name)?'pdf':'pptx',upload_completed:true,conversion_status:'completed',warnings:[]};onRegistered(row);return row},
   status:async p=>p.conversion,restore:async()=>false,label:row=>row?'Preview ready':'',

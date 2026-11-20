@@ -48,7 +48,8 @@ export async function checkLibrary({ evaluate, call }) {
  await evaluate(`document.getElementById('library-search').value='project';document.getElementById('library-search').dispatchEvent(new Event('input'))`);
  assert.equal(await evaluate(`document.querySelectorAll('.library-card').length`),1);
  await evaluate(`document.querySelector('[data-library-open]').click()`);
- assert.equal(await evaluate(`document.querySelectorAll('.library-slides li').length`),5);
+ assert.equal(await evaluate(`!!document.querySelector('#library-preview')`),true);
+ assert.equal(await evaluate(`document.querySelectorAll('.library-slides').length`),0);
  const before=await evaluate('podium.ext.S.pres.length');
  await evaluate(`document.getElementById('library-convert-consent').checked=true;document.getElementById('library-use').click()`);
  for(let i=0;i<60;i++){if(await evaluate(`podium.ext.S.view==='prac'`))break;await new Promise(r=>setTimeout(r,50));}

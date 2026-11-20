@@ -5,12 +5,15 @@ import { tmpdir } from 'node:os';
 import { resolve, extname, join } from 'node:path';
 import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
+import { pdfAsset, pdfRoot } from './pdf-assets.mjs';
 
 const root = resolve(import.meta.dirname, '..');
-const scripts = new Set(['auth', 'identity', 'practice-audio', 'workspace-model', 'tour-steps', 'tour-spotlight', 'dashboard', 'library']);
+const scripts = new Set(['auth', 'identity', 'practice-audio', 'workspace-model', 'tour-steps', 'tour-spotlight', 'dashboard', 'pdf-viewer', 'presentations', 'library-viewer', 'library']);
 const server = createServer(async (req, res) => {
   try {
     const path = req.url === '/' ? '/index.html' : req.url;
+    const pdfMatch = pdfAsset.exec(path.slice(1));
+    if (pdfMatch) { res.setHeader('Content-Type', path.endsWith('.mjs') ? 'text/javascript' : 'application/octet-stream'); res.end(await readFile(join(pdfRoot, pdfMatch[1]))); return; }
     if (!/^\/(index\.html|js\/[\w-]+\.js|css\/[\w-]+\.css|assets\/[\w/.-]+)$/.test(path) || path.includes('..')) { res.writeHead(404).end(); return; }
     let data = await readFile(join(root, path));
     if (path === '/index.html') data = data.toString().replace(/<script src="([^"]+)"><\/script>/g, (tag, src) => scripts.has(src.replace(/^js\//, '').replace(/\.js$/, '')) ? tag : '').replace(/<link[^>]*href="https:[^>]*>/g, '');
@@ -38,7 +41,7 @@ try {
   const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
   const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
   const call = (method, params) => send(method, params, sessionId);
-  const evaluate = async expression => { const r = await call('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true }); if (r.exceptionDetails) throw Error(JSON.stringify(r.exceptionDetails)); return r.result.value; };
+  const evaluate = async expression => { const r = await call('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, userGesture: true }); if (r.exceptionDetails) throw Error(JSON.stringify(r.exceptionDetails)); return r.result.value; };
   const wait = async expression => { for (let i = 0; i < 120; i++) { if (await evaluate(expression)) return; await new Promise(r => setTimeout(r, 50)); } throw Error(`Waiting for: ${expression}`); };
   const shot = async name => { const data = await call('Page.captureScreenshot', { format: 'png' }); await writeFile(join(profile, name + '.png'), Buffer.from(data.data, 'base64')); };
   await call('Runtime.enable');
@@ -106,6 +109,59 @@ try {
     await evaluate(`PTCloud.user={id:'admin',app_metadata:{role:'admin',must_change_password:true}};podium.ext.go('library')`);
     assert.equal(await evaluate('!!document.querySelector("#admin-add-presentation,[data-admin-delete]")'), false, 'Initial password guard remains');
     console.log(`${width}×${height}: add/cancel/upload/publish, confirmation, deletion retry, student copies and admin guards passed`);
+  }
+  for (const [width, height] of [[1440, 1000], [390, 844], [320, 740]]) {
+    await call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 600 });
+    await call('Page.navigate', { url: `http://127.0.0.1:${server.address().port}/` });
+    await wait('document.readyState === "complete" && !!window.PTLibraryViewer');
+    await evaluate(`
+      document.documentElement.classList.add('clay');document.documentElement.dataset.theme='dark';document.querySelector('.shell').hidden=true;document.querySelector('#app').hidden=false;
+      window.previewRow={id:'33333333-3333-4333-8333-333333333333',title:'Classroom introduction',description:'Original presentation layout',category:'Communication',target_seconds:180,source:'upload',file_name:'introduction.pptx',published:true};
+      window.PTCloud={enabled:true,user:{id:'11111111-1111-4111-8111-111111111111',app_metadata:{role:'admin',must_change_password:false}},client:{auth:{getSession:async()=>({data:{session:{user:PTCloud.user,access_token:'offline-token'}}})},from:()=>({select:()=>({order:async()=>({data:[previewRow]})})})}};
+      window.previewRequests=[];window.previewState='not_prepared';window.previewFail=false;
+      const realFetch=window.fetch;window.fetch=async(url,options)=>{
+        if(url!=='/api/presentations')return realFetch(url,options);
+        const body=JSON.parse(options.body);previewRequests.push(body);
+        if(previewFail)return new Response(JSON.stringify({message:'Preview connection unavailable.'}),{status:503});
+        if(body.action==='library-prepare'){previewState='completed';return Response.json({preview:{state:'processing',warnings:[]}});}
+        return Response.json({preview:{state:previewState,canPrepare:true,url:'/assets/library/confident-introductions.pdf',warnings:[]}});
+      };
+      const S=podium.ext.S;S.u={name:'Library Admin',email:'admin@example.test',pic:''};S.booted=true;S.loading=false;S.evalRequired=false;podium.ext.go('libraryDetail',previewRow);
+    `);
+    await wait('!!document.querySelector(".library-preview-consent")');
+    assert.equal(await evaluate('document.querySelector(".library-preview-message button").disabled'), true);
+    assert.equal(await evaluate('document.querySelectorAll(".library-slides").length'), 0);
+    assert.equal(await evaluate('previewRequests.filter(r=>r.action==="library-prepare").length'), 0);
+    await evaluate(`const consent=document.querySelector('.library-preview-consent input');consent.checked=true;consent.dispatchEvent(new Event('change'));document.querySelector('.library-preview-message button').click()`);
+    await wait('!!document.querySelector("#library-preview-stage canvas")');
+    assert.equal(await evaluate('document.querySelector("#library-preview-page").textContent'), 'Slide 1 of 5');
+    const first = await evaluate('document.querySelector("#library-preview-stage canvas").toDataURL()');
+    await evaluate(`document.querySelector('[data-library-page="1"]').click()`);
+    await wait('document.querySelector("#library-preview-stage canvas")?.getAttribute("aria-label")==="Slide 2 of 5"');
+    assert.notEqual(await evaluate('document.querySelector("#library-preview-stage canvas").toDataURL()'), first, 'Actual PDF pixels change between slides');
+    await evaluate(`document.querySelector('[data-library-page="-1"]').click()`);
+    await wait('document.querySelector("#library-preview-stage canvas")?.getAttribute("aria-label")==="Slide 1 of 5"');
+    await new Promise(r => setTimeout(r, 200));
+    assert.ok(await evaluate(`(()=>{const c=document.querySelector('#library-preview-stage canvas').getBoundingClientRect(),s=document.querySelector('#library-preview-stage').getBoundingClientRect();return c.width>100 && c.height>50 && c.width<=s.width && c.height<=s.height && document.documentElement.scrollWidth<=innerWidth+1})()`), 'Canvas fits the viewer');
+    await shot('preview-' + width);
+    await evaluate(`document.querySelector('#library-preview-fullscreen').click()`);
+    await wait('document.fullscreenElement?.id==="library-preview"');
+    await evaluate('document.exitFullscreen()');
+    await wait('!document.fullscreenElement');
+    await evaluate(`podium.ext.go('library');podium.ext.go('libraryDetail',previewRow)`);
+    await wait('!!document.querySelector("#library-preview-stage canvas")');
+    assert.equal(await evaluate('previewRequests.filter(r=>r.action==="library-prepare").length'), 1, 'Reopening reuses the PDF');
+    await evaluate(`previewRow.file_name='lesson.pdf';previewFail=true;podium.ext.go('libraryDetail',previewRow)`);
+    await wait('document.querySelector(".library-preview-message")?.textContent.includes("Preview connection unavailable")');
+    await evaluate(`previewFail=false;document.querySelector('.library-preview-message button').click()`);
+    await wait('!!document.querySelector("#library-preview-stage canvas")');
+    assert.equal(await evaluate('previewRequests.filter(r=>r.action==="library-prepare").length'), 1, 'PDF opens never prepare PowerPoint');
+    await evaluate(`previewState='processing';podium.ext.go('libraryDetail',previewRow)`);
+    await wait('document.querySelector(".library-preview-message")?.textContent.includes("Preparing your original slide layout")');
+    await evaluate(`podium.ext.go('library');window.requestsAtExit=previewRequests.length`);
+    await new Promise(r => setTimeout(r, 4200));
+    assert.equal(await evaluate('previewRequests.length'), await evaluate('requestsAtExit'), 'Leaving the view cancels polling');
+    console.log(`${width}×${height}: real PDF.js rendering, paging, consent, full screen, saved previews, retry and polling cleanup passed`);
   }
   assert.deepEqual(errors, []);
   console.log(`Screenshots: ${profile}`);
