@@ -9,6 +9,9 @@
   card.innerHTML = '<header><span>TRACY · YOUR GUIDE</span><button type="button" data-guide="stop" aria-label="Stop guidance">×</button></header><div aria-live="polite" aria-atomic="true"><small id="tracy-guide-count"></small><h2 id="tracy-guide-title"></h2><p id="tracy-guide-copy"></p></div><footer><button type="button" data-guide="back">Back</button><button type="button" data-guide="next">Next</button><button type="button" data-guide="chat">Back to chat</button></footer>';
   highlight.id = 'tracy-guide-highlight'; highlight.hidden = true; highlight.setAttribute('aria-hidden', 'true');
   document.body.append(card, highlight);
+  const audioNote = document.createElement('small'); audioNote.hidden = true;
+  audioNote.textContent = 'Speaking with your device voice.';
+  card.append(audioNote);
   const button = action => card.querySelector(`[data-guide="${action}"]`);
   const owner = () => window.PTCloud?.enabled ? PTCloud.user?.id : ext()?.S.u?.email;
   const available = () => ext() && !$('app').hidden && !ext().S.loading && !window.PTPracticeAudio?.capturing && !window.PTIdentity?.isAdmin(window.PTCloud?.user);
@@ -20,6 +23,7 @@
     clearTimeout(old.timer); cancelAnimationFrame(old.frame);
     podium.hushNow?.();
     card.hidden = highlight.hidden = true;
+    audioNote.hidden = true;
     document.body.classList.remove('tracy-guiding');
     document.body.style.removeProperty('--tracy-guide-space');
     bot.classList.remove('assist-guide', 'assist-enter');
@@ -161,6 +165,7 @@
   }, true);
   document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
   window.addEventListener('pagehide', () => stop());
+  window.addEventListener('tracy-audio-source', event => { if (run) audioNote.hidden = event.detail?.source !== 'device'; });
   window.PTCloud?.client?.auth.onAuthStateChange((_event, auth) => { if (run && auth?.user?.id !== run.owner) stop(); });
   window.PTTracyGuide = { request, stop, beforeNavigate: () => { if (!navigating) stop(); }, get active() { return !!run; } };
 })();

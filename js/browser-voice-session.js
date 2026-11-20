@@ -10,6 +10,17 @@
     provider_busy: 'Tracy’s AI service is unavailable. Please try again shortly.'
   };
   class SafeError extends Error {}
+  const speechProblems = {
+    playback_blocked: 'Your browser paused audio. Tap Enable audio to play the reply.',
+    unauthorized: 'Please sign in again to hear Tracy.',
+    speech_credits: 'Natural voice credits are exhausted.',
+    speech_limit: 'The natural voice usage limit was reached.',
+    speech_busy: 'The natural voice service is busy.',
+    speech_access: 'The natural voice connection needs attention from the site owner.',
+    speech_configuration: 'The natural voice configuration needs attention from the site owner.',
+    speech_cache_unavailable: 'Natural voice storage is unavailable.',
+    device_voice_unavailable: 'Device speech is unavailable in this browser. Choose an installed voice, or try Chrome or Edge with sound enabled.'
+  };
   class TracyBrowserVoiceSession {
     constructor(options) {
       this.options = options;
@@ -220,15 +231,21 @@
       if (this.run !== run) return;
       if (this.speakerMuted) { this.finishTurn(run); return; }
       this.cancelSpeech(run); run.pendingSpeech = text;
+      run.deviceFallback = false;
       if (this.audio && this.voice === 'natural') {
         this.stateChanged('thinking', 'Preparing Tracy’s voice — microphone paused');
         const marker = {}; run.audioMarker = marker;
         const current = () => this.run === run && run.audioMarker === marker && !!run.audio;
         run.audio = this.audio.speak(text, { language: run.language,
-          onstart: () => { if (current()) this.stateChanged('speaking', 'Tracy is speaking. Use Stop speaking to interrupt.'); },
+          onstart: info => { if (current()) this.stateChanged('speaking', info?.source === 'device' ? 'Tracy is speaking with your device voice. No Cartesia credits are used.' : 'Tracy is speaking. Use Stop speaking to interrupt.'); },
+          onfallback: info => { if (current()) { run.deviceFallback = true; this.stateChanged('thinking', (speechProblems[info?.reason] || 'The natural voice is unavailable.') + ' Using your device voice.'); } },
           onpause: () => { if (current()) this.stateChanged('thinking', 'Audio buffering — microphone paused'); },
           onend: () => { if (current()) { run.audio = null; run.pendingSpeech = null; this.finishTurn(run); } },
-          onerror: () => { if (current()) { run.audio = null; this.stateChanged('playback', 'Voice unavailable or playback blocked. Read the reply, choose another voice, or tap Enable audio to retry.'); } }
+          onerror: error => { if (current()) {
+            if (error?.code !== 'playback_blocked') run.audio = null;
+            const cause = error?.cause && speechProblems[error.cause];
+            this.stateChanged('playback', (cause ? cause + ' ' : '') + (speechProblems[error?.code] || 'Audio could not play. Tap Enable audio to retry, or select Device voice in Voice settings.'));
+          } }
         });
         return;
       }
@@ -265,7 +282,13 @@
       this.speakerMuted = muted;
       if (muted && this.run && (this.run.pendingSpeech || ['speaking', 'playback'].includes(this.state))) this.interrupt(false);
     }
-    enablePlayback() { if (this.run?.pendingSpeech) this.speak(this.run, this.run.pendingSpeech); }
+    enablePlayback() {
+      if (!this.run?.pendingSpeech) return;
+      // Retry the loaded clip synchronously inside the user's gesture.
+      if (this.run.audio?.retry?.()) return;
+      this.audio?.unlock?.();
+      this.speak(this.run, this.run.pendingSpeech);
+    }
     fail(message) { this.stop(message, true); }
     stop(message = 'Microphone off — conversation ended', error = false) {
       const run = this.run; this.run = null;

@@ -40,7 +40,13 @@ export function createSpeechService({ env = process.env, fetchImpl = fetch, acce
           method: 'POST', headers: { Authorization: `Bearer ${env.CARTESIA_API_KEY.trim()}`, 'Cartesia-Version': '2026-08-14', 'Content-Type': 'application/json' },
           body: JSON.stringify(payload), signal: AbortSignal.timeout(25000)
         });
-        if (!response.ok) throw new ChatError(503, 'speech_unavailable', 'Tracy’s voice is unavailable. You can still read the captions.');
+        if (!response.ok) {
+          if (response.status === 402) throw new ChatError(503, 'speech_credits', 'Natural voice credits are exhausted. Device voice is still available.', 60);
+          if (response.status === 429) throw new ChatError(503, 'speech_busy', 'The natural voice service is busy. Device voice is still available.', 30);
+          if ([401, 403].includes(response.status)) throw new ChatError(503, 'speech_access', 'The natural voice connection needs attention from the site owner.');
+          if ([400, 404, 422].includes(response.status)) throw new ChatError(503, 'speech_configuration', 'The natural voice configuration needs attention from the site owner.');
+          throw new ChatError(503, 'speech_unavailable', 'The natural voice service is unavailable. Device voice is still available.');
+        }
         audio = Buffer.from(await response.arrayBuffer());
         if (!validAudio(audio)) throw new ChatError(502, 'invalid_audio', 'Tracy could not play this reply.');
         // Deliver already-paid audio even if storage becomes unavailable mid-request.

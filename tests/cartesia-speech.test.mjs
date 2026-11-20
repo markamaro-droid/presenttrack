@@ -36,8 +36,16 @@ test('invalid, unauthenticated and quota-blocked requests never synthesize', asy
 });
 test('provider failure is safe and is not cached', async () => {
   const f = fixture({ providerStatus: 429 });
-  for (let i = 0; i < 2; i++) await assert.rejects(f.service('alice', request), { code: 'speech_unavailable' });
+  for (let i = 0; i < 2; i++) await assert.rejects(f.service('alice', request), { code: 'speech_busy' });
   assert.equal(f.calls.length, 4);
+});
+
+test('credit exhaustion and provider setup failures have distinct safe diagnostic codes', async () => {
+  for (const [providerStatus, code] of [[402, 'speech_credits'], [401, 'speech_access'], [403, 'speech_access'], [400, 'speech_configuration'], [404, 'speech_configuration'], [500, 'speech_unavailable']]) {
+    const f = fixture({ providerStatus });
+    await assert.rejects(f.service('alice', request), error => error.code === code && !error.message.includes(env.CARTESIA_API_KEY));
+    assert.equal(f.calls.length, 2);
+  }
 });
 
 test('welcome gets happy delivery while ordinary feedback and Filipino retain contextual tone', async () => {

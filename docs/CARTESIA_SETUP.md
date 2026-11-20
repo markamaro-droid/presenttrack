@@ -14,6 +14,10 @@ Browser and warm-server memory caches remain as fast first layers. Concurrent id
 
 No additional API keys are needed. Storage uses the signed-in user's JWT and RLS policies following https://supabase.com/docs/guides/storage/security/access-control. Apply the bucket migration before deploying. This retains generated speech (which can include personal reply content) until the site owner removes it through Storage; no automatic retention job is installed. Storage/egress still count against your Supabase plan. Account deletion should include Storage cleanup. Previously generated memory-only clips are not backfilled.
 
-Audio failure never silently changes Tracy to a browser voice. Intro/tour text remains visible; conversation replies remain readable with retry and Interrupt controls. Browsers can require a click before audio playback. Mute, tour pause, interruption and page exit stop/pause audio as appropriate.
+When natural speech is unavailable (including exhausted Cartesia credits), Tracy uses the device's speech engine. Conversation status and the on-request guide identify device playback. This fallback uses no Cartesia credits; the voice and language availability depend on the browser and operating system, whose speech service may process reply text online. Choose **Device voice · no Cartesia credits** in conversation Voice settings to use it directly. Cached natural clips can still play, and a brief cooldown avoids repeatedly requesting speech after a credit or usage failure. No billing settings are changed.
+
+Browser autoplay blocking is handled separately: **Enable audio** plays the already-loaded clip directly within the click, without regenerating it. Opening a new conversation also primes the shared audio element. Muting, interruption, closing chat, and leaving the page cancel both natural and device speech. A browser with no speech engine displays the actual cause and keeps the reply readable.
+
+Run `node --env-file=.env.local tools/check-tracy-voice.mjs` for read-only voice/model/storage/usage diagnostics. It prints no secrets or account identities. Only the explicit `--sample` option generates a six-character test clip and may use a small number of credits.
 
 Official references: https://docs.cartesia.ai/api-reference/tts/bytes and https://github.com/cartesia-ai/cartesia-js (API version `2026-08-14`).

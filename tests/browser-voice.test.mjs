@@ -69,6 +69,27 @@ test('slow authentication cannot keep a guide pending or execute it after timeou
   assert.equal(executed, 0); assert.equal(s.session.active, false); assert.equal(s.session.state, 'error');
 });
 
+test('blocked natural audio retains its handle and retries synchronously without regenerating', async () => {
+  let hooks, retries = 0, generations = 0;
+  const s = setup({ tts: { speak(text, h) { hooks = h; generations++; return { cancel() {}, retry() { retries++; hooks.onstart({ source: 'natural' }); return true; } }; } } });
+  await s.session.sendText('Hello'); hooks.onerror({ code: 'playback_blocked' });
+  assert.equal(s.session.state, 'playback'); assert.match(s.states.at(-1).message, /browser paused/);
+  s.session.enablePlayback(); assert.equal(retries, 1); assert.equal(generations, 1); assert.equal(s.session.state, 'speaking');
+  hooks.onend(); assert.equal(s.session.active, false);
+});
+
+test('device fallback is disclosed while voice input remains off until playback ends', async () => {
+  let hooks;
+  const s = setup({ tts: { speak(text, h) { hooks = h; return { cancel() {} }; } } });
+  await s.session.start(); s.current().result('Hello'); await flush();
+  hooks.onfallback({ source: 'device', reason: 'speech_credits' });
+  assert.match(s.states.at(-1).message, /credits are exhausted.*device voice/);
+  hooks.onstart({ source: 'device' }); assert.match(s.states.at(-1).message, /device voice/);
+  assert.ok(s.recognizers.every(r => !r.running));
+  hooks.onend(); assert.equal(s.session.state, 'listening');
+  s.session.stop();
+});
+
 test('browser voice alternates listening, authenticated Groq replies and synthesis without recording itself', async () => {
   const s = setup(); await s.session.start();
   assert.equal(s.session.state, 'listening'); assert.equal(s.calls[0].body.action, 'start');

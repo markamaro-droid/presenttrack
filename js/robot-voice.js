@@ -60,6 +60,7 @@
     if (requestedOwner && requestedOwner !== owner) session.clear();
     requestedOwner = owner;
     hooks.prepare?.();
+    window.TracyAudio?.unlock();
     session.setLanguage?.(language.value);
     session.setHandsFree?.($('tracy-handsfree').checked);
     session.setVoice?.(voice.value);
@@ -98,7 +99,7 @@
   captions.addEventListener('change', () => { $('tracy-caption-lines').hidden = !captions.checked; });
   function voices() {
     const selected = voice.value || 'natural';
-    const entries = [['natural', 'Tracy · natural voice'], ...(window.speechSynthesis?.getVoices() || []).map(v => [v.voiceURI, `${v.name} (${v.lang})`])];
+    const entries = [['natural', 'Tracy · natural voice + device fallback'], ['device', 'Device voice · no Cartesia credits'], ...(window.speechSynthesis?.getVoices() || []).map(v => [v.voiceURI, `${v.name} (${v.lang})`])];
     voice.replaceChildren(...entries.map(([value, name]) => { const option = document.createElement('option'); option.value = value; option.textContent = name; return option; }));
     voice.value = entries.some(([value]) => value === selected) ? selected : 'natural';
     session.setVoice?.(voice.value);
