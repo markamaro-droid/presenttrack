@@ -1,8 +1,8 @@
 /* First-slide cards reuse saved PDFs. No conversion is started by browsing. */
 (() => {
-  function mount(root, rows) {
+  function mount(root, rows, { followId } = {}) {
     const owner = window.PTCloud?.user?.id, controller = new AbortController(), queue = [], seen = new WeakSet();
-    let stopped = false, active = 0;
+    let stopped = false, active = 0; const timers = new Set();
     const current = host => !stopped && root.isConnected && host.isConnected && window.PTCloud?.user?.id === owner;
     function message(host, text, retry = false) {
       host.replaceChildren(); host.removeAttribute('aria-busy');
@@ -22,10 +22,15 @@
       try {
         let url;
         if (window.PTCloud?.enabled) {
-          const { preview } = await PTPresentations.request('library-preview', row.id, { thumbnail: true }, controller.signal);
+          const { preview } = await PTPresentations.request('library-preview', row.id, { thumbnail: row.id !== followId }, controller.signal);
           if (!current(host)) return;
           if (preview.state !== 'completed') {
-            message(host, preview.state === 'not_prepared' ? 'Slide preview has not been prepared yet' : preview.state === 'failed' ? 'Slide preview unavailable' : 'Slide preview is being prepared', preview.state !== 'not_prepared'); return;
+            message(host, preview.state === 'not_prepared' ? 'Slide preview has not been prepared yet' : preview.state === 'failed' ? 'Slide preview unavailable' : 'Slide preview is being prepared', preview.state !== 'not_prepared');
+            if (row.id === followId && ['queued','processing'].includes(preview.state)) {
+              const next = Date.parse(preview.nextCheckAt), delay = Number.isFinite(next) ? Math.max(8000, next - Date.now()) : 8000;
+              const timer = setTimeout(() => { timers.delete(timer); seen.delete(host); enqueue(host); }, Math.min(2147480000, delay)); timers.add(timer);
+            }
+            return;
           }
           url = preview.url;
         } else {
@@ -47,7 +52,7 @@
     root.querySelectorAll('[data-library-cover]').forEach(host => observer.observe(host));
     const navigation = new MutationObserver(() => { if (!root.isConnected || owner !== window.PTCloud?.user?.id || document.getElementById('app')?.hidden) destroy(); });
     navigation.observe(document.getElementById('app'), { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
-    function destroy() { stopped = true; controller.abort(); observer.disconnect(); navigation.disconnect(); queue.length = 0; }
+    function destroy() { stopped = true; controller.abort(); observer.disconnect(); navigation.disconnect(); timers.forEach(clearTimeout); timers.clear(); queue.length = 0; }
     return { destroy };
   }
   window.PTLibraryCovers = { mount };

@@ -103,6 +103,14 @@ try {
     await evaluate(`document.querySelector('[data-admin-delete]').click();PTCloud.user.id='different-user';document.querySelector('[data-r="1"]').click()`);
     assert.equal(await evaluate('deleteRequests.length'), 2, 'Account changes cancel pending deletion');
     assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'), 'Library fits viewport');
+    await evaluate(`podium.ext.go('library');window.preparedUploads=[];const originalRequest=PTPresentations.request;window.restoreRequest=()=>PTPresentations.request=originalRequest;PTPresentations.request=async(action,id,extra)=>{if(action==='library-prepare')preparedUploads.push({id,extra});return{preview:{state:'not_prepared'}}};document.querySelector('#admin-add-presentation').click();document.querySelector('#admin-title').value='New PowerPoint';const ppt=new DataTransfer();ppt.items.add(new File(['fixture'],'new.pptx'));document.querySelector('#admin-file').files=ppt.files;document.querySelector('#admin-file').dispatchEvent(new Event('change'));document.querySelector('#admin-upload').dispatchEvent(new Event('submit',{cancelable:true}))`);
+    await wait('document.querySelector("#admin-upload-status").textContent.includes("Agree to CloudConvert")');
+    assert.equal(await evaluate('preparedUploads.length'), 0);
+    await evaluate(`document.querySelector('#admin-preview-consent').checked=true;document.querySelector('#admin-upload').requestSubmit()`);
+    await wait('preparedUploads.length===1 && !!document.querySelector(".library-editor") && document.querySelector("#admin-upload-panel").hidden');
+    assert.equal(await evaluate('preparedUploads[0].extra.cloudconvertConsent'), true);
+    assert.equal(await evaluate('podium.ext.S.arg.preparing'), await evaluate('preparedUploads[0].id'));
+    await evaluate('restoreRequest()');
     await evaluate(`PTCloud.user={id:'student',app_metadata:{role:'student'}};podium.ext.go('library')`);
     await wait('!!document.querySelector(".library-card")');
     assert.equal(await evaluate('!!document.querySelector("#admin-add-presentation,[data-admin-delete]")'), false, 'Students have no management buttons');
@@ -151,6 +159,20 @@ try {
     await evaluate(`podium.ext.go('library');podium.ext.go('libraryDetail',previewRow)`);
     await wait('!!document.querySelector("#library-preview-stage canvas")');
     assert.equal(await evaluate('previewRequests.filter(r=>r.action==="library-prepare").length'), 1, 'Reopening reuses the PDF');
+    await evaluate(`podium.ext.go('library')`);
+    await wait('!!document.querySelector(".library-editor [data-library-cover] img")?.complete');
+    assert.equal(await evaluate('document.querySelector(".library-edit-details").open'), false);
+    assert.ok(await evaluate('document.querySelector(".library-editor").getBoundingClientRect().width<=460'));
+    await new Promise(r=>setTimeout(r,700)); await shot('admin-cover-' + width);
+    if (width === 1440) {
+      await evaluate(`delete previewRow.cover;previewState='processing';podium.ext.go('library',{preparing:previewRow.id})`);
+      await wait('document.querySelector(".library-editor .deck-cover-message")?.textContent.includes("being prepared")');
+      await evaluate(`previewState='completed'`);
+      await new Promise(r => setTimeout(r, 8200));
+      await wait('!!document.querySelector(".library-editor .deck-cover img")?.complete');
+      assert.equal(await evaluate('previewRequests.at(-1).thumbnail'), false, 'New upload follows its existing conversion until the card has a cover');
+      assert.equal(await evaluate('previewRequests.filter(r=>r.action==="library-prepare").length'), 1, 'Following a conversion does not prepare a duplicate');
+    }
     await evaluate(`previewRow.file_name='lesson.pdf';previewFail=true;podium.ext.go('libraryDetail',previewRow)`);
     await wait('document.querySelector(".library-preview-message")?.textContent.includes("Preview connection unavailable")');
     await evaluate(`previewFail=false;document.querySelector('.library-preview-message button').click()`);
@@ -158,10 +180,12 @@ try {
     assert.equal(await evaluate('previewRequests.filter(r=>r.action==="library-prepare").length'), 1, 'PDF opens never prepare PowerPoint');
     await evaluate(`previewState='processing';podium.ext.go('libraryDetail',previewRow)`);
     await wait('document.querySelector(".library-preview-message")?.textContent.includes("Preparing your original slide layout")');
-    await evaluate(`podium.ext.go('library');window.requestsAtExit=previewRequests.length`);
+    await evaluate(`podium.ext.go('library')`);
+    await wait('!!document.querySelector(".library-editor .deck-cover img") || document.querySelector(".library-editor .deck-cover-message")?.textContent.includes("being prepared")');
+    await evaluate('window.requestsAtExit=previewRequests.length');
     await new Promise(r => setTimeout(r, 4200));
     assert.equal(await evaluate('previewRequests.length'), await evaluate('requestsAtExit'), 'Leaving the view cancels polling');
-    await evaluate(`previewState='completed';PTCloud.user.app_metadata={role:'student'};podium.ext.go('library')`);
+    await evaluate(`previewState='completed';delete previewRow.cover;PTCloud.user.app_metadata={role:'student'};podium.ext.go('library')`);
     await wait('!!document.querySelector("[data-library-cover] img")?.complete');
     assert.ok(await evaluate(`(()=>{const card=document.querySelector('.library-card').getBoundingClientRect(),img=document.querySelector('[data-library-cover] img');return card.width<=460 && img.naturalWidth>100 && document.documentElement.scrollWidth<=innerWidth+1})()`));
     assert.equal(await evaluate('previewRequests.at(-1).thumbnail'), true);
