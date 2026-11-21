@@ -24,6 +24,8 @@ export async function libraryPreview({ body, user, conversion }) {
     throw error;
   }
   if (!p) return { preview: { state: 'not_prepared', canPrepare: admin, warnings: [] } };
+  // Catalog thumbnails only inspect saved results; browsing never runs a job.
+  if (body.thumbnail === true && p.conversion_status !== 'completed') return { preview: { state: p.conversion_status, message: p.conversion_error, errorCode: p.error_code } };
   if (!UUID.test(p.id) || !UUID.test(p.user_id) || p.library_entry_id !== row.id || p.file_type !== 'pptx' || p.original_file_path !== p.user_id + '/' + p.id + '.pptx' || !p.conversion_consent_at) throw new ChatError(409, 'invalid_library_preview', 'The saved library preview could not be verified.');
   if (!p.upload_completed) {
     // The source path comes from the protected catalog, never the request body.

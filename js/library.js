@@ -44,11 +44,14 @@
     try { catalog = await rows(); } catch (e) { return status(note, e.message); }
     if (!root.isConnected || identity !== owner()) return;
     catalog = catalog.filter(row => row.published);
+    let covers;
     function draw() {
       const query = $('library-search').value.trim().toLowerCase();
       const shown = catalog.filter(row => `${row.title} ${row.description} ${row.category}`.toLowerCase().includes(query));
       status(note, shown.length ? `${shown.length} presentation${shown.length === 1 ? '' : 's'} available. Choose one to see its slides.` : 'No presentations match. Try another search.');
-      root.innerHTML = shown.map(row => `<article class="library-card"><span class="library-tag">${esc(row.category)}</span><h2>${esc(row.title)}</h2><p>${esc(row.description)}</p><small>${row.context?.pagesScanned || row.context?.pages?.length || '?'} slides · ${Math.round(row.target_seconds / 60)} minute practice · ${/\.pdf$/i.test(row.file_name) ? 'PDF' : 'PowerPoint'}</small><button class="bt" type="button" data-library-open="${esc(row.id)}">View presentation</button></article>`).join('');
+      covers?.destroy();
+      root.innerHTML = shown.map(row => `<article class="library-card"><div class="deck-cover" data-library-cover="${esc(row.id)}"><span class="deck-cover-message">Loading first slide…</span></div><div class="library-card-body"><div class="deck-meta"><span class="ftp ${/\.pdf$/i.test(row.file_name) ? 'pdf' : 'ppt'}">${/\.pdf$/i.test(row.file_name) ? 'PDF' : 'PowerPoint'}</span><span class="library-tag">${esc(row.category)}</span></div><h2>${esc(row.title)}</h2>${row.description ? `<p>${esc(row.description)}</p>` : ''}<small>${row.context?.pagesScanned || row.context?.pages?.length || '?'} slides · ${Math.round(row.target_seconds / 60)} minute practice</small><button class="bt" type="button" data-library-open="${esc(row.id)}">View presentation</button></div></article>`).join('');
+      covers = PTLibraryCovers.mount(root, catalog);
       root.querySelectorAll('[data-library-open]').forEach(button => button.onclick = () => go('libraryDetail', catalog.find(row => row.id === button.dataset.libraryOpen)));
     }
     $('library-search').oninput = draw; draw();

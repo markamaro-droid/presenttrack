@@ -59,6 +59,13 @@ test('quota and failure states stay visible without creating duplicate jobs', as
   assert.equal(f.calls.some(c => c[0] === 'copy' || c[0] === 'library_preview_prepare'), false);
   const retry = fixture({ presentationPatch: { conversion_status: 'failed', retryable: true } }); await retry.run('library-retry'); assert.ok(retry.calls.some(c => c[0] === 'retry' && c[1] === pid && c[2] === admin.id));
 });
+test('thumbnail requests never copy files, advance conversions or retry jobs', async () => {
+  for (const state of ['queued', 'processing', 'failed']) {
+    const f = fixture({ presentationPatch: { conversion_status: state, upload_completed: false } });
+    assert.equal((await f.run('library-preview', student, { thumbnail: true })).preview.state, state);
+    assert.ok(f.calls.every(call => call[0] === 'json'));
+  }
+});
 test('missing Library migration gives the exact setup instruction', async () => {
   const f = fixture(), json = f.db.json;
   f.db.json = async path => { if (path.startsWith('/rest/v1/presentations?')) throw new ChatError(503, 'storage_schema_missing', 'Missing column'); return json(path); };

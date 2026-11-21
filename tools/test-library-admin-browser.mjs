@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { pdfAsset, pdfRoot } from './pdf-assets.mjs';
 
 const root = resolve(import.meta.dirname, '..');
-const scripts = new Set(['auth', 'identity', 'practice-audio', 'workspace-model', 'tour-steps', 'tour-spotlight', 'dashboard', 'pdf-viewer', 'presentations', 'library-viewer', 'library']);
+const scripts = new Set(['auth', 'identity', 'practice-audio', 'workspace-model', 'tour-steps', 'tour-spotlight', 'dashboard', 'pdf-viewer', 'presentations', 'library-viewer', 'library-covers', 'library']);
 const server = createServer(async (req, res) => {
   try {
     const path = req.url === '/' ? '/index.html' : req.url;
@@ -161,7 +161,16 @@ try {
     await evaluate(`podium.ext.go('library');window.requestsAtExit=previewRequests.length`);
     await new Promise(r => setTimeout(r, 4200));
     assert.equal(await evaluate('previewRequests.length'), await evaluate('requestsAtExit'), 'Leaving the view cancels polling');
-    console.log(`${width}×${height}: real PDF.js rendering, paging, consent, full screen, saved previews, retry and polling cleanup passed`);
+    await evaluate(`previewState='completed';PTCloud.user.app_metadata={role:'student'};podium.ext.go('library')`);
+    await wait('!!document.querySelector("[data-library-cover] img")?.complete');
+    assert.ok(await evaluate(`(()=>{const card=document.querySelector('.library-card').getBoundingClientRect(),img=document.querySelector('[data-library-cover] img');return card.width<=460 && img.naturalWidth>100 && document.documentElement.scrollWidth<=innerWidth+1})()`));
+    assert.equal(await evaluate('previewRequests.at(-1).thumbnail'), true);
+    const requestsBeforeSearch = await evaluate('previewRequests.length');
+    await evaluate(`const search=document.querySelector('#library-search');search.value='No matching deck';search.dispatchEvent(new Event('input'));search.value='';search.dispatchEvent(new Event('input'))`);
+    await wait('!!document.querySelector("[data-library-cover] img")?.complete');
+    assert.equal(await evaluate('previewRequests.length'), requestsBeforeSearch, 'Search reuses the loaded cover');
+    await new Promise(r => setTimeout(r, 700)); await shot('library-cover-' + width);
+    console.log(`${width}×${height}: real slides and first-page Library cards, cached search, paging, consent, full screen and polling cleanup passed`);
   }
   assert.deepEqual(errors, []);
   console.log(`Screenshots: ${profile}`);
