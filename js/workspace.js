@@ -62,7 +62,7 @@
   function practicePlan(latest) {
     const feedback = latest?.analysis?.feedback || S.ev?.results?.feedback;
     const recommendations = feedback?.recommendations || [];
-    return `<div class="ws-plan">${(recommendations.length ? recommendations : ['Choose one main point to rehearse.', 'Record a short attempt and review its feedback.', 'Repeat the same presentation to compare your delivery.']).slice(0, 3).map((t, i) => `<div><span>${String(i + 1).padStart(2, '0')}</span><p>${esc(t)}</p></div>`).join('')}</div><div class="acts">${btn('Set a goal', 'goals', '', 'gh sm')}</div>`;
+    return `<div class="ws-plan">${(recommendations.length ? recommendations : ['Choose one main point to rehearse.', 'Record a short attempt and review its feedback.', 'Repeat the same presentation to compare your delivery.']).slice(0, 3).map((t, i) => `<div><span>${String(i + 1).padStart(2, '0')}</span><p>${esc(t)}</p></div>`).join('')}</div>`;
   }
   function compare(list) {
     const base = M.baseline(S.ev), candidates = [...(base ? [base] : []), ...list];

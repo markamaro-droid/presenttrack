@@ -43,10 +43,19 @@ try {
     await evaluate(`document.documentElement.classList.add('clay');document.querySelector('#app').hidden=false;document.querySelector('#bot').hidden=false;window.PTCloud={enabled:false};const S=podium.ext.S;S.u={name:'Tour Tester',email:'tour@example.test',pic:''};S.booted=true;S.loading=false;S.evalRequired=false;S.ses=[1,2].map(i=>({id:i,deckId:1,deck:'Test',at:new Date().toISOString(),d:'Today',dur:120,wpm:130,fill:2,pau:1,score:80,analysis:{}}));podium.ext.go('dash');`);
     // Every configured selector resolves in a populated account, using actual views.
     const missing = await evaluate(`(()=>{const missing=[];for(const step of PTTourSteps){podium.ext.go(step.view);const el=document.querySelector(step.target);if(!el||el.getBoundingClientRect().width<2)missing.push(step.title+' '+step.target);}return missing;})()`);
-    assert.deepEqual(missing, [], `${width}: missing targets`);
+    // Finish is intentionally hidden until a recording starts.
+    assert.deepEqual(missing.filter(item => item !== 'Finish #pfin'), [], `${width}: missing targets`);
     await evaluate(`podium.ext.go('dash');podium.startTour();podium.tourPause();`);
     assert.equal(await evaluate(`getComputedStyle(document.querySelector('#spot')).position`),'fixed');
     assert.equal(await evaluate(`getComputedStyle(document.querySelector('#spot>b')).position`),'fixed');
+    const toggleRect = () => evaluate(`(()=>{const r=document.querySelector('.tcolb').getBoundingClientRect();return [r.x,r.y,r.width,r.height]})()`);
+    const expanded = await toggleRect();
+    await evaluate(`document.querySelector('.tcolb').click()`);
+    assert.deepEqual(await toggleRect(), expanded, 'Collapse keeps the arrow stationary');
+    await evaluate(`document.querySelector('.tcolb').click()`);
+    assert.deepEqual(await toggleRect(), expanded, 'Expand keeps the arrow stationary');
+    assert.equal(await evaluate(`!!document.querySelector('#tour-guide')`), false);
+    console.log('PASS '+width+': stationary collapse/expand arrow and sidebar removal');
     // Scroll on successive frames and assert alignment even while narration is paused.
     const errors = await evaluate(`(async()=>{const main=document.querySelector('#mainc'),target=document.querySelector('.dh-hero'),spot=document.querySelector('#spot');const errors=[];for(let i=0;i<12;i++){main.scrollTop=i*3;await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);if(!spot.hidden)errors.push(Math.abs(spot.getBoundingClientRect().top-(target.getBoundingClientRect().top-8)));}target.style.height='420px';await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);errors.push(Math.abs(spot.getBoundingClientRect().height-target.getBoundingClientRect().height-16));return errors;})()`);
     assert.ok(errors.length>0 && errors.every(e=>e<1), `${width}: drift ${errors}`);
