@@ -12,4 +12,14 @@ test('invented transcript evidence and foreign slide numbers are rejected',async
 test('provider failure and malformed output never create scores',async()=>{await assert.rejects(assessExplanation({...options(report()),fetchImpl:async()=>new Response('',{status:503})}));await assert.rejects(assessExplanation(options({score:100})),e=>e.code==='invalid_analysis')});
 test('slide navigation uses recording time, handles revisits and rejects invalid timing',()=>{const words=[{word:'first',start:1},{word:'second',start:7},{word:'again',start:12}];assert.deepEqual(alignTranscript(words,[{slide:1,at:0},{slide:2,at:6},{slide:1,at:10}],20,2).segments.map(s=>[s.slide,s.text]),[[1,'first'],[2,'second'],[1,'again']]);assert.equal(alignTranscript(words,[],20,2).basis,'unavailable');assert.throws(()=>alignTranscript(words,[{slide:3,at:0}],20,2));assert.throws(()=>alignTranscript(words,[{slide:1,at:10},{slide:2,at:5}],20,2))});
 test('actual PPTX extraction preserves declared order and reads slide text',async()=>{const bytes=await readFile(new URL('../assets/library/confident-introductions.pptx',import.meta.url));const value=await validatePptx(bytes,{includeText:true});assert.equal(value.slides.length,5);assert.equal(value.slides[0].number,1);assert.match(value.slides[0].text,/introduction/i)});
-test('higher WPM and word count do not automatically signal improvement',()=>{const row=(wpm,words)=>({metrics:{wpm,words,totalDurationSec:60,fillerCount:3,pauseCount:1}});assert.equal(PTLearningMetrics.trend([row(140,140)],'wpm').label,'Insufficient Data');assert.equal(PTLearningMetrics.trend([row(140,140),row(165,165),row(210,210)],'wpm').label,'Needs Attention');assert.equal(PTLearningMetrics.trend([row(140,140),row(165,165),row(210,210)],'words').label,'Context dependent');assert.equal(PTLearningMetrics.metrics(row(140,140)).explanation,null)});
+test('higher WPM and word count do not automatically signal improvement',()=>{const row=(wpm,words)=>({metrics:{wpm,words,totalDurationSec:60,fillerCount:3,pauseCount:1}});assert.equal(PTLearningMetrics.trend([row(140,140)],'wpm').label,'More sessions needed for a trend');assert.equal(PTLearningMetrics.trend([row(140,140),row(165,165),row(210,210)],'wpm').label,'Needs Attention');assert.equal(PTLearningMetrics.trend([row(140,140),row(165,165),row(210,210)],'words').label,'Context dependent');assert.equal(PTLearningMetrics.metrics(row(140,140)).explanation,null)});
+
+test('missing filler and pause measurements stay unavailable, while measured zero remains valid',()=>{
+ const absent={metrics:{words:100,totalDurationSec:60,fillerCount:null}};
+ assert.equal(PTLearningMetrics.metrics(absent).fillers,null);
+ assert.equal(PTLearningMetrics.metrics(absent).pauses,null);
+ assert.equal(PTLearningMetrics.trend([absent],'fillers').average,null);
+ const zero={metrics:{words:100,totalDurationSec:60,fillerCount:0,pauseCount:0}};
+ assert.equal(PTLearningMetrics.trend([zero],'fillers').average,0);
+ assert.equal(PTLearningMetrics.trend([zero,zero],'pauses').count,2);
+});
