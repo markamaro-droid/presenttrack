@@ -58,10 +58,10 @@ window.PTTourSteps = [
   {
     "nav": "decks",
     "view": "decks",
-    "target": "[data-sec=\"quick-actions\"]",
-    "title": "Your practice toolkit",
-    "description": "Use Upload slides, Practice, Analyze recording, Reports or Goals to choose your next task.",
-    "voiceLine": "Use Upload slides, Practice, Analyze recording, Reports or Goals to choose your next task."
+    "target": "[data-go=\"rec\"]",
+    "title": "Analyze a recording",
+    "description": "Already have a recording? Use Analyze recording to upload it for feedback.",
+    "voiceLine": "Already have a recording? Use Analyze recording to upload it for feedback."
   },
   {
     "nav": "decks",
