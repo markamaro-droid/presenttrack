@@ -29,14 +29,14 @@ function speak(text,done,playback={}){
   if(!t||podium.voiceOn===false||V.on||document.hidden){my.ended=true;done?.();return}
   const fail=()=>{speaking=false;my.failed=true;my.ended=true;rsub.textContent=t;rcap.hidden=bot.classList.contains('tourmode');done?.()};
   if(!globalThis.TracyAudio){fail();return}
-  TracyAudio.speak(t,{onstart:()=>{if(nar!==my)return;speaking=true;my.started=true;playback.onstart?.()},onpause:()=>{if(nar!==my)return;speaking=false;playback.onpause?.()},onend:()=>{if(nar!==my)return;speaking=false;my.ended=true;done?.()},onerror:fail});
+  TracyAudio.speak(t,{allowDeviceFallback:playback.allowDeviceFallback,onstart:()=>{if(nar!==my)return;speaking=true;my.started=true;playback.onstart?.()},onpause:()=>{if(nar!==my)return;speaking=false;playback.onpause?.()},onend:()=>{if(nar!==my)return;speaking=false;my.ended=true;done?.()},onerror:fail});
 }
 const mute=$('bmute');
 podium.setVoice=on=>{podium.voiceOn=on;window.PTVoice&&PTVoice.setSpeaker(on);mute.textContent=on?'🔊':'🔇';mute.setAttribute('aria-pressed',String(!on));mute.setAttribute('aria-label',on?'Mute Tracy\'s voice':'Unmute Tracy\'s voice');mute.title=on?'Mute Tracy\'s voice':'Unmute Tracy\'s voice';if(!on)hush()};
 mute.onclick=()=>podium.setVoice(podium.voiceOn===false);
 
 podium.prepareNarration=text=>podium.voiceOn!==false?globalThis.TracyAudio?.prepare(clean(text)):Promise.resolve(false);
-podium.narrate=(text,est)=>{if(window.PTVoice&&PTVoice.active)PTVoice.stop();set('talking',Math.min(60000,(est||8000)*2.5),'',text)};
+podium.narrate=(text,est)=>{if(window.PTVoice&&PTVoice.active)PTVoice.stop();set('talking',Math.min(60000,(est||8000)*2.5),'');speak(text,null,{allowDeviceFallback:false})};
 podium.narState=()=>({voice:!!globalThis.TracyAudio&&podium.voiceOn!==false&&!V.on,started:nar.started,ended:nar.ended,failed:!!nar.failed,pos:nar.pos||0,speaking});
 podium.narPause=p=>{globalThis.TracyAudio?.pause(p)};podium.hushNow=()=>{hush();set('idle',0,'')};
 podium.robotIntroduce=(text,done,onstart)=>{

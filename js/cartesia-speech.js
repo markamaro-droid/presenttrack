@@ -162,6 +162,7 @@
       if (!run.owner || globalThis.PTCloud?.user?.id !== run.owner || error?.code === 'unauthorized') { fail(speechError('unauthorized')); return; }
       if (run.audio) { run.audio.onended = run.audio.onerror = run.audio.onplaying = run.audio.onpause = run.audio.onwaiting = null; run.audio.pause(); }
       if (run.url) { URL.revokeObjectURL(run.url); run.url = null; }
+      if (options.allowDeviceFallback === false) { fail(error); return; }
       deviceVoice(error);
     });
     return { cancel: () => { if (active()) cancel(); }, retry: () => { if (!active() || !run.blocked || !run.retry) return false; run.blocked = false; run.retry(); return true; } };

@@ -16,7 +16,7 @@ window.PTOnboardingSteps = [
   { nav:'hist', view:'hist', target:'#view', title:'Find past practice sessions',
     description:'Practice History keeps your completed sessions and reports together, so you can return to your feedback anytime.' },
   { nav:'set', view:'set', target:'#settings-coaching', title:'Tracy is here to help',
-    description:'Choose whether I speak aloud here. Select Tour guide in the menu whenever you want another walkthrough.' },
+    description:'Choose whether I speak aloud here. Tap Tracy and choose the tour bubble whenever you want another walkthrough.' },
   { nav:'eval', view:'eval', target:'#view', title:'Ready for your first evaluation?',
     description:'This short speaking evaluation establishes your starting point. Read the instructions and start when you are ready. I’ll be here to help.', fin:true }
 ].map(step=>({...step,voiceLine:step.description}));
@@ -116,13 +116,13 @@ window.PTTourSteps = [
     "view": "prac",
     "target": "#vfs",
     "title": "Start",
-    "description": "Read the audio consent, then select Start under Your slides to open full screen and record.",
-    "voiceLine": "Read the audio consent, then select Start under Your slides to open full screen and record."
+    "description": "Select Start to open the slide viewer and begin your rehearsal after giving microphone consent.",
+    "voiceLine": "Select Start to open the slide viewer and begin your rehearsal after giving microphone consent."
   },
   {
     "nav": "decks",
     "view": "prac",
-    "target": "#pfin",
+    "target": "#vfin",
     "title": "Finish",
     "description": "Select Finish to analyze your recording and create a report.",
     "voiceLine": "Select Finish to analyze your recording and create a report."
@@ -140,24 +140,24 @@ window.PTTourSteps = [
     "view": "perf",
     "target": ".ws-stats",
     "title": "Performance",
-    "description": "Review speaking pace, filler frequency, long-pause frequency and performance score.",
-    "voiceLine": "Review speaking pace, filler frequency, long-pause frequency and performance score."
+    "description": "Review delivery score, speaking pace, filler frequency and long-pause frequency for the selected attempt.",
+    "voiceLine": "Review delivery score, speaking pace, filler frequency and long-pause frequency for the selected attempt."
   },
   {
     "nav": "perf",
     "view": "perf",
     "target": "#ws-a",
     "title": "Earlier / reference",
-    "description": "Choose Earlier / reference and Comparison attempt to compare two attempts.",
-    "voiceLine": "Choose Earlier / reference and Comparison attempt to compare two attempts."
+    "description": "Choose the earlier attempt or baseline to use as your reference.",
+    "voiceLine": "Choose the earlier attempt or baseline to use as your reference."
   },
   {
     "nav": "prog",
     "view": "prog",
     "target": "[aria-label=\"Chart metric\"]",
     "title": "Progress",
-    "description": "Switch between Performance score, Speaking pace, Filler frequency, Long-pause frequency and Duration.",
-    "voiceLine": "Switch between Performance score, Speaking pace, Filler frequency, Long-pause frequency and Duration."
+    "description": "Switch between Delivery score, Speaking pace, Filler frequency, Long-pause frequency and Duration.",
+    "voiceLine": "Switch between Delivery score, Speaking pace, Filler frequency, Long-pause frequency and Duration."
   },
   {
     "nav": "prog",
@@ -172,8 +172,8 @@ window.PTTourSteps = [
     "view": "prog",
     "target": ".ws-analytics-detail",
     "title": "First attempt vs latest",
-    "description": "Compare your first and latest attempts, then check Your practice rhythm. Sample previews are labeled.",
-    "voiceLine": "Compare your first and latest attempts, then check Your practice rhythm. Sample previews are labeled."
+    "description": "Compare your first and latest attempts, then check Your practice rhythm. Only available measurements are compared.",
+    "voiceLine": "Compare your first and latest attempts, then check Your practice rhythm. Only available measurements are compared."
   },
   {
     "nav": "prog",

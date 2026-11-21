@@ -162,3 +162,12 @@ test('a browser without device speech gets the underlying credit error instead o
   s.audio.speak('Hello.', { onerror: e => { error = e; } }); await flush();
   assert.equal(error.code, 'device_voice_unavailable'); assert.equal(error.cause, 'speech_credits');
 });
+
+test('tour narration never falls back to device speech when Cartesia fails', async () => {
+ for (const code of ['speech_credits','speech_unavailable','speech_access']) {
+  const s=setup(()=>Response.json({error:code},{status:503}),{device:true});const errors=[];
+  s.audio.speak('This is the highlighted control.',{allowDeviceFallback:false,onerror:e=>errors.push(e.code)});
+  await flush();assert.deepEqual(errors,[code]);assert.deepEqual(s.context.speechSynthesis.spoken,[]);
+  s.audio.cancel();
+ }
+});

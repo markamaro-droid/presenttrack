@@ -102,12 +102,13 @@ function tourSub(frac,pos){T.sf=frac;T.sp=pos;const st=T.steps[T.i],el=$('tsub')
 function spotOff(){spotlight?.stop();$('spot').hidden=true;}
 function tourAct(a){if(a==='tcol'){document.body.classList.toggle('tourcol',$('bot').classList.toggle('tcol'));tourUI();return}if(a==='tprev')tourGo(-1);else if(a==='tnext')tourGo(1);else if(a==='tplay')tourPlay(!T.play);else if(a==='tskip')endTour(true);else if(a==='tcc'){T.cc=!T.ccShown;T.ccShown=T.cc;$('tcap').hidden=!T.cc;tourUI()}else if(a==='tadd'){endTour(false);go(pendingEval()?'eval':'decks');setTimeout(()=>{const u=$('ut');if(u)u.focus()},400)}}
 function tourShow(i,direction=1){
+  podium.hushNow?.();
   clearTimeout(T.advanceTimer);T.generation=(T.generation||0)+1;spotOff();
   // Visit each configured page, but never describe a missing or gated control.
   let st,el;
   while(i>=0&&i<T.steps.length){
     T.i=i;st=T.steps[i];
-    if(S.view!==st.v)go(st.v);else nav();
+    T.navigating=true;try{if(S.view!==st.v)go(st.v);else nav();}finally{T.navigating=false;}
     $('side').classList.remove('open');
     el=document.querySelector(st.target);
     if(el&&el.getBoundingClientRect().width>=2&&el.getBoundingClientRect().height>=2)break;
@@ -115,7 +116,7 @@ function tourShow(i,direction=1){
   }
   if(i<0){tourShow(0);return;}if(i>=T.steps.length){endTour(false);return;}
   $('bot').classList.remove('tourhl');
-  T.est=Math.max(2800,st.x.split(/\s+/).length*350+500);T.t0=performance.now();T.pAt=0;T.play=true;T.adv=false;T.captionOnly=false;T.audioStarted=false;T.sf=0;T.sp=0;T.n=0;T.nmax=0;
+  T.est=Math.max(2800,st.x.split(/\s+/).length*350+500);T.t0=performance.now();T.pAt=0;T.play=true;T.adv=false;T.captionOnly=false;T.narrationFailed=false;T.audioStarted=false;T.sf=0;T.sp=0;T.n=0;T.nmax=0;
   tourUI();
   spotlight ||= new window.PTTourSpotlight($('spot'));
   spotlight.start(st.target,st.title,st.description);
@@ -131,12 +132,15 @@ function tourShow(i,direction=1){
   });
 }
 function tourGo(d){if(!T.on)return;const n=T.i+d;if(n>=T.steps.length){endTour(false);return}tourShow(n,d)}
-function tourPlay(p){if(!T.on||T.play===p)return;T.play=p;if(p){T.t0+=performance.now()-T.pAt}else T.pAt=performance.now();try{podium.narPause&&podium.narPause(!p)}catch(e){}tourUI()}
+function tourPlay(p){if(!T.on||T.play===p)return;if(p&&T.narrationFailed){tourShow(T.i);return}T.play=p;if(p){T.t0+=performance.now()-T.pAt}else T.pAt=performance.now();try{podium.narPause&&podium.narPause(!p)}catch(e){}tourUI()}
 function tourTick(){
   if(!T.on)return;if(!T.play||T.adv)return;let el=performance.now()-T.t0;const ns=(podium.narState&&podium.narState())||{voice:false};
-  // A slow provider must not hold a step in silence for its full network timeout.
-  if(!T.captionOnly&&ns.voice&&!ns.started&&!ns.ended&&el>6000){
-    T.captionOnly=true;podium.hushNow?.();T.t0=performance.now();el=0;
+  // Keep the same Cartesia voice. Wait for loading; pause failures for an explicit retry.
+  if(ns.voice&&ns.failed){
+    T.narrationFailed=true;T.play=false;T.pAt=performance.now();T.ccShown=true;
+    tourUI();$('tcap').hidden=false;
+    const sub=$('tsub');if(sub)sub.textContent='Cartesia narration is unavailable. Press Play to retry this step, or Next to continue. '+T.steps[T.i].x;
+    return;
   }
   const voice=ns.voice&&!ns.failed&&!T.captionOnly;
   if(voice&&ns.started&&!T.audioStarted){T.audioStarted=true;T.t0=performance.now();el=0}
@@ -632,6 +636,7 @@ function renderTop(){
 }
 const renderShell=()=>{nav();renderTop()};
 function go(v,arg){
+  if(T.on&&!T.navigating)podium.tourStop();
   window.PTTracyGuide?.beforeNavigate();
   const admin=window.PTIdentity?.isAdmin(window.PTCloud?.user);
   if(['admin','adminUsers'].includes(v)&&!admin)v='library';
