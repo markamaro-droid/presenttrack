@@ -17,7 +17,7 @@ import presentationMaintenance from '../api/presentation-maintenance.js';
 import { pdfAsset, pdfRoot } from './pdf-assets.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.glb': 'model/gltf-binary', '.png': 'image/png', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg' };
+const types = { '.webm': 'video/webm', '.vtt': 'text/vtt', '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.glb': 'model/gltf-binary', '.png': 'image/png', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg' };
 const shared = /^supabase\/functions\/_shared\/(metrics|quality|classify|feedback|criteria|baseline|report)\.js$/;
 createServer(async (req, res) => {
   try {
@@ -47,6 +47,17 @@ createServer(async (req, res) => {
       res.writeHead(404); return res.end('Not found');
     }
     const data = await readFile(target);
+    if (relative.endsWith('.webm')) {
+      const range = /^bytes=(\d+)-(\d*)$/.exec(req.headers.range || '');
+      res.setHeader('Accept-Ranges','bytes');
+      if (range) {
+        const start=Number(range[1]),end=Math.min(data.length-1,range[2]?Number(range[2]):data.length-1);
+        if(start>end||start>=data.length){res.writeHead(416,{'Content-Range':`bytes */${data.length}`});return res.end();}
+        res.writeHead(206,{'Content-Type':'video/webm','Content-Range':`bytes ${start}-${end}/${data.length}`,'Content-Length':end-start+1});
+        return res.end(req.method==='HEAD'?undefined:data.subarray(start,end+1));
+      }
+      res.setHeader('Content-Length',data.length);
+    }
     res.writeHead(200, { 'Content-Type': types[path.extname(target)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
     res.end(req.method === 'HEAD' ? undefined : data);
   } catch { res.writeHead(404); res.end('Not found'); }

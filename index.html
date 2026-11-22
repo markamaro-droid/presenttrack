@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/hero.css">
 <link rel="stylesheet" href="css/auth.css">
-<link rel="stylesheet" href="css/tour-demo.css">
+<link rel="stylesheet" href="css/product-tour.css">
 <link rel="stylesheet" href="css/app-shell.css">
 <link rel="stylesheet" href="css/landing.css">
 <link rel="stylesheet" href="css/clay.css">
@@ -41,28 +41,16 @@
     <div class="logo"><i></i>PresentTrack</div>
     <div>
       <h2>Rehearse out loud. Walk in ready.</h2>
-      <p>Watch a 20-second tour: set the timer, speak, log filler words and get a score with clear next steps.</p>
-      <div class="vid" aria-label="How PresentTrack works: a 20 second product tour">
-        <div class="stage" id="stage" aria-hidden="true">
-          <div class="bar"><i></i><i></i><i></i><span>PresentTrack · Practice room</span><em id="rec" hidden>● REC</em></div>
-          <div class="scene"><p class="lb">Talk length</p>
-            <div class="presets"><button tabindex="-1" data-m="3">3 min</button><button tabindex="-1" data-m="5" id="c5">5 min</button><button tabindex="-1" data-m="10">10 min</button></div>
-            <button class="pb prim" id="go" tabindex="-1">Start practice</button><p class="lb" id="s0m">Timer is running</p></div>
-          <div class="scene s1"><div class="ring"><svg viewBox="0 0 120 120"><circle class="trk" cx="60" cy="60" r="54"/><circle class="prg" id="prg" cx="60" cy="60" r="54"/></svg><div class="time"><b id="clock">0:00</b><span id="left">of 5:00</span></div></div>
-            <div class="col"><div><p class="lb">Voice</p><div class="wave" id="wave"></div></div>
-              <div><div class="pace-h"><span>Pace</span><b id="pv">– wpm</b></div><div class="pbar"><i id="pm"></i></div><div class="zones"><span>Slow</span><span>Clear</span><span>Fast</span></div></div></div></div>
-          <div class="scene" id="s2"><p class="lb">Filler words</p>
-            <div id="chips"><button class="chip" tabindex="-1" data-f="um">um <b>0</b></button><button class="chip" tabindex="-1" data-f="like">like <b>0</b></button><button class="chip" tabindex="-1" data-f="you know">you know <b>0</b></button><button class="chip" tabindex="-1" data-f="so">so <b>0</b></button></div>
-            <p class="lb">Each tap is saved for your feedback</p></div>
-          <div class="scene"><div class="score"><b id="sc">0</b><span id="sl">Your score</span></div>
-            <ul class="tips"><li>Timing: 4:52 of 5:00. Right on time.</li><li>Fillers: 3 “um”. Try a short pause instead.</li><li>Pace: 142 wpm. In the clear zone.</li></ul></div>
-          <svg id="cur" viewBox="0 0 24 24"><path d="M3 2l7 19 3-8 8-3z" fill="#fff" stroke="#0A3466" stroke-width="1.5" stroke-linejoin="round"/></svg>
-        </div>
-        <div class="cap"><b id="capn">1</b><span id="capt"></span></div>
-        <div class="ctl2"><button type="button" class="pb" id="pp">Pause</button>
-          <div class="segs"><button type="button" class="seg" aria-label="Go to step 1"><i></i></button><button type="button" class="seg" aria-label="Go to step 2"><i></i></button><button type="button" class="seg" aria-label="Go to step 3"><i></i></button><button type="button" class="seg" aria-label="Go to step 4"><i></i></button></div>
-          <span id="tm">0:00 / 0:20</span></div>
-      </div>
+      <p>Watch the actual workspace: prepare your slides, record a rehearsal, and review your feedback.</p>
+      <figure class="product-tour">
+        <video id="product-tour" controls playsinline preload="none" poster="assets/tour/product-tour-poster.jpg" aria-label="PresentTrack desktop walkthrough">
+          <source src="assets/tour/product-tour.webm" type="video/webm">
+          <track kind="captions" src="assets/tour/product-tour.vtt" srclang="en" label="English" default>
+          Your browser cannot play this video. <a href="assets/tour/product-tour.webm">Download the walkthrough</a>.
+        </video>
+        <figcaption>Actual desktop interface &middot; edited 20-second walkthrough &middot; sample data and results.</figcaption>
+        <details><summary>Read the walkthrough</summary><ol><li>Open your dashboard to see your next rehearsal.</li><li>Use My Presentations to upload a PPTX or PDF.</li><li>Choose a practice duration, agree to audio processing, then start recording and move through your slides.</li><li>After finishing and analysis, review speaking delivery and explanation feedback. Recording and analysis take longer than shown here.</li></ol></details>
+      </figure>
     </div>
   </aside>
 
@@ -191,7 +179,7 @@
 <script src="js/cloud.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/water.js"></script>
-<script src="js/hero-tour-demo.js"></script>
+
 <script src="js/practice-audio.js"></script>
 <script src="js/workspace-model.js"></script>
 <script src="js/presentation-content.js"></script>

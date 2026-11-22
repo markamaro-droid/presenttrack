@@ -1,0 +1,6 @@
+.hero{gap:28px;justify-content:flex-start}.hero>div:last-child{margin-top:auto}
+.product-tour{margin:28px 0 0;border:1px solid #ffffff40;border-radius:18px;overflow:hidden;background:#101827;color:#e2e8f0}
+.product-tour video{display:block;width:100%;height:auto;aspect-ratio:16/10;background:#101827}
+.product-tour figcaption{padding:14px 18px;font-size:13px;line-height:1.5}
+.product-tour details{padding:0 18px 16px;font-size:13px;line-height:1.6}.product-tour summary{cursor:pointer}.product-tour ol{padding-left:20px}
+.product-tour summary:focus-visible,.product-tour video:focus-visible{outline:3px solid #93c5fd;outline-offset:-3px}
