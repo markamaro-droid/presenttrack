@@ -44,9 +44,7 @@ try {
     // Every configured selector resolves in a populated account, using actual views.
     const missing = await evaluate(`(()=>{const missing=[];for(const step of PTTourSteps){podium.ext.go(step.view);const el=document.querySelector(step.target);if(!el||el.getBoundingClientRect().width<2)missing.push(step.title+' '+step.target);}return missing;})()`);
     // Finish is intentionally hidden until a recording starts.
-    assert.deepEqual(missing.filter(item => item !== 'Finish #vfin'), [], `${width}: missing targets`);
-    const narrationMismatches = await evaluate(`(()=>{const errors=[];podium.narrate=text=>window.lastNarration=text;podium.ext.go('dash');podium.startTour();for(let i=0;i<PTTourSteps.length+2&&podium.tourOn();i++){const title=document.querySelector('#spot strong').textContent,copy=document.querySelector('#spot span').textContent;const step=PTTourSteps.find(s=>s.title===title&&s.description===copy);const target=step&&document.querySelector(step.target);if(!step||lastNarration!==step.voiceLine||!target||target.getBoundingClientRect().width<2)errors.push(title);document.querySelector('[data-tact="tnext"]').click();}return errors})()`);
-    assert.deepEqual(narrationMismatches, [], 'Each spoken step matches its highlighted control');
+    assert.deepEqual(missing.filter(item => item !== 'Finish #pfin'), [], `${width}: missing targets`);
     await evaluate(`podium.ext.go('dash');podium.startTour();podium.tourPause();`);
     assert.equal(await evaluate(`getComputedStyle(document.querySelector('#spot')).position`),'fixed');
     assert.equal(await evaluate(`getComputedStyle(document.querySelector('#spot>b')).position`),'fixed');
@@ -67,11 +65,6 @@ try {
     assert.equal(await evaluate(`(()=>{const r=document.querySelector('#spot>b').getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight;})()`),true);
     await evaluate('podium.tourStop()');
     assert.equal(await evaluate(`document.querySelector('#spot').hidden`),true);
-    // Let playback completion drive navigation instead of clicking Next.
-    const automatic = await evaluate(`(async()=>{const spoken=[];podium.ext.S.ev={done:true,results:{source:'legacy'}};podium.narrate=text=>spoken.push(text);podium.narState=()=>({voice:true,started:true,ended:true,speaking:false});podium.ext.go('dash');podium.startTour();for(let i=0;i<100&&podium.tourOn();i++)await new Promise(r=>setTimeout(r,100));return {spoken,on:podium.tourOn()}})()`);
-    assert.equal(automatic.on,false,'Automatic tour reaches its end');
-    assert.ok(automatic.spoken.some(text=>text.includes('Analyze recording')),'Automatic narration continues beyond saved Evaluation');
-    await evaluate('podium.ext.S.ev=null');
     // New users: gated controls are skipped, not relabeled as sidebar features.
     await evaluate(`podium.ext.S.evalRequired=true;podium.ext.S.pres=[];podium.ext.S.ses=[];podium.ext.go('dash');podium.startTour();`);
     const gated = await evaluate(`(()=>{const visited=[];for(let i=0;i<PTTourSteps.length+2&&podium.tourOn();i++){visited.push(document.querySelector('#spot strong')?.textContent);document.querySelector('[data-tact="tnext"]').click();}return {visited,on:podium.tourOn(),hidden:document.querySelector('#spot').hidden};})()`);

@@ -49,9 +49,8 @@
         if (globalThis.PTCloud?.user?.id !== owner) throw speechError('unauthorized');
         if (!response.ok) {
           const code = response.status === 401 ? 'unauthorized' : typeof value.error === 'string' ? value.error : 'speech_unavailable';
-          const retryAt = Date.now() + Math.max(5, Math.min(120, Number(response.headers.get('Retry-After')) || 60)) * 1000;
-          const failure = speechError(code, { retryAt });
-          if (['speech_credits', 'speech_limit', 'speech_busy'].includes(code)) unavailable = { owner, error: failure, until: retryAt };
+          const failure = speechError(code);
+          if (['speech_credits', 'speech_limit', 'speech_busy'].includes(code)) unavailable = { owner, error: failure, until: Date.now() + Math.max(5, Math.min(120, Number(response.headers.get('Retry-After')) || 60)) * 1000 };
           throw failure;
         }
         if (typeof value.audio !== 'string' || !value.audio || value.audio.length > 4000000) throw speechError('invalid_audio');
@@ -163,7 +162,6 @@
       if (!run.owner || globalThis.PTCloud?.user?.id !== run.owner || error?.code === 'unauthorized') { fail(speechError('unauthorized')); return; }
       if (run.audio) { run.audio.onended = run.audio.onerror = run.audio.onplaying = run.audio.onpause = run.audio.onwaiting = null; run.audio.pause(); }
       if (run.url) { URL.revokeObjectURL(run.url); run.url = null; }
-      if (options.allowDeviceFallback === false) { fail(error); return; }
       deviceVoice(error);
     });
     return { cancel: () => { if (active()) cancel(); }, retry: () => { if (!active() || !run.blocked || !run.retry) return false; run.blocked = false; run.retry(); return true; } };

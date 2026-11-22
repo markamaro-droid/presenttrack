@@ -101,15 +101,13 @@ function tourUI(){const st=T.steps[T.i],last=!!st.fin,focusedAction=tourEl().con
 function tourSub(frac,pos){T.sf=frac;T.sp=pos;const st=T.steps[T.i],el=$('tsub');let n=pos>0?pos:Math.round(st.x.length*frac);if(n>=st.x.length)n=st.x.length;else{const sp=st.x.indexOf(' ',n);n=sp<0?st.x.length:sp}n=Math.max(n,T.nmax||0);T.nmax=n;if(el)el.innerHTML='<b>'+esc(st.x.slice(0,n))+'</b>'+esc(st.x.slice(n));T.n=n;return n}
 function spotOff(){spotlight?.stop();$('spot').hidden=true;}
 function tourAct(a){if(a==='tcol'){document.body.classList.toggle('tourcol',$('bot').classList.toggle('tcol'));tourUI();return}if(a==='tprev')tourGo(-1);else if(a==='tnext')tourGo(1);else if(a==='tplay')tourPlay(!T.play);else if(a==='tskip')endTour(true);else if(a==='tcc'){T.cc=!T.ccShown;T.ccShown=T.cc;$('tcap').hidden=!T.cc;tourUI()}else if(a==='tadd'){endTour(false);go(pendingEval()?'eval':'decks');setTimeout(()=>{const u=$('ut');if(u)u.focus()},400)}}
-function tourShow(i,direction=1,retrying=false){
-  if(!retrying)T.voiceRetries=0;
-  podium.hushNow?.();
+function tourShow(i,direction=1){
   clearTimeout(T.advanceTimer);T.generation=(T.generation||0)+1;spotOff();
   // Visit each configured page, but never describe a missing or gated control.
   let st,el;
   while(i>=0&&i<T.steps.length){
     T.i=i;st=T.steps[i];
-    T.navigating=true;try{if(S.view!==st.v)go(st.v);else nav();}finally{T.navigating=false;}
+    if(S.view!==st.v)go(st.v);else nav();
     $('side').classList.remove('open');
     el=document.querySelector(st.target);
     if(el&&el.getBoundingClientRect().width>=2&&el.getBoundingClientRect().height>=2)break;
@@ -117,7 +115,7 @@ function tourShow(i,direction=1,retrying=false){
   }
   if(i<0){tourShow(0);return;}if(i>=T.steps.length){endTour(false);return;}
   $('bot').classList.remove('tourhl');
-  T.est=Math.max(2800,st.x.split(/\s+/).length*350+500);T.t0=performance.now();T.pAt=0;T.play=true;T.adv=false;T.captionOnly=false;T.narrationFailed=false;T.voiceIdleAt=null;T.audioStarted=false;T.sf=0;T.sp=0;T.n=0;T.nmax=0;
+  T.est=Math.max(2800,st.x.split(/\s+/).length*350+500);T.t0=performance.now();T.pAt=0;T.play=true;T.adv=false;T.captionOnly=false;T.audioStarted=false;T.sf=0;T.sp=0;T.n=0;T.nmax=0;
   tourUI();
   spotlight ||= new window.PTTourSpotlight($('spot'));
   spotlight.start(st.target,st.title,st.description);
@@ -126,35 +124,19 @@ function tourShow(i,direction=1,retrying=false){
   // Reuse the speech player's pending requests/cache; never synthesize the whole tour.
   const generation=T.generation;
   Promise.resolve().then(async()=>{
-    for(const next of T.steps.slice(T.i+1,T.i+2)){
+    for(const next of T.steps.slice(T.i+1,T.i+3)){
       if(!T.on||T.generation!==generation)break;
       try{await podium.prepareNarration?.(next.x)}catch(e){}
     }
   });
 }
 function tourGo(d){if(!T.on)return;const n=T.i+d;if(n>=T.steps.length){endTour(false);return}tourShow(n,d)}
-function tourPlay(p){if(!T.on||T.play===p)return;if(p&&T.narrationFailed){tourShow(T.i);return}T.play=p;if(p){T.t0+=performance.now()-T.pAt}else T.pAt=performance.now();try{podium.narPause&&podium.narPause(!p)}catch(e){}tourUI()}
+function tourPlay(p){if(!T.on||T.play===p)return;T.play=p;if(p){T.t0+=performance.now()-T.pAt}else T.pAt=performance.now();try{podium.narPause&&podium.narPause(!p)}catch(e){}tourUI()}
 function tourTick(){
-  if(!T.on)return;if(!T.play||T.adv)return;let el=performance.now()-T.t0;let ns=(podium.narState&&podium.narState())||{voice:false};
-  if(ns.voice&&!ns.ended&&!ns.failed){
-    if(ns.started&&ns.speaking===false){T.voiceIdleAt??=performance.now()}else T.voiceIdleAt=null;
-    if((!ns.started&&el>45000)||(T.voiceIdleAt!==null&&T.voiceIdleAt!==undefined&&performance.now()-T.voiceIdleAt>15000)||el>120000){
-      podium.hushNow?.();ns={...ns,failed:true,errorCode:'speech_interrupted'};
-    }
-  }
-  // Keep the same Cartesia voice. Wait for loading; pause failures for an explicit retry.
-  if(ns.voice&&ns.failed){
-    T.narrationFailed=true;T.play=false;T.pAt=performance.now();T.ccShown=true;
-    const transient=['speech_busy','speech_limit','speech_unavailable','speech_timeout','speech_interrupted'].includes(ns.errorCode);
-    const retry=transient&&(T.voiceRetries||0)<1;
-    const reasons={speech_interrupted:'Tour audio was interrupted.',speech_credits:'Cartesia credits are exhausted.',speech_limit:'The voice usage limit was reached.',speech_busy:'Cartesia is temporarily busy.',unauthorized:'Your sign-in session needs refreshing.',speech_access:'The Cartesia connection needs attention.',speech_configuration:'The Cartesia voice configuration needs attention.',playback_blocked:'Your browser blocked audio playback.'};
-    tourUI();$('tcap').hidden=false;
-    if(retry){
-      T.voiceRetries=(T.voiceRetries||0)+1;const generation=T.generation;
-      T.advanceTimer=setTimeout(()=>{if(T.on&&T.generation===generation&&T.narrationFailed)tourShow(T.i,1,true)},Math.max(3000,Math.min(120000,(ns.retryAt||Date.now()+3000)-Date.now())));
-    }
-    const sub=$('tsub');if(sub)sub.textContent=(reasons[ns.errorCode]||'Cartesia narration is unavailable.')+' '+(retry?'Retrying this step automatically. You can also press Next.':'Press Play to retry this step, or Next to continue.')+' '+T.steps[T.i].x;
-    return;
+  if(!T.on)return;if(!T.play||T.adv)return;let el=performance.now()-T.t0;const ns=(podium.narState&&podium.narState())||{voice:false};
+  // A slow provider must not hold a step in silence for its full network timeout.
+  if(!T.captionOnly&&ns.voice&&!ns.started&&!ns.ended&&el>6000){
+    T.captionOnly=true;podium.hushNow?.();T.t0=performance.now();el=0;
   }
   const voice=ns.voice&&!ns.failed&&!T.captionOnly;
   if(voice&&ns.started&&!T.audioStarted){T.audioStarted=true;T.t0=performance.now();el=0}
@@ -650,7 +632,6 @@ function renderTop(){
 }
 const renderShell=()=>{nav();renderTop()};
 function go(v,arg){
-  if(T.on&&!T.navigating)podium.tourStop();
   window.PTTracyGuide?.beforeNavigate();
   const admin=window.PTIdentity?.isAdmin(window.PTCloud?.user);
   if(['admin','adminUsers'].includes(v)&&!admin)v='library';
