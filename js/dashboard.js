@@ -101,7 +101,8 @@ function tourUI(){const st=T.steps[T.i],last=!!st.fin,focusedAction=tourEl().con
 function tourSub(frac,pos){T.sf=frac;T.sp=pos;const st=T.steps[T.i],el=$('tsub');let n=pos>0?pos:Math.round(st.x.length*frac);if(n>=st.x.length)n=st.x.length;else{const sp=st.x.indexOf(' ',n);n=sp<0?st.x.length:sp}n=Math.max(n,T.nmax||0);T.nmax=n;if(el)el.innerHTML='<b>'+esc(st.x.slice(0,n))+'</b>'+esc(st.x.slice(n));T.n=n;return n}
 function spotOff(){spotlight?.stop();$('spot').hidden=true;}
 function tourAct(a){if(a==='tcol'){document.body.classList.toggle('tourcol',$('bot').classList.toggle('tcol'));tourUI();return}if(a==='tprev')tourGo(-1);else if(a==='tnext')tourGo(1);else if(a==='tplay')tourPlay(!T.play);else if(a==='tskip')endTour(true);else if(a==='tcc'){T.cc=!T.ccShown;T.ccShown=T.cc;$('tcap').hidden=!T.cc;tourUI()}else if(a==='tadd'){endTour(false);go(pendingEval()?'eval':'decks');setTimeout(()=>{const u=$('ut');if(u)u.focus()},400)}}
-function tourShow(i,direction=1){
+function tourShow(i,direction=1,retrying=false){
+  if(!retrying)T.voiceRetries=0;
   podium.hushNow?.();
   clearTimeout(T.advanceTimer);T.generation=(T.generation||0)+1;spotOff();
   // Visit each configured page, but never describe a missing or gated control.
@@ -125,7 +126,7 @@ function tourShow(i,direction=1){
   // Reuse the speech player's pending requests/cache; never synthesize the whole tour.
   const generation=T.generation;
   Promise.resolve().then(async()=>{
-    for(const next of T.steps.slice(T.i+1,T.i+3)){
+    for(const next of T.steps.slice(T.i+1,T.i+2)){
       if(!T.on||T.generation!==generation)break;
       try{await podium.prepareNarration?.(next.x)}catch(e){}
     }
@@ -138,8 +139,15 @@ function tourTick(){
   // Keep the same Cartesia voice. Wait for loading; pause failures for an explicit retry.
   if(ns.voice&&ns.failed){
     T.narrationFailed=true;T.play=false;T.pAt=performance.now();T.ccShown=true;
+    const transient=['speech_busy','speech_limit','speech_unavailable','speech_timeout'].includes(ns.errorCode);
+    const retry=transient&&(T.voiceRetries||0)<1;
+    const reasons={speech_credits:'Cartesia credits are exhausted.',speech_limit:'The voice usage limit was reached.',speech_busy:'Cartesia is temporarily busy.',unauthorized:'Your sign-in session needs refreshing.',speech_access:'The Cartesia connection needs attention.',speech_configuration:'The Cartesia voice configuration needs attention.',playback_blocked:'Your browser blocked audio playback.'};
     tourUI();$('tcap').hidden=false;
-    const sub=$('tsub');if(sub)sub.textContent='Cartesia narration is unavailable. Press Play to retry this step, or Next to continue. '+T.steps[T.i].x;
+    if(retry){
+      T.voiceRetries=(T.voiceRetries||0)+1;const generation=T.generation;
+      T.advanceTimer=setTimeout(()=>{if(T.on&&T.generation===generation&&T.narrationFailed)tourShow(T.i,1,true)},Math.max(3000,Math.min(120000,(ns.retryAt||Date.now()+3000)-Date.now())));
+    }
+    const sub=$('tsub');if(sub)sub.textContent=(reasons[ns.errorCode]||'Cartesia narration is unavailable.')+' '+(retry?'Retrying this step automatically. You can also press Next.':'Press Play to retry this step, or Next to continue.')+' '+T.steps[T.i].x;
     return;
   }
   const voice=ns.voice&&!ns.failed&&!T.captionOnly;

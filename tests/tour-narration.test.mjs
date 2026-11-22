@@ -5,13 +5,13 @@ import { readFile } from 'node:fs/promises';
 const source = await readFile(new URL('../js/dashboard.js', import.meta.url), 'utf8');
 const config = await readFile(new URL('../js/tour-steps.js', import.meta.url), 'utf8');
 function setup(state) {
-  let time = 0, stopped = 0, advanced = 0;
+  let time = 0, stopped = 0, advanced = 0, retried = 0;
   const elements = new Map(), timers = [];
   const T = { on:true, play:true, i:0, t0:0, est:3000, cc:null, generation:1,steps:[{x:"Current highlighted control."}] };
   const context = { T, performance:{now:()=>time}, $:id=>{if(!elements.has(id))elements.set(id,{style:{},hidden:true});return elements.get(id);},
-    podium:{narState:()=>state,hushNow:()=>stopped++},tourUI(){},tourSub(){},tourGo:()=>advanced++,setTimeout:fn=>timers.push(fn) };
+    podium:{narState:()=>state,hushNow:()=>stopped++},tourShow:()=>retried++,tourUI(){},tourSub(){},tourGo:()=>advanced++,setTimeout:fn=>timers.push(fn) };
   vm.runInNewContext(source.slice(source.indexOf('function tourTick(){'),source.indexOf('function startTour(){')),context);
-  return { T, elements, tick:ms=>{time=ms;context.tourTick();},flush:()=>timers.splice(0).forEach(fn=>fn()),get stopped(){return stopped;},get advanced(){return advanced;} };
+  return { T, elements, tick:ms=>{time=ms;context.tourTick();},flush:()=>timers.splice(0).forEach(fn=>fn()),get retried(){return retried;},get stopped(){return stopped;},get advanced(){return advanced;} };
 }
 test('spoken labels use normal words while visible button labels remain exact',()=>{
   const context={window:{}};vm.runInNewContext(config,context);
@@ -38,4 +38,11 @@ test('Cartesia failure pauses on the current step with an explicit retry message
  assert.equal(s.advanced,0);assert.equal(s.T.play,false);assert.equal(s.T.narrationFailed,true);
  assert.match(s.elements.get('tsub').textContent,/Press Play to retry/);
  assert.equal(s.elements.get('tcap').hidden,false);
+});
+
+test('temporary Cartesia failures retry once on the same step, never after leaving',()=>{
+ const state={voice:true,failed:true,errorCode:'speech_busy'};
+ const s=setup(state);s.tick(100);s.flush();assert.equal(s.retried,1);assert.equal(s.advanced,0);
+ s.T.play=true;s.tick(200);s.flush();assert.equal(s.retried,1);
+ const left=setup(state);left.tick(100);left.T.on=false;left.flush();assert.equal(left.retried,0);
 });

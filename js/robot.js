@@ -27,7 +27,7 @@ function speak(text,done,playback={}){
   hush();const my=nar={started:false,ended:false,pos:0};
   const t=clean(text);
   if(!t||podium.voiceOn===false||V.on||document.hidden){my.ended=true;done?.();return}
-  const fail=()=>{speaking=false;my.failed=true;my.ended=true;rsub.textContent=t;rcap.hidden=bot.classList.contains('tourmode');done?.()};
+  const fail=error=>{if(nar!==my)return;speaking=false;my.errorCode=error?.code;my.retryAt=error?.retryAt;my.failed=true;my.ended=true;rsub.textContent=t;rcap.hidden=bot.classList.contains('tourmode');done?.()};
   if(!globalThis.TracyAudio){fail();return}
   TracyAudio.speak(t,{allowDeviceFallback:playback.allowDeviceFallback,onstart:()=>{if(nar!==my)return;speaking=true;my.started=true;playback.onstart?.()},onpause:()=>{if(nar!==my)return;speaking=false;playback.onpause?.()},onend:()=>{if(nar!==my)return;speaking=false;my.ended=true;done?.()},onerror:fail});
 }
@@ -37,7 +37,7 @@ mute.onclick=()=>podium.setVoice(podium.voiceOn===false);
 
 podium.prepareNarration=text=>podium.voiceOn!==false?globalThis.TracyAudio?.prepare(clean(text)):Promise.resolve(false);
 podium.narrate=(text,est)=>{if(window.PTVoice&&PTVoice.active)PTVoice.stop();set('talking',Math.min(60000,(est||8000)*2.5),'');speak(text,null,{allowDeviceFallback:false})};
-podium.narState=()=>({voice:!!globalThis.TracyAudio&&podium.voiceOn!==false&&!V.on,started:nar.started,ended:nar.ended,failed:!!nar.failed,pos:nar.pos||0,speaking});
+podium.narState=()=>({voice:!!globalThis.TracyAudio&&podium.voiceOn!==false&&!V.on,started:nar.started,ended:nar.ended,failed:!!nar.failed,errorCode:nar.errorCode,retryAt:nar.retryAt,pos:nar.pos||0,speaking});
 podium.narPause=p=>{globalThis.TracyAudio?.pause(p)};podium.hushNow=()=>{hush();set('idle',0,'')};
 podium.robotIntroduce=(text,done,onstart)=>{
   clearAll();stopVoice();set('idle',0,'');let greeted=false;
