@@ -46,3 +46,13 @@ test('temporary Cartesia failures retry once on the same step, never after leavi
  s.T.play=true;s.tick(200);s.flush();assert.equal(s.retried,1);
  const left=setup(state);left.tick(100);left.T.on=false;left.flush();assert.equal(left.retried,0);
 });
+
+test('lost playback completion cannot leave the tour stuck on Pause forever',()=>{
+ const s=setup({voice:true,started:true,ended:false,speaking:false});
+ s.tick(100);s.tick(15200);assert.equal(s.stopped,1);assert.equal(s.T.play,false);
+ s.flush();assert.equal(s.retried,1);assert.equal(s.advanced,0);
+});
+test('narration that never starts has a bounded wait and retries the same highlight',()=>{
+ const s=setup({voice:true,started:false,ended:false});s.tick(45001);s.flush();
+ assert.equal(s.stopped,1);assert.equal(s.retried,1);assert.equal(s.advanced,0);
+});

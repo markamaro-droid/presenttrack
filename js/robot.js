@@ -21,7 +21,7 @@ function say(x){clearTimeout(rct);
 const SY=window.speechSynthesis;let speaking=false;podium.voiceOn=true;
 function pickVoice(){const vs=(SY.getVoices()||[]).filter(v=>/^en/i.test(v.lang));return vs.find(v=>/Google US English|Samantha|Aria|Jenny|Zira|Karen|Moira|Serena|Female/i.test(v.name))||vs.find(v=>/en[-_]US/i.test(v.lang))||vs[0]||null}
 function clean(t){return String(t).replace(/[●“”]/g,'').replace(/…/g,'.').replace(/\bwpm\b/gi,'words per minute').replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu,'').replace(/\s+/g,' ').trim()}
-function hush(){globalThis.TracyAudio?.cancel();try{SY&&SY.cancel()}catch(e){}speaking=false}
+function hush(){if(nar&&!nar.ended){nar.failed=true;nar.ended=true;nar.errorCode='speech_interrupted'}globalThis.TracyAudio?.cancel();try{SY&&SY.cancel()}catch(e){}speaking=false}
 let nar={started:false,ended:false,pos:0};
 function speak(text,done,playback={}){
   hush();const my=nar={started:false,ended:false,pos:0};
@@ -128,7 +128,7 @@ function frame(){
   N.eyes.position.x=N.ex+C.ex*.12;N.eyes.position.z=N.ez+C.ey*.06;   // eyes only slide; never resize
   R.render(scene,cam);
 }
-podium.robotSay=(kind,text,dur)=>{if(!shown||bot.hidden||V.on||V.busy||window.PTTracyGuide?.active)return;const m={idle:'idle',greeting:'wave',encouraging:'talking',reminder:'listening',success:'celebrate',thinking:'thinking'}[kind]||'idle';clearAll();set(m,m==='idle'?0:(dur||4500),text,['greeting','reminder','encouraging','success'].includes(kind)?text:undefined)};
+podium.robotSay=(kind,text,dur)=>{if(!shown||bot.hidden||V.on||V.busy||podium.tourOn?.()||window.PTTracyGuide?.active)return;const m={idle:'idle',greeting:'wave',encouraging:'talking',reminder:'listening',success:'celebrate',thinking:'thinking'}[kind]||'idle';clearAll();set(m,m==='idle'?0:(dur||4500),text,['greeting','reminder','encouraging','success'].includes(kind)?text:undefined)};
 podium.robotShow=(v,where)=>{shown=v;bot.hidden=!v||(where==='app'&&!!podium.min);if(!v){voice.stop()}{const mi=document.getElementById('bmini');if(mi&&(!v||where!=='app'))mi.hidden=true}clearAll();stopVoice();V.busy=voice.active;
   if(v){document.body.appendChild(bot);bot.classList.toggle('app',where==='app');W=H=0;
     if(!R){try{init()}catch(e){fail(e);return}}last=sec();t=0;set('idle',0,'');

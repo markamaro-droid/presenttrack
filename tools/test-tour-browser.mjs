@@ -67,6 +67,11 @@ try {
     assert.equal(await evaluate(`(()=>{const r=document.querySelector('#spot>b').getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight;})()`),true);
     await evaluate('podium.tourStop()');
     assert.equal(await evaluate(`document.querySelector('#spot').hidden`),true);
+    // Let playback completion drive navigation instead of clicking Next.
+    const automatic = await evaluate(`(async()=>{const spoken=[];podium.ext.S.ev={done:true,results:{source:'legacy'}};podium.narrate=text=>spoken.push(text);podium.narState=()=>({voice:true,started:true,ended:true,speaking:false});podium.ext.go('dash');podium.startTour();for(let i=0;i<100&&podium.tourOn();i++)await new Promise(r=>setTimeout(r,100));return {spoken,on:podium.tourOn()}})()`);
+    assert.equal(automatic.on,false,'Automatic tour reaches its end');
+    assert.ok(automatic.spoken.some(text=>text.includes('Analyze recording')),'Automatic narration continues beyond saved Evaluation');
+    await evaluate('podium.ext.S.ev=null');
     // New users: gated controls are skipped, not relabeled as sidebar features.
     await evaluate(`podium.ext.S.evalRequired=true;podium.ext.S.pres=[];podium.ext.S.ses=[];podium.ext.go('dash');podium.startTour();`);
     const gated = await evaluate(`(()=>{const visited=[];for(let i=0;i<PTTourSteps.length+2&&podium.tourOn();i++){visited.push(document.querySelector('#spot strong')?.textContent);document.querySelector('[data-tact="tnext"]').click();}return {visited,on:podium.tourOn(),hidden:document.querySelector('#spot').hidden};})()`);

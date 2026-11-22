@@ -117,7 +117,7 @@ function tourShow(i,direction=1,retrying=false){
   }
   if(i<0){tourShow(0);return;}if(i>=T.steps.length){endTour(false);return;}
   $('bot').classList.remove('tourhl');
-  T.est=Math.max(2800,st.x.split(/\s+/).length*350+500);T.t0=performance.now();T.pAt=0;T.play=true;T.adv=false;T.captionOnly=false;T.narrationFailed=false;T.audioStarted=false;T.sf=0;T.sp=0;T.n=0;T.nmax=0;
+  T.est=Math.max(2800,st.x.split(/\s+/).length*350+500);T.t0=performance.now();T.pAt=0;T.play=true;T.adv=false;T.captionOnly=false;T.narrationFailed=false;T.voiceIdleAt=null;T.audioStarted=false;T.sf=0;T.sp=0;T.n=0;T.nmax=0;
   tourUI();
   spotlight ||= new window.PTTourSpotlight($('spot'));
   spotlight.start(st.target,st.title,st.description);
@@ -135,13 +135,19 @@ function tourShow(i,direction=1,retrying=false){
 function tourGo(d){if(!T.on)return;const n=T.i+d;if(n>=T.steps.length){endTour(false);return}tourShow(n,d)}
 function tourPlay(p){if(!T.on||T.play===p)return;if(p&&T.narrationFailed){tourShow(T.i);return}T.play=p;if(p){T.t0+=performance.now()-T.pAt}else T.pAt=performance.now();try{podium.narPause&&podium.narPause(!p)}catch(e){}tourUI()}
 function tourTick(){
-  if(!T.on)return;if(!T.play||T.adv)return;let el=performance.now()-T.t0;const ns=(podium.narState&&podium.narState())||{voice:false};
+  if(!T.on)return;if(!T.play||T.adv)return;let el=performance.now()-T.t0;let ns=(podium.narState&&podium.narState())||{voice:false};
+  if(ns.voice&&!ns.ended&&!ns.failed){
+    if(ns.started&&ns.speaking===false){T.voiceIdleAt??=performance.now()}else T.voiceIdleAt=null;
+    if((!ns.started&&el>45000)||(T.voiceIdleAt!==null&&T.voiceIdleAt!==undefined&&performance.now()-T.voiceIdleAt>15000)||el>120000){
+      podium.hushNow?.();ns={...ns,failed:true,errorCode:'speech_interrupted'};
+    }
+  }
   // Keep the same Cartesia voice. Wait for loading; pause failures for an explicit retry.
   if(ns.voice&&ns.failed){
     T.narrationFailed=true;T.play=false;T.pAt=performance.now();T.ccShown=true;
-    const transient=['speech_busy','speech_limit','speech_unavailable','speech_timeout'].includes(ns.errorCode);
+    const transient=['speech_busy','speech_limit','speech_unavailable','speech_timeout','speech_interrupted'].includes(ns.errorCode);
     const retry=transient&&(T.voiceRetries||0)<1;
-    const reasons={speech_credits:'Cartesia credits are exhausted.',speech_limit:'The voice usage limit was reached.',speech_busy:'Cartesia is temporarily busy.',unauthorized:'Your sign-in session needs refreshing.',speech_access:'The Cartesia connection needs attention.',speech_configuration:'The Cartesia voice configuration needs attention.',playback_blocked:'Your browser blocked audio playback.'};
+    const reasons={speech_interrupted:'Tour audio was interrupted.',speech_credits:'Cartesia credits are exhausted.',speech_limit:'The voice usage limit was reached.',speech_busy:'Cartesia is temporarily busy.',unauthorized:'Your sign-in session needs refreshing.',speech_access:'The Cartesia connection needs attention.',speech_configuration:'The Cartesia voice configuration needs attention.',playback_blocked:'Your browser blocked audio playback.'};
     tourUI();$('tcap').hidden=false;
     if(retry){
       T.voiceRetries=(T.voiceRetries||0)+1;const generation=T.generation;
