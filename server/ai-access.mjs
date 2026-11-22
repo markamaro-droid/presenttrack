@@ -15,9 +15,13 @@ export function createAccess({ env = process.env, fetchImpl = fetch, requiredKey
     }
     const user = await response.json();
     if (!user?.id || user.is_anonymous) throw new ChatError(401, 'unauthorized', 'Please sign in with your PresentTrack account.');
-    return { userId: user.id, headers };
+    return { userId: user.id, headers, user };
   }
   async function quota(identity, kind) {
+    if (env.BILLING_MODE === 'test' && env.BILLING_ENFORCE_TEST === 'true') {
+      const { requireBillingTestAccess } = await import('./billing.mjs');
+      await requireBillingTestAccess(identity.userId, { env, fetchImpl });
+    }
     const practice = kind === 'practice';
     const label = practice ? 'Recording analysis' : 'Tracy';
     const response = await fetchImpl(`${env.SUPABASE_URL.replace(/\/$/, '')}/rest/v1/rpc/${practice ? 'take_practice_slot' : 'take_tracy_slot'}`, {

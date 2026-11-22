@@ -1,0 +1,9 @@
+.billing-page{max-width:1400px;padding:24px 0 60px}
+.billing-page header{margin-bottom:24px}.billing-page h1{font-size:36px;margin:8px 0}
+.billing-page p{line-height:1.6}.billing-page .eyebrow{color:#93c5fd;font-size:12px;letter-spacing:.12em;font-weight:700}
+.billing-page .pn{padding:24px;margin:20px 0}.billing-page h2{font-size:21px;margin:0 0 16px}
+.billing-plans{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.billing-price{display:block;font-size:36px;margin:18px 0}.billing-plans .bt{width:100%;margin-top:12px}
+.billing-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}.billing-facts dd{margin:8px 0;font-weight:700}
+.billing-table{overflow:auto}.billing-table table{width:100%;border-collapse:collapse;text-align:left}.billing-table th,.billing-table td{padding:14px;border-bottom:1px solid #64748b55;white-space:nowrap}
+.billing-page button:disabled{opacity:.5;cursor:not-allowed}#billing-message{min-height:26px}

@@ -1,6 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {ChatError} from './ai-access.mjs';
+import {requireBillingTestAccess} from './billing.mjs';
 import {createLearningStore,uuid} from './learning-store.mjs';
 import {prepareUnderstanding} from './presentation-understanding.mjs';
 import {assessExplanation} from './learning-analysis.mjs';
@@ -11,6 +12,7 @@ export function createLearningService({env=process.env,fetchImpl=fetch,store=cre
   return async(authorization,input)=>{
     const {userId:user}=await store.authenticate(authorization);
     if(!input||typeof input.action!=='string')throw new ChatError(400,'invalid_request','Choose a valid learning action.');
+    if(['prepare','review'].includes(input.action))await requireBillingTestAccess(user,{env,fetchImpl});
     const id=input.id;if(id!==undefined&&!uuid.test(id))throw new ChatError(400,'invalid_id','Invalid record identifier.');
     if(input.action==='delete-account')return deleteLearningAccount(user,authorization,input,{env,fetchImpl});
     if(input.action==='history')return {sessions:await store.history(user),deleted:await store.list('learning_deletions',user,'&select=id,legacy_key')};

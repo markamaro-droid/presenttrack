@@ -8,6 +8,8 @@ import coach from '../api/coach.js';
 import speech from '../api/speech.js';
 import practice from '../api/practice.js';
 import admin from '../api/admin.js';
+import billing from '../api/billing.js';
+import billingWebhook from '../api/billing-webhook.js';
 import presentations from '../api/presentations.js';
 import learning from '../api/learning.js';
 import cloudconvertWebhook from '../api/cloudconvert-webhook.js';
@@ -22,6 +24,8 @@ createServer(async (req, res) => {
     const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
     if (pathname === '/api/chat') return await chat(req, res);
     if (pathname === '/api/voice') return await voice(req, res);
+    if (pathname === '/api/billing') return await billing(req,res);
+    if (pathname === '/api/billing-webhook') return await billingWebhook(req,res);
     if (pathname === '/api/admin') return await admin(req, res);
     if (pathname === '/api/presentations') return await presentations(req, res);
     if (pathname === '/api/learning') return await learning(req, res);

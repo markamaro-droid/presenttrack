@@ -54,9 +54,17 @@ export function createBillingService({env=process.env,fetchImpl=fetch,db=createB
     return {received:true};
   }
   async function service(auth,body) {
-    const {userId}=await authenticate(auth);const config=settings();
+    const {userId,user}=await authenticate(auth);const config=settings();
+    if(body?.action==='admin') {
+      if(user?.app_metadata?.role!=='admin'||user.app_metadata.must_change_password!==false)fail('forbidden','Administrator access with an updated password is required.',403);
+      const configuration={enabled:config.enabled,keyConfigured:/^sk_test_\S+$/.test(env.PAYMONGO_TEST_SECRET_KEY||''),webhookConfigured:!!env.PAYMONGO_TEST_WEBHOOK_SECRET,testAccounts:config.users.length,enforced:env.BILLING_ENFORCE_TEST==='true'};
+      if(!config.enabled)return {configuration,plans:config.plans,accounts:[],orders:[]};
+      const accounts=await db('billing_test_accounts?order=updated_at.desc&limit=100');
+      const orders=await db('billing_test_orders?select=id,user_id,plan,amount,currency,status,created_at,paid_at&order=created_at.desc&limit=100');
+      return {configuration,plans:config.plans,accounts:accounts.map(a=>({...a,status:entitlement(a)})),orders};
+    }
     if(!body||!['status','trial','checkout','refresh'].includes(body.action))fail('invalid_action','Choose a billing action.',400);
-    if(!config.enabled||!config.users.includes(userId))return body.action==='status'?{enabled:false}:fail('billing_test_only','Billing is available only to designated test accounts.',403);
+    if(!config.enabled||!config.users.includes(userId))return body.action==='status'?{enabled:false,plans:config.plans,trialDays:7}:fail('billing_test_only','Billing is available only to designated test accounts.',403);
     if(body.action==='trial')await db('rpc/start_billing_test_trial','POST',{p_user:userId});
     if(body.action==='checkout') {
       configured();const plan=config.plans.find(p=>p.id===body.plan);
@@ -77,7 +85,7 @@ export function createBillingService({env=process.env,fetchImpl=fetch,db=createB
       return {url};
     }
     if(body.action==='refresh') {
-      const pending=await db('billing_test_orders?user_id=eq.'+userId+'&status=eq.pending&session_id=not.is.null&order=created_at.desc&limit=3');
+      const pending=await db('billing_test_orders?user_id=eq.'+userId+'&status=eq.pending&session_id=not.is.null&order=created_at.desc&limit=1');
       for(const order of pending)await confirm(order.session_id);
     }
     const account=(await db('billing_test_accounts?user_id=eq.'+userId))[0]||null;
